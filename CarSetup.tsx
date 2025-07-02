@@ -1,7 +1,9 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 import React, { useState, useRef } from 'react';
-import { Select, Input, Tabs, Modal, Switch, Checkbox } from 'antd';
-import { SettingOutlined, PlusOutlined, BellOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Select, Input, Tabs, Modal, Switch, Checkbox, message } from 'antd';
+import { SettingOutlined, PlusOutlined, BellOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined, LogoutOutlined } from '@ant-design/icons';
+import { useAuth } from './src/contexts/AuthContext';
+import { logout } from './src/services/authService';
 const { TabPane } = Tabs;
 interface DropdownState {
 isOpen: boolean;
@@ -10,6 +12,7 @@ currentInput: string;
 options: { value: string; label: string }[];
 }
 const App: React.FC = () => {
+const { currentUser } = useAuth();
 const [settingsModal, setSettingsModal] = useState(false);
 const [currentSettingView, setCurrentSettingView] = useState('account');
 const [dropdownState, setDropdownState] = useState<DropdownState>({
@@ -117,6 +120,21 @@ className="p-2 text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer"
 onClick={() => setSettingsModal(true)}
 >
 <SettingOutlined style={{ fontSize: '20px' }} />
+</button>
+<button
+className="p-2 text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer"
+onClick={async () => {
+  try {
+    await logout();
+    message.success('ログアウトしました');
+    window.location.href = '/auth';
+  } catch (error) {
+    message.error('ログアウトに失敗しました');
+  }
+}}
+title="ログアウト"
+>
+<LogoutOutlined style={{ fontSize: '20px' }} />
 </button>
 <Modal
 title="設定"
