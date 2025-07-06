@@ -1,9 +1,11 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 import React, { useState, useRef } from 'react';
 import { AutoComplete, Input, Tabs, Modal, Switch, Checkbox, message } from 'antd';
-import { SettingOutlined, PlusOutlined, BellOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined, LogoutOutlined } from '@ant-design/icons';
+import { SettingOutlined, PlusOutlined, BellOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined, LogoutOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { logout } from './src/services/authService';
+import { saveSetup, getUserSetups } from './src/services/setupService';
+import { CarSetup as CarSetupType } from './src/types/setup';
 import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
 import { SuspensionTab } from './src/components/setup/tabs/SuspensionTab';
 import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
@@ -18,6 +20,8 @@ const App: React.FC = () => {
 const { currentUser } = useAuth();
 // 将来的にユーザー情報を表示に使用
 console.log('Current user:', currentUser?.email);
+const [isSaving, setIsSaving] = useState(false);
+const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
 const [settingsModal, setSettingsModal] = useState(false);
 const [currentSettingView, setCurrentSettingView] = useState('account');
 const [dropdownState, setDropdownState] = useState<DropdownState>({
@@ -113,6 +117,11 @@ const [caster, setCaster] = useState('5.5');
 // ドライビング用状態
 const [notes, setNotes] = useState('');
 
+// セッション情報用状態
+const [circuit, setCircuit] = useState('鈴鹿サーキット');
+const [carModel, setCarModel] = useState('Honda S2000');
+const [sessionType, setSessionType] = useState<'practice' | 'qualifying' | 'race'>('practice');
+
 // ダンパー設定の状態管理
 const [damperSettings, setDamperSettings] = useState({
   fl: { bump: 8, rebound: 10 },
@@ -120,6 +129,214 @@ const [damperSettings, setDamperSettings] = useState({
   rl: { bump: 7, rebound: 9 },
   rr: { bump: 7, rebound: 9 }
 });
+
+// 保存処理
+const handleSave = async () => {
+  if (!currentUser) {
+    message.error('ログインが必要です');
+    return;
+  }
+
+  setIsSaving(true);
+  try {
+    // フォームデータを収集
+    const setupData: Omit<CarSetupType, 'id' | 'createdAt' | 'updatedAt'> = {
+      userId: currentUser.uid,
+      carModel: carModel,
+      circuit: circuit,
+      date: new Date(),
+      sessionType: sessionType,
+      weather: {
+        condition: weatherCondition,
+        airTemp: parseFloat(airTemp) || 0,
+        trackTemp: parseFloat(trackTemp) || 0,
+        humidity: parseFloat(humidity) || 0,
+        pressure: parseFloat(pressure) || 0
+      },
+      tireSettings: {
+        fl: {
+          before: parseFloat(tirePressures.fl.before) || 0,
+          after: parseFloat(tirePressures.fl.after) || 0,
+          diff: parseFloat(tirePressures.fl.diff) || 0
+        },
+        fr: {
+          before: parseFloat(tirePressures.fr.before) || 0,
+          after: parseFloat(tirePressures.fr.after) || 0,
+          diff: parseFloat(tirePressures.fr.diff) || 0
+        },
+        rl: {
+          before: parseFloat(tirePressures.rl.before) || 0,
+          after: parseFloat(tirePressures.rl.after) || 0,
+          diff: parseFloat(tirePressures.rl.diff) || 0
+        },
+        rr: {
+          before: parseFloat(tirePressures.rr.before) || 0,
+          after: parseFloat(tirePressures.rr.after) || 0,
+          diff: parseFloat(tirePressures.rr.diff) || 0
+        }
+      },
+      tireInfo: {
+        brand: tireBrand,
+        compound: tireCompound
+      },
+      sessionInfo: {
+        distance: parseFloat(distance) || 0,
+        fuel: parseFloat(fuel) || 0
+      },
+      suspensionSettings: {
+        frontDamper: {
+          compression: frontDamperCompression,
+          rebound: frontDamperRebound
+        },
+        rearDamper: {
+          compression: rearDamperCompression,
+          rebound: rearDamperRebound
+        },
+        springRate: {
+          front: parseFloat(frontSpringRate) || 0,
+          rear: parseFloat(rearSpringRate) || 0
+        },
+        rideHeight: {
+          front: parseFloat(frontRideHeight) || 0,
+          rear: parseFloat(rearRideHeight) || 0
+        },
+        antiRollBar: {
+          front: parseFloat(frontStabilizer) || 0,
+          rear: parseFloat(rearStabilizer) || 0
+        }
+      },
+      alignmentSettings: {
+        camber: {
+          front: parseFloat(frontCamber) || 0,
+          rear: parseFloat(rearCamber) || 0
+        },
+        toe: {
+          front: parseFloat(frontToe) || 0,
+          rear: parseFloat(rearToe) || 0
+        },
+        caster: parseFloat(caster) || 0
+      },
+      notes: notes
+    };
+
+    // Firestoreに保存
+    const setupId = await saveSetup(setupData);
+    message.success('セットアップデータを保存しました');
+    console.log('Saved setup with ID:', setupId);
+  } catch (error) {
+    console.error('Save error:', error);
+    message.error('保存に失敗しました');
+  } finally {
+    setIsSaving(false);
+  }
+};
+
+// 前回のセットアップデータを読み込む処理
+const handleLoadPrevious = async () => {
+  if (!currentUser) {
+    message.error('ログインが必要です');
+    return;
+  }
+
+  setIsLoadingPrevious(true);
+  try {
+    // 最新1件のセットアップデータを取得
+    const previousSetups = await getUserSetups(currentUser.uid, 1);
+    
+    if (previousSetups.length === 0) {
+      message.warning('前回のセットアップデータが見つかりません');
+      return;
+    }
+
+    const previousData = previousSetups[0];
+    
+    // 基本情報
+    setWeatherCondition(previousData.weather.condition);
+    setAirTemp(previousData.weather.airTemp.toString());
+    setTrackTemp(previousData.weather.trackTemp.toString());
+    setHumidity(previousData.weather.humidity.toString());
+    setPressure(previousData.weather.pressure.toString());
+    
+    // タイヤ情報
+    setTireBrand(previousData.tireInfo.brand);
+    setTireCompound(previousData.tireInfo.compound);
+    setDistance(previousData.sessionInfo.distance.toString());
+    setFuel(previousData.sessionInfo.fuel.toString());
+    
+    // タイヤ圧設定
+    setTirePressures({
+      fl: { 
+        before: previousData.tireSettings.fl.before.toString(), 
+        after: previousData.tireSettings.fl.after.toString(), 
+        diff: (previousData.tireSettings.fl.diff || 0) >= 0 ? `+${previousData.tireSettings.fl.diff || 0}` : (previousData.tireSettings.fl.diff || 0).toString()
+      },
+      fr: { 
+        before: previousData.tireSettings.fr.before.toString(), 
+        after: previousData.tireSettings.fr.after.toString(), 
+        diff: (previousData.tireSettings.fr.diff || 0) >= 0 ? `+${previousData.tireSettings.fr.diff || 0}` : (previousData.tireSettings.fr.diff || 0).toString()
+      },
+      rl: { 
+        before: previousData.tireSettings.rl.before.toString(), 
+        after: previousData.tireSettings.rl.after.toString(), 
+        diff: (previousData.tireSettings.rl.diff || 0) >= 0 ? `+${previousData.tireSettings.rl.diff || 0}` : (previousData.tireSettings.rl.diff || 0).toString()
+      },
+      rr: { 
+        before: previousData.tireSettings.rr.before.toString(), 
+        after: previousData.tireSettings.rr.after.toString(), 
+        diff: (previousData.tireSettings.rr.diff || 0) >= 0 ? `+${previousData.tireSettings.rr.diff || 0}` : (previousData.tireSettings.rr.diff || 0).toString()
+      }
+    });
+    
+    // サスペンション設定
+    if (previousData.suspensionSettings) {
+      setFrontDamperCompression(previousData.suspensionSettings.frontDamper.compression);
+      setFrontDamperRebound(previousData.suspensionSettings.frontDamper.rebound);
+      setRearDamperCompression(previousData.suspensionSettings.rearDamper.compression);
+      setRearDamperRebound(previousData.suspensionSettings.rearDamper.rebound);
+      setFrontSpringRate(previousData.suspensionSettings.springRate.front.toString());
+      setRearSpringRate(previousData.suspensionSettings.springRate.rear.toString());
+      setFrontRideHeight(previousData.suspensionSettings.rideHeight.front.toString());
+      setRearRideHeight(previousData.suspensionSettings.rideHeight.rear.toString());
+      setFrontStabilizer(previousData.suspensionSettings.antiRollBar.front.toString());
+      setRearStabilizer(previousData.suspensionSettings.antiRollBar.rear.toString());
+    }
+    
+    // アライメント設定
+    if (previousData.alignmentSettings) {
+      setFrontCamber(previousData.alignmentSettings.camber.front.toString());
+      setRearCamber(previousData.alignmentSettings.camber.rear.toString());
+      setFrontToe(previousData.alignmentSettings.toe.front.toString());
+      setRearToe(previousData.alignmentSettings.toe.rear.toString());
+      setCaster(previousData.alignmentSettings.caster.toString());
+    }
+    
+    // ドライビングノート
+    if (previousData.notes) {
+      setNotes(previousData.notes);
+    }
+    
+    // セッション情報
+    setCarModel(previousData.carModel);
+    setCircuit(previousData.circuit);
+    setSessionType(previousData.sessionType);
+    
+    // ダンパー設定
+    setDamperSettings({
+      fl: { bump: previousData.suspensionSettings?.frontDamper.compression || 8, rebound: previousData.suspensionSettings?.frontDamper.rebound || 10 },
+      fr: { bump: previousData.suspensionSettings?.frontDamper.compression || 8, rebound: previousData.suspensionSettings?.frontDamper.rebound || 10 },
+      rl: { bump: previousData.suspensionSettings?.rearDamper.compression || 7, rebound: previousData.suspensionSettings?.rearDamper.rebound || 9 },
+      rr: { bump: previousData.suspensionSettings?.rearDamper.compression || 7, rebound: previousData.suspensionSettings?.rearDamper.rebound || 9 }
+    });
+    
+    message.success(`前回のセットアップデータを読み込みました（${previousData.date.toLocaleDateString('ja-JP')}）`);
+  } catch (error) {
+    console.error('Load previous data error:', error);
+    message.error('前回のデータ読み込みに失敗しました');
+  } finally {
+    setIsLoadingPrevious(false);
+  }
+};
+
 return (
 <div className="min-h-screen bg-gray-50">
 {/* ヘッダー */}
@@ -484,29 +701,42 @@ className="w-full"
 <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
 <div className="flex items-center justify-between">
 <div className="flex items-center space-x-4">
-<div className="text-gray-800 font-medium">2025/06/24 10:30</div>
+<div className="text-gray-800 font-medium">{new Date().toLocaleDateString('ja-JP')} {new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</div>
 <div className="flex items-center">
 <i className="fas fa-map-marker-alt text-gray-500 mr-2"></i>
-<span>鈴鹿サーキット</span>
+<AutoComplete
+  value={circuit}
+  onChange={setCircuit}
+  className="border-0 shadow-none"
+  options={[
+    { value: '鈴鹿サーキット' },
+    { value: '富士スピードウェイ' },
+    { value: 'ツインリンクもてぎ' },
+    { value: '岡山国際サーキット' },
+    { value: 'オートポリス' }
+  ]}
+  style={{ width: 150 }}
+/>
 </div>
 </div>
 <div className="flex items-center space-x-4">
 <AutoComplete
-defaultValue="Honda S2000"
+value={carModel}
+onChange={setCarModel}
 className="w-40"
-options={[{ value: 'Honda S2000' }]}
+options={[
+  { value: 'Honda S2000' },
+  { value: 'Honda Civic Type R' },
+  { value: 'Honda NSX' },
+  { value: 'Mazda RX-7' },
+  { value: 'Mazda MX-5' },
+  { value: 'Toyota GR86' },
+  { value: 'Toyota Supra' },
+  { value: 'Nissan GT-R' },
+  { value: 'Nissan Fairlady Z' }
+]}
 bordered={false}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
-onDropdownVisibleChange={(open) => {
-  if (open) {
-    setTimeout(() => {
-      const selectedItem = document.querySelector('.ant-select-item[title="Honda S2000"]');
-      if (selectedItem) {
-        selectedItem.scrollIntoView({ block: 'center' });
-      }
-    }, 10);
-  }
-}}
 />
 <AutoComplete
 defaultValue="鈴木健太"
@@ -526,21 +756,20 @@ onDropdownVisibleChange={(open) => {
 }}
 />
 <AutoComplete
-defaultValue="練習走行"
+value={sessionType === 'practice' ? '練習走行' : sessionType === 'qualifying' ? '予選' : 'レース'}
+onChange={(value) => {
+  if (value === '練習走行') setSessionType('practice');
+  else if (value === '予選') setSessionType('qualifying');
+  else if (value === 'レース') setSessionType('race');
+}}
 className="w-32"
-options={[{ value: '練習走行' }]}
+options={[
+  { value: '練習走行' },
+  { value: '予選' },
+  { value: 'レース' }
+]}
 bordered={false}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
-onDropdownVisibleChange={(open) => {
-  if (open) {
-    setTimeout(() => {
-      const selectedItem = document.querySelector('.ant-select-item[title="練習走行"]');
-      if (selectedItem) {
-        selectedItem.scrollIntoView({ block: 'center' });
-      }
-    }, 10);
-  }
-}}
 />
 </div>
 <button className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap">
@@ -969,10 +1198,31 @@ onDropdownVisibleChange={(open) => {
 </TabPane>
 </Tabs>
 </div>
-{/* 保存ボタン */}
-<div className="fixed bottom-8 right-8 z-50">
-<button className="bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center justify-center">
-<i className="fas fa-save text-xl"></i>
+{/* 保存ボタンと前回データ読み込みボタン */}
+<div className="fixed bottom-8 right-8 z-50 flex items-center space-x-4">
+<button 
+  onClick={handleLoadPrevious}
+  disabled={isLoadingPrevious}
+  className={`bg-blue-500 text-white p-4 rounded-full hover:bg-blue-600 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center justify-center ${isLoadingPrevious ? 'opacity-50 cursor-not-allowed' : ''}`}
+  title="前回の値を読み込む"
+>
+  {isLoadingPrevious ? (
+    <i className="fas fa-spinner fa-spin text-xl"></i>
+  ) : (
+    <ReloadOutlined style={{ fontSize: '20px' }} />
+  )}
+</button>
+<button 
+  onClick={handleSave}
+  disabled={isSaving}
+  className={`bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center justify-center ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+  title="保存"
+>
+  {isSaving ? (
+    <i className="fas fa-spinner fa-spin text-xl"></i>
+  ) : (
+    <i className="fas fa-save text-xl"></i>
+  )}
 </button>
 </div>
 </main>
