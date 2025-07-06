@@ -1,6 +1,6 @@
 // アライメントタブコンポーネント
 import React from 'react';
-import { Input, Slider } from 'antd';
+import { Input } from 'antd';
 
 interface AlignmentTabProps {
   // キャンバー

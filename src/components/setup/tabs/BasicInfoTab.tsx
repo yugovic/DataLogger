@@ -1,6 +1,6 @@
 // 基本情報タブコンポーネント
 import React from 'react';
-import { Select, Input } from 'antd';
+import { Input } from 'antd';
 
 interface TirePressure {
   before: string;
@@ -28,105 +28,23 @@ interface DamperSettings {
 }
 
 interface BasicInfoTabProps {
-  weatherCondition: string;
-  setWeatherCondition: (value: string) => void;
   tirePressures: TirePressures;
   setTirePressures: React.Dispatch<React.SetStateAction<TirePressures>>;
   damperSettings: DamperSettings;
   setDamperSettings: React.Dispatch<React.SetStateAction<DamperSettings>>;
-  airTemp: string;
-  setAirTemp: (value: string) => void;
-  trackTemp: string;
-  setTrackTemp: (value: string) => void;
-  humidity: string;
-  setHumidity: (value: string) => void;
-  pressure: string;
-  setPressure: (value: string) => void;
-  tireBrand: string;
-  setTireBrand: (value: string) => void;
-  tireCompound: string;
-  setTireCompound: (value: string) => void;
-  distance: string;
-  setDistance: (value: string) => void;
-  fuel: string;
-  setFuel: (value: string) => void;
-  frontSpringRate: string;
-  setFrontSpringRate: (value: string) => void;
-  rearSpringRate: string;
-  setRearSpringRate: (value: string) => void;
-  frontRideHeight: string;
-  setFrontRideHeight: (value: string) => void;
-  rearRideHeight: string;
-  setRearRideHeight: (value: string) => void;
-  frontStabilizer: string;
-  setFrontStabilizer: (value: string) => void;
-  rearStabilizer: string;
-  setRearStabilizer: (value: string) => void;
   handleDropdownClick: (e: React.MouseEvent, inputValue: string, options: { value: string; label: string }[]) => void;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
-  weatherCondition,
-  setWeatherCondition,
   tirePressures,
   setTirePressures,
   damperSettings,
   setDamperSettings,
-  airTemp,
-  setAirTemp,
-  trackTemp,
-  setTrackTemp,
-  humidity,
-  setHumidity,
-  pressure,
-  setPressure,
-  tireBrand,
-  setTireBrand,
-  tireCompound,
-  setTireCompound,
-  distance,
-  setDistance,
-  fuel,
-  setFuel,
-  frontSpringRate,
-  setFrontSpringRate,
-  rearSpringRate,
-  setRearSpringRate,
-  frontRideHeight,
-  setFrontRideHeight,
-  rearRideHeight,
-  setRearRideHeight,
-  frontStabilizer,
-  setFrontStabilizer,
-  rearStabilizer,
-  setRearStabilizer,
   handleDropdownClick
 }) => {
-  const pressureOptions = Array.from({ length: 61 }, (_, i) => ({
-    value: (170 + i).toString(),
-    label: `${170 + i} kPa`
-  }));
-
   const calculatePressureDiff = (before: string, after: string) => {
     const diff = parseInt(after) - parseInt(before);
     return diff >= 0 ? `+${diff}` : diff.toString();
-  };
-
-  const handleTirePressureChange = (position: keyof TirePressures, timing: 'before' | 'after', value: string) => {
-    setTirePressures(prev => {
-      const currentPos = prev[position];
-      const newPos = {
-        ...currentPos,
-        [timing]: value,
-        diff: timing === 'after'
-          ? calculatePressureDiff(currentPos.before, value)
-          : calculatePressureDiff(value, currentPos.after)
-      };
-      return {
-        ...prev,
-        [position]: newPos
-      };
-    });
   };
 
   return (
@@ -590,84 +508,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
         </div>
       </div>
-      </div>
-
-      {/* スプリング設定 */}
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <div className="flex items-center mb-6">
-          <i className="fas fa-compress text-blue-500 mr-2"></i>
-          <h3 className="text-lg font-medium text-gray-800">スプリング設定</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">フロントスプリングレート (k)</label>
-            <Input
-              value={frontSpringRate}
-              onChange={(e) => setFrontSpringRate(e.target.value)}
-              suffix="kgf/mm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">リアスプリングレート (k)</label>
-            <Input
-              value={rearSpringRate}
-              onChange={(e) => setRearSpringRate(e.target.value)}
-              suffix="kgf/mm"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 車高設定 */}
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <div className="flex items-center mb-6">
-          <i className="fas fa-arrows-alt-v text-blue-500 mr-2"></i>
-          <h3 className="text-lg font-medium text-gray-800">車高設定</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">フロント車高 (mm)</label>
-            <Input
-              value={frontRideHeight}
-              onChange={(e) => setFrontRideHeight(e.target.value)}
-              suffix="mm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">リア車高 (mm)</label>
-            <Input
-              value={rearRideHeight}
-              onChange={(e) => setRearRideHeight(e.target.value)}
-              suffix="mm"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* スタビライザー設定 */}
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <div className="flex items-center mb-6">
-          <i className="fas fa-balance-scale text-blue-500 mr-2"></i>
-          <h3 className="text-lg font-medium text-gray-800">スタビライザー設定</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">フロントスタビ径 (mm)</label>
-            <Input
-              value={frontStabilizer}
-              onChange={(e) => setFrontStabilizer(e.target.value)}
-              suffix="mm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">リアスタビ径 (mm)</label>
-            <Input
-              value={rearStabilizer}
-              onChange={(e) => setRearStabilizer(e.target.value)}
-              suffix="mm"
-            />
-          </div>
-        </div>
       </div>
     </div>
   );

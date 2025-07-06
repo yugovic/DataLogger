@@ -50,8 +50,8 @@ export const getSetup = async (setupId: string): Promise<CarSetup | null> => {
         ...data,
         id: docSnap.id,
         date: data.date.toDate(),
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate()
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
       } as CarSetup;
     }
     return null;
@@ -78,8 +78,8 @@ export const getUserSetups = async (userId: string, limitCount: number = 20): Pr
         ...data,
         id: doc.id,
         date: data.date.toDate(),
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate()
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
       } as CarSetup;
     });
   } catch (error) {
@@ -105,8 +105,8 @@ export const getSetupsByCarModel = async (userId: string, carModel: string): Pro
         ...data,
         id: doc.id,
         date: data.date.toDate(),
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate()
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
       } as CarSetup;
     });
   } catch (error) {
@@ -125,7 +125,7 @@ export const updateSetup = async (setupId: string, updates: Partial<CarSetup>): 
     };
     
     if (updates.date) {
-      updateData.date = Timestamp.fromDate(updates.date);
+      updateData.date = Timestamp.fromDate(updates.date) as any;
     }
     
     await updateDoc(docRef, updateData);

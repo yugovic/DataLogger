@@ -16,6 +16,8 @@ options: { value: string; label: string }[];
 }
 const App: React.FC = () => {
 const { currentUser } = useAuth();
+// 将来的にユーザー情報を表示に使用
+console.log('Current user:', currentUser?.email);
 const [settingsModal, setSettingsModal] = useState(false);
 const [currentSettingView, setCurrentSettingView] = useState('account');
 const [dropdownState, setDropdownState] = useState<DropdownState>({
@@ -604,40 +606,10 @@ className="w-full"
 <Tabs defaultActiveKey="1" className="px-6 pt-4">
 <TabPane tab="基本設定" key="1">
 <BasicInfoTab
-  weatherCondition={weatherCondition}
-  setWeatherCondition={setWeatherCondition}
   tirePressures={tirePressures}
   setTirePressures={setTirePressures}
   damperSettings={damperSettings}
   setDamperSettings={setDamperSettings}
-  airTemp={airTemp}
-  setAirTemp={setAirTemp}
-  trackTemp={trackTemp}
-  setTrackTemp={setTrackTemp}
-  humidity={humidity}
-  setHumidity={setHumidity}
-  pressure={pressure}
-  setPressure={setPressure}
-  tireBrand={tireBrand}
-  setTireBrand={setTireBrand}
-  tireCompound={tireCompound}
-  setTireCompound={setTireCompound}
-  distance={distance}
-  setDistance={setDistance}
-  fuel={fuel}
-  setFuel={setFuel}
-  frontSpringRate={frontSpringRate}
-  setFrontSpringRate={setFrontSpringRate}
-  rearSpringRate={rearSpringRate}
-  setRearSpringRate={setRearSpringRate}
-  frontRideHeight={frontRideHeight}
-  setFrontRideHeight={setFrontRideHeight}
-  rearRideHeight={rearRideHeight}
-  setRearRideHeight={setRearRideHeight}
-  frontStabilizer={frontStabilizer}
-  setFrontStabilizer={setFrontStabilizer}
-  rearStabilizer={rearStabilizer}
-  setRearStabilizer={setRearStabilizer}
   handleDropdownClick={handleDropdownClick}
 />
 </TabPane>
