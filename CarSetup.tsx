@@ -1,6 +1,6 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 import React, { useState, useRef } from 'react';
-import { Select, Input, Tabs, Modal, Switch, Checkbox, message } from 'antd';
+import { AutoComplete, Input, Tabs, Modal, Switch, Checkbox, message } from 'antd';
 import { SettingOutlined, PlusOutlined, BellOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { logout } from './src/services/authService';
@@ -237,79 +237,139 @@ onClick={() => setCurrentSettingView('help')}
 <div className="grid grid-cols-2 gap-6">
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-2">メーカー</label>
-<Select
+<AutoComplete
 defaultValue="honda"
 className="w-full"
 options={[
-{ value: 'honda', label: 'Honda' },
-{ value: 'toyota', label: 'Toyota' },
-{ value: 'nissan', label: 'Nissan' },
-{ value: 'mazda', label: 'Mazda' }
+{ value: 'honda' },
+{ value: 'toyota' },
+{ value: 'nissan' },
+{ value: 'mazda' }
 ]}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="honda"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-2">モデル</label>
-<Select
+<AutoComplete
 defaultValue="s2000"
 className="w-full"
 options={[
-{ value: 's2000', label: 'S2000' },
-{ value: 'civic_type_r', label: 'シビック タイプR' },
-{ value: 'nsx', label: 'NSX' }
+{ value: 's2000' },
+{ value: 'civic_type_r' },
+{ value: 'nsx' }
 ]}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="s2000"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 </div>
 <div className="grid grid-cols-2 gap-6">
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-2">年式</label>
-<Select
+<AutoComplete
 defaultValue="2005"
 className="w-full"
 options={Array.from({ length: 30 }, (_, i) => {
 const year = 2025 - i;
-return { value: year.toString(), label: year.toString() };
+return { value: year.toString() };
 })}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="2005"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-2">エンジン型式</label>
-<Select
+<AutoComplete
 defaultValue="f20c"
 className="w-full"
 options={[
-{ value: 'f20c', label: 'F20C' },
-{ value: 'f22c', label: 'F22C' }
+{ value: 'f20c' },
+{ value: 'f22c' }
 ]}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="f20c"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 </div>
 <div className="grid grid-cols-2 gap-6">
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-2">駆動方式</label>
-<Select
+<AutoComplete
 defaultValue="fr"
 className="w-full"
 options={[
-{ value: 'fr', label: 'FR' },
-{ value: 'ff', label: 'FF' },
-{ value: 'awd', label: '4WD/AWD' },
-{ value: 'mr', label: 'MR' }
+{ value: 'fr' },
+{ value: 'ff' },
+{ value: 'awd' },
+{ value: 'mr' }
 ]}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="fr"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-2">トランスミッション</label>
-<Select
+<AutoComplete
 defaultValue="6mt"
 className="w-full"
 options={[
-{ value: '6mt', label: '6速MT' },
-{ value: '5mt', label: '5速MT' },
-{ value: 'at', label: 'AT' },
-{ value: 'dct', label: 'DCT' }
+{ value: '6mt' },
+{ value: '5mt' },
+{ value: 'at' },
+{ value: 'dct' }
 ]}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="6mt"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 </div>
@@ -431,26 +491,56 @@ className="w-full"
 </div>
 </div>
 <div className="flex items-center space-x-4">
-<Select
+<AutoComplete
 defaultValue="Honda S2000"
 className="w-40"
-options={[{ value: 'Honda S2000', label: 'Honda S2000' }]}
+options={[{ value: 'Honda S2000' }]}
 bordered={false}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="Honda S2000"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
-<Select
+<AutoComplete
 defaultValue="鈴木健太"
 className="w-32"
-options={[{ value: '鈴木健太', label: '鈴木健太' }]}
+options={[{ value: '鈴木健太' }]}
 bordered={false}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="鈴木健太"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
-<Select
+<AutoComplete
 defaultValue="練習走行"
 className="w-32"
-options={[{ value: '練習走行', label: '練習走行' }]}
+options={[{ value: '練習走行' }]}
 bordered={false}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="練習走行"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 <button className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap">
@@ -472,16 +562,26 @@ suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
 </div>
 <div className="mb-4">
 <label className="block text-sm font-medium text-gray-700 mb-1">天候</label>
-<Select
+<AutoComplete
 defaultValue={weatherCondition}
 onChange={setWeatherCondition}
 className="w-full"
 options={[
-{ value: '晴れ', label: '晴れ' },
-{ value: '曇り', label: '曇り' },
-{ value: '雨', label: '雨' }
+{ value: '晴れ' },
+{ value: '曇り' },
+{ value: '雨' }
 ]}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector(`.ant-select-item[title="${weatherCondition}"]`);
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 <div className="grid grid-cols-2 gap-4">
@@ -528,30 +628,50 @@ className="w-full"
 <div className="grid grid-cols-2 gap-4 mb-4">
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-1">ブランド</label>
-<Select
+<AutoComplete
 value={tireBrand}
 onChange={setTireBrand}
 className="w-full"
 options={[
-{ value: 'ADVAN', label: 'ADVAN' },
-{ value: 'BRIDGESTONE', label: 'BRIDGESTONE' },
-{ value: 'MICHELIN', label: 'MICHELIN' }
+{ value: 'ADVAN' },
+{ value: 'BRIDGESTONE' },
+{ value: 'MICHELIN' }
 ]}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector(`.ant-select-item[title="${tireBrand}"]`);
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-1">コンパウンド</label>
-<Select
+<AutoComplete
 value={tireCompound}
 onChange={setTireCompound}
 className="w-full"
 options={[
-{ value: 'A050', label: 'A050' },
-{ value: 'RE71R', label: 'RE71R' },
-{ value: 'PS4S', label: 'PS4S' }
+{ value: 'A050' },
+{ value: 'RE71R' },
+{ value: 'PS4S' }
 ]}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector(`.ant-select-item[title="${tireCompound}"]`);
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 </div>
@@ -655,14 +775,24 @@ className="w-full"
 </div>
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-2">スロットル開度マップ</label>
-<Select
+<AutoComplete
 defaultValue="track"
 className="w-full"
 options={[
-{ value: 'track', label: 'サーキット' },
-{ value: 'sport', label: 'スポーツ' },
-{ value: 'eco', label: 'エコ' }
+{ value: 'track' },
+{ value: 'sport' },
+{ value: 'eco' }
 ]}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="track"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 </div>
@@ -694,14 +824,24 @@ options={[
 </div>
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-2">アンダーパネル設定</label>
-<Select
+<AutoComplete
 defaultValue="full"
 className="w-full"
 options={[
-{ value: 'full', label: 'フルフラット' },
-{ value: 'partial', label: 'パーシャル' },
-{ value: 'none', label: 'なし' }
+{ value: 'full' },
+{ value: 'partial' },
+{ value: 'none' }
 ]}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="full"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 <div>
@@ -742,14 +882,24 @@ options={[
 </div>
 <div>
 <label className="block text-sm font-medium text-gray-700 mb-2">インタークーラースプレー</label>
-<Select
+<AutoComplete
 defaultValue="auto"
 className="w-full"
 options={[
-{ value: 'auto', label: '自動' },
-{ value: 'manual', label: '手動' },
-{ value: 'off', label: 'オフ' }
+{ value: 'auto' },
+{ value: 'manual' },
+{ value: 'off' }
 ]}
+onDropdownVisibleChange={(open) => {
+  if (open) {
+    setTimeout(() => {
+      const selectedItem = document.querySelector('.ant-select-item[title="auto"]');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'center' });
+      }
+    }, 10);
+  }
+}}
 />
 </div>
 <div>
