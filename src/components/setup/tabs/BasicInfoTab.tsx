@@ -1,6 +1,6 @@
 // 基本情報タブコンポーネント
 import React from 'react';
-import { Input } from 'antd';
+import { AutoComplete } from 'antd';
 
 interface TirePressure {
   before: string;
@@ -32,15 +32,13 @@ interface BasicInfoTabProps {
   setTirePressures: React.Dispatch<React.SetStateAction<TirePressures>>;
   damperSettings: DamperSettings;
   setDamperSettings: React.Dispatch<React.SetStateAction<DamperSettings>>;
-  handleDropdownClick: (e: React.MouseEvent, inputValue: string, options: { value: string; label: string }[]) => void;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   tirePressures,
   setTirePressures,
   damperSettings,
-  setDamperSettings,
-  handleDropdownClick
+  setDamperSettings
 }) => {
   const calculatePressureDiff = (before: string, after: string) => {
     const diff = parseInt(after) - parseInt(before);
@@ -70,12 +68,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <div className="relative">
             <div className="text-center mb-2 font-medium">FL</div>
             <div className="flex items-center space-x-2">
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={tirePressures.fl.before}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
+                  onChange={(value) => {
+                    if (/^\d*$/.test(value) && value.length <= 4) {
                       setTirePressures(prev => ({
                         ...prev,
                         fl: {
@@ -86,22 +83,29 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 61 }, (_, i) => ({ 
+                    value: (100 + i * 5).toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = tirePressures.fl.before;
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "fl-before", Array.from({ length: 61 }, (_, i) => ({ value: (100 + i * 5).toString(), label: (100 + i * 5).toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
               <div className="text-gray-500">→</div>
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={tirePressures.fl.after}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
+                  onChange={(value) => {
+                    if (/^\d*$/.test(value) && value.length <= 4) {
                       setTirePressures(prev => ({
                         ...prev,
                         fl: {
@@ -112,14 +116,22 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 61 }, (_, i) => ({ 
+                    value: (100 + i * 5).toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = tirePressures.fl.after;
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "fl-after", Array.from({ length: 61 }, (_, i) => ({ value: (100 + i * 5).toString(), label: (100 + i * 5).toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
             </div>
             <div className="text-red-500 text-sm text-right mt-1">{tirePressures.fl.diff}</div>
@@ -127,12 +139,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <div className="relative">
             <div className="text-center mb-2 font-medium">FR</div>
             <div className="flex items-center space-x-2">
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={tirePressures.fr.before}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
+                  onChange={(value) => {
+                    if (/^\d*$/.test(value) && value.length <= 4) {
                       setTirePressures(prev => ({
                         ...prev,
                         fr: {
@@ -143,22 +154,29 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 61 }, (_, i) => ({ 
+                    value: (100 + i * 5).toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = tirePressures.fr.before;
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "fr-before", Array.from({ length: 61 }, (_, i) => ({ value: (100 + i * 5).toString(), label: (100 + i * 5).toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
               <div className="text-gray-500">→</div>
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={tirePressures.fr.after}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
+                  onChange={(value) => {
+                    if (/^\d*$/.test(value) && value.length <= 4) {
                       setTirePressures(prev => ({
                         ...prev,
                         fr: {
@@ -169,14 +187,22 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 61 }, (_, i) => ({ 
+                    value: (100 + i * 5).toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = tirePressures.fr.after;
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "fr-after", Array.from({ length: 61 }, (_, i) => ({ value: (100 + i * 5).toString(), label: (100 + i * 5).toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
             </div>
             <div className="text-red-500 text-sm text-right mt-1">{tirePressures.fr.diff}</div>
@@ -184,12 +210,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <div className="relative">
             <div className="text-center mb-2 font-medium">RL</div>
             <div className="flex items-center space-x-2">
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={tirePressures.rl.before}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
+                  onChange={(value) => {
+                    if (/^\d*$/.test(value) && value.length <= 4) {
                       setTirePressures(prev => ({
                         ...prev,
                         rl: {
@@ -200,22 +225,29 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 61 }, (_, i) => ({ 
+                    value: (100 + i * 5).toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = tirePressures.rl.before;
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "rl-before", Array.from({ length: 61 }, (_, i) => ({ value: (100 + i * 5).toString(), label: (100 + i * 5).toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
               <div className="text-gray-500">→</div>
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={tirePressures.rl.after}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
+                  onChange={(value) => {
+                    if (/^\d*$/.test(value) && value.length <= 4) {
                       setTirePressures(prev => ({
                         ...prev,
                         rl: {
@@ -226,14 +258,22 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 61 }, (_, i) => ({ 
+                    value: (100 + i * 5).toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = tirePressures.rl.after;
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "rl-after", Array.from({ length: 61 }, (_, i) => ({ value: (100 + i * 5).toString(), label: (100 + i * 5).toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
             </div>
             <div className="text-red-500 text-sm text-right mt-1">{tirePressures.rl.diff}</div>
@@ -241,12 +281,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <div className="relative">
             <div className="text-center mb-2 font-medium">RR</div>
             <div className="flex items-center space-x-2">
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={tirePressures.rr.before}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
+                  onChange={(value) => {
+                    if (/^\d*$/.test(value) && value.length <= 4) {
                       setTirePressures(prev => ({
                         ...prev,
                         rr: {
@@ -257,22 +296,29 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 61 }, (_, i) => ({ 
+                    value: (100 + i * 5).toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = tirePressures.rr.before;
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "rr-before", Array.from({ length: 61 }, (_, i) => ({ value: (100 + i * 5).toString(), label: (100 + i * 5).toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
               <div className="text-gray-500">→</div>
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={tirePressures.rr.after}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
+                  onChange={(value) => {
+                    if (/^\d*$/.test(value) && value.length <= 4) {
                       setTirePressures(prev => ({
                         ...prev,
                         rr: {
@@ -283,14 +329,22 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 61 }, (_, i) => ({ 
+                    value: (100 + i * 5).toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = tirePressures.rr.after;
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "rr-after", Array.from({ length: 61 }, (_, i) => ({ value: (100 + i * 5).toString(), label: (100 + i * 5).toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
             </div>
             <div className="text-red-500 text-sm text-right mt-1">{tirePressures.rr.diff}</div>
@@ -317,192 +371,256 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <div>
             <div className="text-center mb-2 font-medium">FL</div>
             <div className="flex items-center space-x-2">
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={damperSettings.fl.bump.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value) && parseInt(value) <= 20) {
+                  onChange={(value) => {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
                       setDamperSettings(prev => ({
                         ...prev,
-                        fl: { ...prev.fl, bump: parseInt(value) || 0 }
+                        fl: { ...prev.fl, bump: numValue }
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 21 }, (_, i) => ({ 
+                    value: i.toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = damperSettings.fl.bump.toString();
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button 
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "fl-bump", Array.from({ length: 21 }, (_, i) => ({ value: i.toString(), label: i.toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
               <div className="text-gray-500">/</div>
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={damperSettings.fl.rebound.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value) && parseInt(value) <= 20) {
+                  onChange={(value) => {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
                       setDamperSettings(prev => ({
                         ...prev,
-                        fl: { ...prev.fl, rebound: parseInt(value) || 0 }
+                        fl: { ...prev.fl, rebound: numValue }
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 21 }, (_, i) => ({ 
+                    value: i.toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = damperSettings.fl.rebound.toString();
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button 
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "fl-rebound", Array.from({ length: 21 }, (_, i) => ({ value: i.toString(), label: i.toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
             </div>
           </div>
           <div>
             <div className="text-center mb-2 font-medium">FR</div>
             <div className="flex items-center space-x-2">
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={damperSettings.fr.bump.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value) && parseInt(value) <= 20) {
+                  onChange={(value) => {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
                       setDamperSettings(prev => ({
                         ...prev,
-                        fr: { ...prev.fr, bump: parseInt(value) || 0 }
+                        fr: { ...prev.fr, bump: numValue }
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 21 }, (_, i) => ({ 
+                    value: i.toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = damperSettings.fr.bump.toString();
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button 
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "fr-bump", Array.from({ length: 21 }, (_, i) => ({ value: i.toString(), label: i.toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
               <div className="text-gray-500">/</div>
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={damperSettings.fr.rebound.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value) && parseInt(value) <= 20) {
+                  onChange={(value) => {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
                       setDamperSettings(prev => ({
                         ...prev,
-                        fr: { ...prev.fr, rebound: parseInt(value) || 0 }
+                        fr: { ...prev.fr, rebound: numValue }
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 21 }, (_, i) => ({ 
+                    value: i.toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = damperSettings.fr.rebound.toString();
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button 
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "fr-rebound", Array.from({ length: 21 }, (_, i) => ({ value: i.toString(), label: i.toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
             </div>
           </div>
           <div>
             <div className="text-center mb-2 font-medium">RL</div>
             <div className="flex items-center space-x-2">
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={damperSettings.rl.bump.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value) && parseInt(value) <= 20) {
+                  onChange={(value) => {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
                       setDamperSettings(prev => ({
                         ...prev,
-                        rl: { ...prev.rl, bump: parseInt(value) || 0 }
+                        rl: { ...prev.rl, bump: numValue }
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 21 }, (_, i) => ({ 
+                    value: i.toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = damperSettings.rl.bump.toString();
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button 
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "rl-bump", Array.from({ length: 21 }, (_, i) => ({ value: i.toString(), label: i.toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
               <div className="text-gray-500">/</div>
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={damperSettings.rl.rebound.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value) && parseInt(value) <= 20) {
+                  onChange={(value) => {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
                       setDamperSettings(prev => ({
                         ...prev,
-                        rl: { ...prev.rl, rebound: parseInt(value) || 0 }
+                        rl: { ...prev.rl, rebound: numValue }
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 21 }, (_, i) => ({ 
+                    value: i.toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = damperSettings.rl.rebound.toString();
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button 
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "rl-rebound", Array.from({ length: 21 }, (_, i) => ({ value: i.toString(), label: i.toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
             </div>
           </div>
           <div>
             <div className="text-center mb-2 font-medium">RR</div>
             <div className="flex items-center space-x-2">
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={damperSettings.rr.bump.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value) && parseInt(value) <= 20) {
+                  onChange={(value) => {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
                       setDamperSettings(prev => ({
                         ...prev,
-                        rr: { ...prev.rr, bump: parseInt(value) || 0 }
+                        rr: { ...prev.rr, bump: numValue }
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 21 }, (_, i) => ({ 
+                    value: i.toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = damperSettings.rr.bump.toString();
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button 
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "rr-bump", Array.from({ length: 21 }, (_, i) => ({ value: i.toString(), label: i.toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
               <div className="text-gray-500">/</div>
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <AutoComplete
                   value={damperSettings.rr.rebound.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value) && parseInt(value) <= 20) {
+                  onChange={(value) => {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
                       setDamperSettings(prev => ({
                         ...prev,
-                        rr: { ...prev.rr, rebound: parseInt(value) || 0 }
+                        rr: { ...prev.rr, rebound: numValue }
                       }));
                     }
                   }}
-                  className="text-center pr-8"
+                  className="w-full"
+                  options={Array.from({ length: 21 }, (_, i) => ({ 
+                    value: i.toString()
+                  }))}
+                  onDropdownVisibleChange={(open) => {
+                    if (open) {
+                      setTimeout(() => {
+                        const currentValue = damperSettings.rr.rebound.toString();
+                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
+                        if (selectedItem) {
+                          selectedItem.scrollIntoView({ block: 'center' });
+                        }
+                      }, 10);
+                    }
+                  }}
                 />
-                <button 
-                  className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500"
-                  onClick={(e) => handleDropdownClick(e, "rr-rebound", Array.from({ length: 21 }, (_, i) => ({ value: i.toString(), label: i.toString() })))}
-                >
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </button>
               </div>
             </div>
           </div>

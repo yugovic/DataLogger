@@ -103,7 +103,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
     const wheelLabel = position.toUpperCase();
     
     return (
-      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+      <div className="bg-blue-50 rounded-lg p-4 shadow-sm border border-gray-200">
         <h4 className="text-lg font-semibold mb-4 text-center">{wheelLabel}</h4>
         
         {/* 2列レイアウトで情報密度を向上 */}
@@ -321,11 +321,17 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
       </div>
 
       {/* 2×2グリッドレイアウト */}
-      <div className="grid grid-cols-2 gap-4">
-        <WheelSettings position="fl" data={suspensionData.fl} />
-        <WheelSettings position="fr" data={suspensionData.fr} />
-        <WheelSettings position="rl" data={suspensionData.rl} />
-        <WheelSettings position="rr" data={suspensionData.rr} />
+      <div className="relative">
+        {/* 車両イメージ - 中央配置 */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+          <i className="fas fa-car text-9xl text-gray-400"></i>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <WheelSettings position="fl" data={suspensionData.fl} />
+          <WheelSettings position="fr" data={suspensionData.fr} />
+          <WheelSettings position="rl" data={suspensionData.rl} />
+          <WheelSettings position="rr" data={suspensionData.rr} />
+        </div>
       </div>
 
       {/* ブレーキ設定 - シンプル化 */}
