@@ -6,6 +6,8 @@ import { Login } from './components/auth/Login';
 import { SignUp } from './components/auth/SignUp';
 import { PrivateRoute } from './components/auth/PrivateRoute';
 import CarSetup from '../CarSetup';
+import { SetupHistory } from './components/setup/SetupHistory';
+import { Dashboard } from './components/Dashboard';
 
 const App: React.FC = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
@@ -35,6 +37,30 @@ const App: React.FC = () => {
           <Route path="/auth" element={<AuthPage />} />
           <Route
             path="/"
+            element={
+              <PrivateRoute>
+                <CarSetup />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <PrivateRoute>
+                <SetupHistory />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/setup/:id"
             element={
               <PrivateRoute>
                 <CarSetup />

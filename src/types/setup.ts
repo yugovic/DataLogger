@@ -13,8 +13,10 @@ export interface TireSettings {
   rr: TirePressure;
 }
 
+export type WeatherType = '晴れ' | '曇り' | 'ウェット' | 'フルウェット';
+
 export interface WeatherCondition {
-  condition: string;
+  condition: WeatherType;
   airTemp: number;
   trackTemp: number;
   humidity: number;
@@ -66,6 +68,23 @@ export interface AlignmentSettings {
   caster: number;
 }
 
+export type LapType = 'IN' | 'NORMAL' | 'OUT';
+
+export interface LapTime {
+  lapNumber: number;
+  time: string;
+  type: LapType;
+  minutes?: number;
+  seconds?: number;
+  milliseconds?: number;
+}
+
+export interface LapTimeData {
+  bestLap?: string;
+  totalLaps?: number;
+  laps?: LapTime[];
+}
+
 export interface CarSetup {
   id?: string;
   userId: string;
@@ -80,7 +99,7 @@ export interface CarSetup {
   suspensionSettings?: SuspensionSettings;
   alignmentSettings?: AlignmentSettings;
   notes?: string;
-  lapTime?: string;
+  lapTimeData?: LapTimeData;
   images?: string[];
   createdAt: Date;
   updatedAt: Date;
