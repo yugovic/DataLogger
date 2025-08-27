@@ -1,0 +1,207 @@
+import React, { useState, useEffect } from 'react';
+import { Empty, Spin, message, Card, Button, Modal } from 'antd';
+import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined } from '@ant-design/icons';
+import { useAuth } from '../../contexts/AuthContext';
+import { getUserVehicles, deleteVehicle } from '../../services/vehicleService';
+import { Vehicle } from '../../types/vehicle';
+import { Header } from '../common/Header';
+import { VehicleModal } from './VehicleModal';
+
+export const VehicleList: React.FC = () => {
+  const { currentUser } = useAuth();
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [settingsModal, setSettingsModal] = useState(false);
+  const [currentSettingView, setCurrentSettingView] = useState('account');
+  const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+
+  useEffect(() => {
+    fetchVehicles();
+  }, [currentUser]);
+
+  const fetchVehicles = async () => {
+    if (!currentUser) return;
+
+    try {
+      setLoading(true);
+      const userVehicles = await getUserVehicles(currentUser.uid);
+      setVehicles(userVehicles);
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+      message.error('車両データの取得に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddVehicle = () => {
+    setSelectedVehicle(null);
+    setVehicleModalVisible(true);
+  };
+
+  const handleEditVehicle = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setVehicleModalVisible(true);
+  };
+
+  const handleDeleteVehicle = (vehicle: Vehicle) => {
+    Modal.confirm({
+      title: '車両を削除しますか？',
+      content: `${vehicle.make} ${vehicle.model} (${vehicle.year}年式) を削除してもよろしいですか？`,
+      okText: '削除',
+      okType: 'danger',
+      cancelText: 'キャンセル',
+      onOk: async () => {
+        try {
+          if (vehicle.id) {
+            await deleteVehicle(vehicle.id);
+            message.success('車両を削除しました');
+            fetchVehicles();
+          }
+        } catch (error) {
+          console.error('Error deleting vehicle:', error);
+          message.error('車両の削除に失敗しました');
+        }
+      },
+    });
+  };
+
+  const handleModalClose = () => {
+    setVehicleModalVisible(false);
+    setSelectedVehicle(null);
+    fetchVehicles();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Header 
+        settingsModal={settingsModal}
+        setSettingsModal={setSettingsModal}
+        currentSettingView={currentSettingView}
+        setCurrentSettingView={setCurrentSettingView}
+      />
+      
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div className="mb-6 flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">車両管理</h2>
+            <p className="text-gray-600 dark:text-gray-400">登録されている車両の一覧と設定</p>
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAddVehicle}
+            size="large"
+          >
+            車両を追加
+          </Button>
+        </div>
+
+        {vehicles.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12">
+            <Empty
+              image={<CarOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />}
+              description={
+                <span className="text-gray-500 dark:text-gray-400">
+                  まだ車両が登録されていません<br />
+                  車両を追加してセットアップ管理を始めましょう
+                </span>
+              }
+            >
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddVehicle}>
+                最初の車両を追加
+              </Button>
+            </Empty>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {vehicles.map((vehicle) => (
+              <Card
+                key={vehicle.id}
+                hoverable
+                className="shadow-sm hover:shadow-md transition-shadow"
+                cover={
+                  vehicle.photoURL ? (
+                    <>
+                      {console.log('Debug - Vehicle photo URL:', vehicle.photoURL?.substring(0, 100))}
+                      <img 
+                        alt={`${vehicle.make} ${vehicle.model}`} 
+                        src={vehicle.photoURL} 
+                        className="h-48 object-cover"
+                        onError={(e) => {
+                          console.error('Debug - Image load error for vehicle:', vehicle.id);
+                          console.error('Debug - Failed URL:', vehicle.photoURL?.substring(0, 100));
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <div className="h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                      <CarOutlined style={{ fontSize: 48, color: '#999' }} />
+                    </div>
+                  )
+                }
+                actions={[
+                  <Button
+                    type="text"
+                    icon={<EditOutlined />}
+                    onClick={() => handleEditVehicle(vehicle)}
+                  >
+                    編集
+                  </Button>,
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleDeleteVehicle(vehicle)}
+                  >
+                    削除
+                  </Button>,
+                ]}
+              >
+                <Card.Meta
+                  title={`${vehicle.make} ${vehicle.model}`}
+                  description={
+                    <div className="space-y-1 text-sm dark:text-gray-300">
+                      <div>{vehicle.year}年式 {vehicle.grade && `/ ${vehicle.grade}`}</div>
+                      {vehicle.licensePlate && <div>ナンバー: {vehicle.licensePlate}</div>}
+                      {vehicle.mileage && <div>走行距離: {vehicle.mileage.toLocaleString()} km</div>}
+                      <div className="text-gray-500 dark:text-gray-400 mt-2">
+                        {vehicle.engineType && `${vehicle.engineType} / `}
+                        {vehicle.transmission && `${vehicle.transmission} / `}
+                        {vehicle.drivetrain}
+                      </div>
+                    </div>
+                  }
+                />
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* 車両追加/編集モーダル */}
+        <VehicleModal
+          visible={vehicleModalVisible}
+          onClose={handleModalClose}
+          vehicle={selectedVehicle}
+        />
+      </main>
+
+      <footer className="bg-white dark:bg-gray-800 py-6 border-t border-gray-200 dark:border-gray-700 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+            © 2025 VELOCITY LOGGER. All rights reserved.
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};

@@ -2,8 +2,8 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
+import { getStorage } from 'firebase/storage';
 
 // 環境変数からFirebase設定を読み込み
 const firebaseConfig = {
@@ -18,8 +18,11 @@ const firebaseConfig = {
 
 // デバッグ用：設定が正しく読み込まれているか確認
 console.log('Firebase Config:', {
-  ...firebaseConfig,
-  apiKey: firebaseConfig.apiKey ? 'SET' : 'NOT SET'
+  apiKey: firebaseConfig.apiKey ? 'SET' : 'NOT SET',
+  authDomain: firebaseConfig.authDomain || 'NOT SET',
+  projectId: firebaseConfig.projectId || 'NOT SET',
+  storageBucket: firebaseConfig.storageBucket || 'NOT SET',
+  appId: firebaseConfig.appId ? 'SET' : 'NOT SET'
 });
 
 // Firebaseアプリの初期化
@@ -28,7 +31,7 @@ const app = initializeApp(firebaseConfig);
 // サービスの初期化
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app);
 export const analytics = getAnalytics(app);
+export const storage = getStorage(app);
 
 export default app;

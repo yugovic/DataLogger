@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Tabs, Button, Select, message, Empty, Input, Switch } from 'antd';
+import { Modal, Tabs, Button, Select, message, Empty, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined, CameraOutlined, CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons';
 import { LapTime, LapType } from '../../../types/setup';
 
-const { TabPane } = Tabs;
 const { Option } = Select;
 
 interface LapTimeModalProps {
@@ -21,8 +20,14 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
 }) => {
   const [laps, setLaps] = useState<LapTime[]>(initialLaps);
   const [activeTab, setActiveTab] = useState('manual');
-  const [inputMode, setInputMode] = useState<'keyboard' | 'button'>('keyboard');
+  const [inputMode, setInputMode] = useState<'keyboard' | 'button' | 'wheel'>('keyboard');
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const lastInputRef = useRef<HTMLDivElement>(null);
+
+  // ホイール入力用の選択値
+  const [wheelMinutes, setWheelMinutes] = useState(1);
+  const [wheelSeconds, setWheelSeconds] = useState(30);
+  const [wheelMilliseconds, setWheelMilliseconds] = useState(0);
 
   // 時間文字列をパース
   const parseTimeString = (timeStr: string): { minutes: number; seconds: number; milliseconds: number } => {
@@ -59,8 +64,28 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
   const addLap = () => {
     let newLap: LapTime;
     
-    if (laps.length > 0) {
-      // 前のラップの値をコピー
+    if (inputMode === 'wheel') {
+      // ホイール入力の場合は現在の選択値を使用
+      newLap = {
+        lapNumber: laps.length + 1,
+        time: formatTime(wheelMinutes, wheelSeconds, wheelMilliseconds),
+        type: 'NORMAL',
+        minutes: wheelMinutes,
+        seconds: wheelSeconds,
+        milliseconds: wheelMilliseconds
+      };
+    } else if (inputMode === 'keyboard') {
+      // キーボード入力の場合は空の値で開始
+      newLap = {
+        lapNumber: laps.length + 1,
+        time: '',
+        type: 'NORMAL',
+        minutes: 0,
+        seconds: 0,
+        milliseconds: 0
+      };
+    } else if (laps.length > 0) {
+      // ボタン入力で前のラップの値をコピー
       const lastLap = laps[laps.length - 1];
       newLap = {
         lapNumber: laps.length + 1,
@@ -71,7 +96,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
         milliseconds: lastLap.milliseconds
       };
     } else {
-      // 初期値
+      // ボタン入力の初期値
       newLap = {
         lapNumber: 1,
         time: '1:30.000',
@@ -211,6 +236,37 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
     setLaps(updatedLaps);
   };
 
+  // 数字のみの入力を自動フォーマット
+  const formatNumericInput = (input: string): string => {
+    // 数字以外を除去
+    const digits = input.replace(/\D/g, '');
+    
+    if (!digits) return '';
+    
+    // 右詰めでフォーマット
+    if (digits.length <= 3) {
+      // 3桁以下: ミリ秒のみ (0.xxx)
+      return `0:00.${digits.padStart(3, '0')}`;
+    } else if (digits.length <= 5) {
+      // 4-5桁: 秒とミリ秒 (xx.xxx)
+      const seconds = digits.slice(0, -3);
+      const millis = digits.slice(-3);
+      return `0:${seconds.padStart(2, '0')}.${millis}`;
+    } else if (digits.length <= 6) {
+      // 6桁: 1分xx秒xxx (1:xx.xxx)
+      const minutes = digits.slice(0, -5);
+      const seconds = digits.slice(-5, -3);
+      const millis = digits.slice(-3);
+      return `${minutes}:${seconds}.${millis}`;
+    } else {
+      // 7桁以上: xx分xx秒xxx (xx:xx.xxx)
+      const minutes = digits.slice(0, -5).slice(-2); // 最大2桁
+      const seconds = digits.slice(-5, -3);
+      const millis = digits.slice(-3);
+      return `${minutes}:${seconds}.${millis}`;
+    }
+  };
+
   const deleteLap = (index: number) => {
     const updatedLaps = laps.filter((_, i) => i !== index);
     // ラップ番号を再計算
@@ -253,9 +309,40 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
   const renderKeyboardInput = (lap: LapTime, index: number) => (
     <div className="flex items-center space-x-3">
       <Input
-        value={lap.time}
-        onChange={(e) => updateLapTimeString(index, e.target.value)}
-        placeholder="例: 1:58.423"
+        value={focusedIndex === index ? lap.time : (lap.time || '')}
+        onChange={(e) => {
+          const input = e.target.value;
+          // 数字のみの入力か、既存のフォーマット形式かを判定
+          if (/^\d*$/.test(input)) {
+            // 数字のみの場合は自動フォーマット
+            const formatted = formatNumericInput(input);
+            updateLapTimeString(index, formatted);
+          } else if (/^(\d+):(\d{2})\.(\d{3})$/.test(input) || input === '') {
+            // 既存のフォーマット形式または空文字の場合はそのまま
+            updateLapTimeString(index, input);
+          }
+        }}
+        onFocus={() => {
+          setFocusedIndex(index);
+          // 初期値がある場合、フォーカス時にクリア（ユーザーが入力開始時）
+          if (lap.time && lap.time !== '') {
+            // 少し遅延させて、ユーザーが入力を開始したら値をクリア
+            const currentValue = lap.time;
+            setTimeout(() => {
+              if (focusedIndex === index && laps[index].time === currentValue) {
+                updateLapTimeString(index, '');
+              }
+            }, 100);
+          }
+        }}
+        onBlur={() => {
+          setFocusedIndex(null);
+          // 空のままなら元の値を復元
+          if (!lap.time && (lap.minutes || lap.seconds || lap.milliseconds)) {
+            updateLapTimeString(index, formatTime(lap.minutes || 0, lap.seconds || 0, lap.milliseconds || 0));
+          }
+        }}
+        placeholder="例: 158423 → 1:58.423"
         className="flex-1"
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -403,10 +490,158 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
     </div>
   );
 
+  const renderWheelInput = () => (
+    <div className="space-y-4">
+      <div className="text-center mb-4">
+        <div className="text-2xl font-mono mb-2">
+          {formatTime(wheelMinutes, wheelSeconds, wheelMilliseconds)}
+        </div>
+        <div className="text-sm text-gray-500">
+          スクロールまたは+/-ボタンで時間を選択
+        </div>
+      </div>
+      
+      <div className="flex items-center justify-center space-x-4 bg-gray-50 rounded-lg p-6">
+        {/* 分 */}
+        <div className="flex flex-col items-center">
+          <button
+            className="px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors"
+            onClick={() => setWheelMinutes(Math.min(9, wheelMinutes + 1))}
+          >
+            <CaretUpOutlined className="text-xl" />
+          </button>
+          <div 
+            className="bg-white border-2 border-gray-300 rounded-lg px-6 py-4 my-2 cursor-pointer select-none"
+            onWheel={(e) => {
+              e.preventDefault();
+              if (e.deltaY < 0) {
+                setWheelMinutes(Math.min(9, wheelMinutes + 1));
+              } else {
+                setWheelMinutes(Math.max(0, wheelMinutes - 1));
+              }
+            }}
+          >
+            <div className="text-3xl font-mono font-bold">{wheelMinutes}</div>
+            <div className="text-xs text-gray-500 mt-1">分</div>
+          </div>
+          <button
+            className="px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors"
+            onClick={() => setWheelMinutes(Math.max(0, wheelMinutes - 1))}
+          >
+            <CaretDownOutlined className="text-xl" />
+          </button>
+        </div>
+        
+        <div className="text-3xl font-bold text-gray-400">:</div>
+        
+        {/* 秒 */}
+        <div className="flex flex-col items-center">
+          <button
+            className="px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors"
+            onClick={() => {
+              if (wheelSeconds >= 59) {
+                setWheelSeconds(0);
+                setWheelMinutes(Math.min(9, wheelMinutes + 1));
+              } else {
+                setWheelSeconds(wheelSeconds + 1);
+              }
+            }}
+          >
+            <CaretUpOutlined className="text-xl" />
+          </button>
+          <div 
+            className="bg-white border-2 border-gray-300 rounded-lg px-6 py-4 my-2 cursor-pointer select-none"
+            onWheel={(e) => {
+              e.preventDefault();
+              if (e.deltaY < 0) {
+                if (wheelSeconds >= 59) {
+                  setWheelSeconds(0);
+                  setWheelMinutes(Math.min(9, wheelMinutes + 1));
+                } else {
+                  setWheelSeconds(wheelSeconds + 1);
+                }
+              } else {
+                if (wheelSeconds <= 0 && wheelMinutes > 0) {
+                  setWheelSeconds(59);
+                  setWheelMinutes(wheelMinutes - 1);
+                } else {
+                  setWheelSeconds(Math.max(0, wheelSeconds - 1));
+                }
+              }
+            }}
+          >
+            <div className="text-3xl font-mono font-bold">
+              {wheelSeconds.toString().padStart(2, '0')}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">秒</div>
+          </div>
+          <button
+            className="px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors"
+            onClick={() => {
+              if (wheelSeconds <= 0 && wheelMinutes > 0) {
+                setWheelSeconds(59);
+                setWheelMinutes(wheelMinutes - 1);
+              } else {
+                setWheelSeconds(Math.max(0, wheelSeconds - 1));
+              }
+            }}
+          >
+            <CaretDownOutlined className="text-xl" />
+          </button>
+        </div>
+        
+        <div className="text-3xl font-bold text-gray-400">.</div>
+        
+        {/* ミリ秒 */}
+        <div className="flex flex-col items-center">
+          <button
+            className="px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors"
+            onClick={() => setWheelMilliseconds((wheelMilliseconds + 10) % 1000)}
+          >
+            <CaretUpOutlined className="text-xl" />
+          </button>
+          <div 
+            className="bg-white border-2 border-gray-300 rounded-lg px-6 py-4 my-2 cursor-pointer select-none"
+            onWheel={(e) => {
+              e.preventDefault();
+              if (e.deltaY < 0) {
+                setWheelMilliseconds((wheelMilliseconds + 10) % 1000);
+              } else {
+                setWheelMilliseconds((wheelMilliseconds - 10 + 1000) % 1000);
+              }
+            }}
+          >
+            <div className="text-3xl font-mono font-bold">
+              {wheelMilliseconds.toString().padStart(3, '0')}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">ミリ秒</div>
+          </div>
+          <button
+            className="px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors"
+            onClick={() => setWheelMilliseconds((wheelMilliseconds - 10 + 1000) % 1000)}
+          >
+            <CaretDownOutlined className="text-xl" />
+          </button>
+        </div>
+      </div>
+      
+      <div className="flex justify-center">
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={addLap}
+          size="large"
+        >
+          このタイムでラップを追加
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <Modal
       title="ラップタイム詳細入力"
-      visible={visible}
+      open={visible}
       onCancel={onClose}
       width={900}
       footer={[
@@ -418,90 +653,136 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
         </Button>
       ]}
     >
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane tab="手動入力" key="manual">
+      <Tabs activeKey={activeTab} onChange={setActiveTab}
+        items={[
+          {
+            key: 'manual',
+            label: '手動入力',
+            children: (
           <div className="space-y-4" onKeyDown={handleKeyDown}>
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-600">入力方式:</span>
                 <div className="flex items-center space-x-2">
-                  <span className={inputMode === 'keyboard' ? 'font-medium' : 'text-gray-400'}>
-                    キーボード入力
-                  </span>
-                  <Switch
-                    checked={inputMode === 'button'}
-                    onChange={(checked) => setInputMode(checked ? 'button' : 'keyboard')}
-                  />
-                  <span className={inputMode === 'button' ? 'font-medium' : 'text-gray-400'}>
-                    ボタン入力
-                  </span>
+                  <button
+                    className={`px-3 py-1 rounded ${inputMode === 'keyboard' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                    onClick={() => setInputMode('keyboard')}
+                  >
+                    キーボード
+                  </button>
+                  <button
+                    className={`px-3 py-1 rounded ${inputMode === 'button' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                    onClick={() => setInputMode('button')}
+                  >
+                    ボタン
+                  </button>
+                  <button
+                    className={`px-3 py-1 rounded ${inputMode === 'wheel' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                    onClick={() => setInputMode('wheel')}
+                  >
+                    ホイール
+                  </button>
                 </div>
               </div>
-              <Button
-                type="dashed"
-                icon={<PlusOutlined />}
-                onClick={addLap}
-              >
-                ラップ追加
-              </Button>
+              {inputMode !== 'wheel' && (
+                <Button
+                  type="dashed"
+                  icon={<PlusOutlined />}
+                  onClick={addLap}
+                >
+                  ラップ追加
+                </Button>
+              )}
             </div>
             
             {inputMode === 'keyboard' && (
               <div className="text-sm text-gray-500 mb-2">
-                Enterキーで次のラップを追加
+                数字のみで入力可能（例: 123456 → 1:23.456）｜ Enterキーで次のラップを追加
               </div>
             )}
             
-            {laps.length === 0 ? (
-              <Empty
-                description="ラップデータがありません"
-                className="py-8"
-              >
-                <Button type="primary" onClick={addLap}>
-                  最初のラップを追加
-                </Button>
-              </Empty>
+            {inputMode === 'wheel' ? (
+              renderWheelInput()
             ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {laps.map((lap, index) => (
-                  <div 
-                    key={index} 
-                    className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg"
-                    ref={index === laps.length - 1 ? lastInputRef : null}
+              <>
+                {laps.length === 0 ? (
+                  <Empty
+                    description="ラップデータがありません"
+                    className="py-8"
                   >
-                    <span className="w-16 text-sm font-medium">
-                      Lap {lap.lapNumber}
-                    </span>
-                    
-                    {inputMode === 'keyboard' 
-                      ? renderKeyboardInput(lap, index)
-                      : renderButtonInput(lap, index)
-                    }
-                    
-                    <Select
-                      value={lap.type}
-                      onChange={(value) => updateLapType(index, value as LapType)}
-                      className="w-24"
-                    >
-                      <Option value="IN">IN</Option>
-                      <Option value="NORMAL">通常</Option>
-                      <Option value="OUT">OUT</Option>
-                    </Select>
-                    
-                    <Button
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => deleteLap(index)}
-                    />
+                    <Button type="primary" onClick={addLap}>
+                      最初のラップを追加
+                    </Button>
+                  </Empty>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {laps.map((lap, index) => (
+                      <div 
+                        key={index} 
+                        className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg"
+                        ref={index === laps.length - 1 ? lastInputRef : null}
+                      >
+                        <span className="w-16 text-sm font-medium">
+                          Lap {lap.lapNumber}
+                        </span>
+                        
+                        {inputMode === 'keyboard' 
+                          ? renderKeyboardInput(lap, index)
+                          : renderButtonInput(lap, index)
+                        }
+                        
+                        <Select
+                          value={lap.type}
+                          onChange={(value) => updateLapType(index, value as LapType)}
+                          className="w-24"
+                        >
+                          <Option value="IN">IN</Option>
+                          <Option value="NORMAL">通常</Option>
+                          <Option value="OUT">OUT</Option>
+                        </Select>
+                        
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => deleteLap(index)}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+              </>
+            )}
+            
+            {inputMode === 'wheel' && laps.length > 0 && (
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">追加されたラップ:</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {laps.map((lap, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">
+                        Lap {lap.lapNumber}: {lap.time}
+                      </span>
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={() => deleteLap(index)}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-        </TabPane>
-        
-        <TabPane tab="OCR読み取り" key="ocr" disabled>
+            )
+          },
+          {
+            key: 'ocr',
+            label: 'OCR読み取り',
+            disabled: true,
+            children: (
           <div className="text-center py-12">
             <CameraOutlined className="text-6xl text-gray-300 mb-4" />
             <p className="text-gray-500 mb-2">
@@ -520,19 +801,10 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
               カメラを起動（準備中）
             </Button>
           </div>
-        </TabPane>
-        
-        {/* 将来的なホイール入力の場所 */}
-        {/*
-        <TabPane tab="ホイール入力" key="wheel" disabled>
-          <div className="text-center py-12">
-            <p className="text-gray-500">
-              iPhoneタイマーのようなホイール入力は現在開発中です
-            </p>
-          </div>
-        </TabPane>
-        */}
-      </Tabs>
+            )
+          }
+        ]}
+      />
     </Modal>
   );
 };

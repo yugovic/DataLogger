@@ -47,11 +47,11 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
       {/* コーナリング特性 - 2列グリッド */}
       <div className="grid grid-cols-2 gap-4">
         {/* 低速コーナー */}
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">低速コーナー</h4>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">低速コーナー</h4>
           <div className="space-y-3">
             <div>
-              <div className="text-xs text-gray-600 mb-1">進入</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">進入</div>
               <Slider
                 value={cornerValues.lowSpeed.entry}
                 onChange={(value) => setCornerValues(prev => ({ 
@@ -66,7 +66,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
               />
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">中間</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">中間</div>
               <Slider
                 value={cornerValues.lowSpeed.middle}
                 onChange={(value) => setCornerValues(prev => ({ 
@@ -81,7 +81,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
               />
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">脱出</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">脱出</div>
               <Slider
                 value={cornerValues.lowSpeed.exit}
                 onChange={(value) => setCornerValues(prev => ({ 
@@ -99,11 +99,11 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
         </div>
         
         {/* 高速コーナー */}
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">高速コーナー</h4>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">高速コーナー</h4>
           <div className="space-y-3">
             <div>
-              <div className="text-xs text-gray-600 mb-1">進入</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">進入</div>
               <Slider
                 value={cornerValues.highSpeed.entry}
                 onChange={(value) => setCornerValues(prev => ({ 
@@ -118,7 +118,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
               />
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">中間</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">中間</div>
               <Slider
                 value={cornerValues.highSpeed.middle}
                 onChange={(value) => setCornerValues(prev => ({ 
@@ -133,7 +133,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
               />
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">脱出</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">脱出</div>
               <Slider
                 value={cornerValues.highSpeed.exit}
                 onChange={(value) => setCornerValues(prev => ({ 
@@ -152,7 +152,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
       </div>
       
       {/* 凡例 */}
-      <div className="text-xs text-gray-500 text-center">
+      <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
         U/S++ : 強アンダーステア | U/S+ : 弱アンダーステア | N : ニュートラル | O/S+ : 弱オーバーステア | O/S++ : 強オーバーステア
       </div>
 
@@ -160,12 +160,12 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
       <Collapse
         bordered={false}
         expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} />}
-        className="bg-gray-50"
+        className="bg-gray-50 dark:bg-gray-800"
       >
         <Panel header="ブレーキング" key="1" className="text-sm">
           <div className="space-y-3 px-4">
             <div>
-              <div className="text-xs text-gray-600 mb-1">初期制動</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">初期制動</div>
               <Slider
                 value={brakeValues.initial}
                 onChange={(value) => setBrakeValues(prev => ({ ...prev, initial: value }))}
@@ -173,14 +173,17 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
                 max={4}
                 marks={{
                   0: '弱い',
+                  1: '',
                   2: '適正',
+                  3: '',
                   4: '強い'
                 }}
                 step={1}
+                dots={true}
               />
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">中間域</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">中間域</div>
               <Slider
                 value={brakeValues.middle}
                 onChange={(value) => setBrakeValues(prev => ({ ...prev, middle: value }))}
@@ -188,14 +191,17 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
                 max={4}
                 marks={{
                   0: '不安定',
+                  1: '',
                   2: '安定',
+                  3: '',
                   4: 'ロック気味'
                 }}
                 step={1}
+                dots={true}
               />
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">姿勢安定性</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">姿勢安定性</div>
               <Slider
                 value={brakeValues.stability}
                 onChange={(value) => setBrakeValues(prev => ({ ...prev, stability: value }))}
@@ -203,10 +209,13 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
                 max={4}
                 marks={{
                   0: '不安定',
+                  1: '',
                   2: '安定',
+                  3: '',
                   4: '過安定'
                 }}
                 step={1}
+                dots={true}
               />
             </div>
           </div>
@@ -215,7 +224,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
         <Panel header="アクセルレスポンス" key="2" className="text-sm">
           <div className="space-y-3 px-4">
             <div>
-              <div className="text-xs text-gray-600 mb-1">初期レスポンス</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">初期レスポンス</div>
               <Slider
                 value={accelValues.response}
                 onChange={(value) => setAccelValues(prev => ({ ...prev, response: value }))}
@@ -223,14 +232,17 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
                 max={4}
                 marks={{
                   0: '鈍い',
+                  1: '',
                   2: '適正',
+                  3: '',
                   4: '過敏'
                 }}
                 step={1}
+                dots={true}
               />
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">トラクション</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">トラクション</div>
               <Slider
                 value={accelValues.traction}
                 onChange={(value) => setAccelValues(prev => ({ ...prev, traction: value }))}
@@ -238,10 +250,13 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
                 max={4}
                 marks={{
                   0: '不足',
+                  1: '',
                   2: '適正',
+                  3: '',
                   4: '過剰'
                 }}
                 step={1}
+                dots={true}
               />
             </div>
           </div>
@@ -250,7 +265,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
         <Panel header="全体的な感触" key="3" className="text-sm">
           <div className="space-y-3 px-4">
             <div>
-              <div className="text-xs text-gray-600 mb-1">バランス</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">バランス</div>
               <Slider
                 value={overallValues.balance}
                 onChange={(value) => setOverallValues(prev => ({ ...prev, balance: value }))}
@@ -258,14 +273,17 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
                 max={4}
                 marks={{
                   0: 'アンバランス',
+                  1: '',
                   2: 'バランス良好',
+                  3: '',
                   4: '完璧'
                 }}
                 step={1}
+                dots={true}
               />
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">ドライバー信頼感</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">ドライバー信頼感</div>
               <Slider
                 value={overallValues.confidence}
                 onChange={(value) => setOverallValues(prev => ({ ...prev, confidence: value }))}
@@ -273,10 +291,13 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
                 max={4}
                 marks={{
                   0: '不安',
+                  1: '',
                   2: '普通',
+                  3: '',
                   4: '高い信頼感'
                 }}
                 step={1}
+                dots={true}
               />
             </div>
           </div>
@@ -284,8 +305,8 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
       </Collapse>
 
       {/* コメント・メモ */}
-      <div className="border-t pt-4">
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">コメント・メモ</h4>
+      <div className="border-t dark:border-gray-700 pt-4">
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">コメント・メモ</h4>
         <TextArea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}

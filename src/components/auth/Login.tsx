@@ -46,9 +46,9 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold text-center mb-6">
-        <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800">LOGGER</span>
+    <div className="max-w-md mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold text-center mb-6 dark:text-gray-200">
+        <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800 dark:text-gray-200">LOGGER</span>
       </h2>
       
       <div className="space-y-4">
@@ -95,7 +95,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
         </Button>
         
         <div className="text-center mt-4">
-          <span className="text-gray-600">アカウントをお持ちでない方は</span>
+          <span className="text-gray-600 dark:text-gray-400">アカウントをお持ちでない方は</span>
           <Button
             type="link"
             onClick={onSignUpClick}

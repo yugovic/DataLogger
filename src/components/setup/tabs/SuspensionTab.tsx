@@ -163,17 +163,17 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
     const wheelLabel = position.toUpperCase();
     
     return (
-      <div className="bg-blue-50 rounded-lg p-4 shadow-sm border border-gray-200">
-        <h4 className="text-lg font-semibold mb-4 text-center">{wheelLabel}</h4>
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h4 className="text-lg font-semibold mb-4 text-center dark:text-gray-200">{wheelLabel}</h4>
         
         {/* 2列レイアウトで情報密度を向上 */}
         <div className="grid grid-cols-2 gap-3">
           {/* 左列: アライメント設定 */}
           <div>
-            <h5 className="text-xs font-medium text-gray-700 mb-2">アライメント</h5>
+            <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">アライメント</h5>
             <div className="space-y-2">
               <div>
-                <label className="text-xs text-gray-600 block mb-1">キャンバー</label>
+                <label className="text-xs text-gray-600 dark:text-gray-400 block mb-1">キャンバー</label>
                 <div className="flex items-center">
                   <AutoComplete
                     value={data.camber}
@@ -186,12 +186,12 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                     size="small"
                     options={generateOptions(-5, 0, 0.1)}
                   />
-                  <span className="text-xs text-gray-500 ml-1">°</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">°</span>
                 </div>
               </div>
               {(position === 'fl' || position === 'fr') && (
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">キャスター</label>
+                  <label className="text-xs text-gray-600 dark:text-gray-400 block mb-1">キャスター</label>
                   <div className="flex items-center">
                     <AutoComplete
                       value={data.caster}
@@ -204,12 +204,12 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                       size="small"
                       options={generateOptions(0, 10, 0.1)}
                     />
-                    <span className="text-xs text-gray-500 ml-1">°</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">°</span>
                   </div>
                 </div>
               )}
               <div>
-                <label className="text-xs text-gray-600 block mb-1">トー</label>
+                <label className="text-xs text-gray-600 dark:text-gray-400 block mb-1">トー</label>
                 <div className="flex items-center">
                   <AutoComplete
                     value={data.toe}
@@ -222,7 +222,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                     size="small"
                     options={generateOptions(-5, 5, 0.1)}
                   />
-                  <span className="text-xs text-gray-500 ml-1">mm</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">mm</span>
                 </div>
               </div>
             </div>
@@ -230,10 +230,10 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
           
           {/* 右列: スプリング設定 */}
           <div>
-            <h5 className="text-xs font-medium text-gray-700 mb-2">スプリング</h5>
+            <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">スプリング</h5>
             <div className="space-y-2">
               <div>
-                <label className="text-xs text-gray-600 block mb-1">レート</label>
+                <label className="text-xs text-gray-600 dark:text-gray-400 block mb-1">レート</label>
                 <div className="flex items-center">
                   <AutoComplete
                     value={data.springRate}
@@ -246,14 +246,14 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                     size="small"
                     options={generateOptions(2, 20, 0.1)}
                   />
-                  <span className="text-xs text-gray-500 ml-1">k</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">k</span>
                 </div>
               </div>
               
               {showDetails && (
                 <>
                   <div>
-                    <label className="text-xs text-gray-600 block mb-1">ヘルパー</label>
+                    <label className="text-xs text-gray-600 dark:text-gray-400 block mb-1">ヘルパー</label>
                     <div className="flex items-center">
                       <AutoComplete
                         value={data.helperSpringRate}
@@ -266,11 +266,11 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                         size="small"
                         options={generateOptions(0, 10, 0.1)}
                       />
-                      <span className="text-xs text-gray-500 ml-1">k</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">k</span>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-600 block mb-1">ヘルパー長</label>
+                    <label className="text-xs text-gray-600 dark:text-gray-400 block mb-1">ヘルパー長</label>
                     <div className="flex items-center">
                       <AutoComplete
                         value={data.helperSpringLength}
@@ -283,7 +283,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                         size="small"
                         options={generateIntOptions(0, 100, 5)}
                       />
-                      <span className="text-xs text-gray-500 ml-1">mm</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">mm</span>
                     </div>
                   </div>
                 </>
@@ -295,10 +295,10 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
         {/* バンプストッパー設定（詳細表示時のみ） */}
         {showDetails && (
           <div className="mt-3 pt-3 border-t border-gray-200">
-            <h5 className="text-xs font-medium text-gray-700 mb-2">バンプストッパー</h5>
+            <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">バンプストッパー</h5>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-gray-600 block mb-1">硬さ</label>
+                <label className="text-xs text-gray-600 dark:text-gray-400 block mb-1">硬さ</label>
                 <div className="flex items-center">
                   <AutoComplete
                     value={data.bumpStopperRate}
@@ -311,11 +311,11 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                     size="small"
                     options={generateOptions(0, 10, 0.1)}
                   />
-                  <span className="text-xs text-gray-500 ml-1">k</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">k</span>
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-600 block mb-1">長さ</label>
+                <label className="text-xs text-gray-600 dark:text-gray-400 block mb-1">長さ</label>
                 <div className="flex items-center">
                   <AutoComplete
                     value={data.bumpStopperLength}
@@ -328,7 +328,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                     size="small"
                     options={generateIntOptions(0, 100, 5)}
                   />
-                  <span className="text-xs text-gray-500 ml-1">mm</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">mm</span>
                 </div>
               </div>
             </div>
@@ -341,10 +341,10 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
   return (
     <div className="p-6 space-y-4">
       {/* 統合サマリーセクション - シンプルで一目で分かる */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
         <div className="grid grid-cols-4 gap-4 text-sm">
           <div className="flex items-center">
-            <span className="text-gray-600 mr-2">車高F:</span>
+            <span className="text-gray-600 dark:text-gray-400 mr-2">車高F:</span>
             <AutoComplete
               defaultValue="120"
               onChange={(value) => {
@@ -356,10 +356,10 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
               className="w-20"
               options={generateIntOptions(80, 150, 5)}
             />
-            <span className="text-gray-500 ml-1">mm</span>
+            <span className="text-gray-500 dark:text-gray-400 ml-1">mm</span>
           </div>
           <div className="flex items-center">
-            <span className="text-gray-600 mr-2">車高R:</span>
+            <span className="text-gray-600 dark:text-gray-400 mr-2">車高R:</span>
             <AutoComplete
               defaultValue="125"
               onChange={(value) => {
@@ -371,10 +371,10 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
               className="w-20"
               options={generateIntOptions(80, 150, 5)}
             />
-            <span className="text-gray-500 ml-1">mm</span>
+            <span className="text-gray-500 dark:text-gray-400 ml-1">mm</span>
           </div>
           <div className="flex items-center">
-            <span className="text-gray-600 mr-2">ARB F:</span>
+            <span className="text-gray-600 dark:text-gray-400 mr-2">ARB F:</span>
             <AutoComplete
               defaultValue="22"
               onChange={(value) => {
@@ -386,10 +386,10 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
               className="w-20"
               options={generateIntOptions(10, 40)}
             />
-            <span className="text-gray-500 ml-1">mm</span>
+            <span className="text-gray-500 dark:text-gray-400 ml-1">mm</span>
           </div>
           <div className="flex items-center">
-            <span className="text-gray-600 mr-2">ARB R:</span>
+            <span className="text-gray-600 dark:text-gray-400 mr-2">ARB R:</span>
             <AutoComplete
               defaultValue="20"
               onChange={(value) => {
@@ -401,7 +401,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
               className="w-20"
               options={generateIntOptions(10, 40)}
             />
-            <span className="text-gray-500 ml-1">mm</span>
+            <span className="text-gray-500 dark:text-gray-400 ml-1">mm</span>
           </div>
         </div>
       </div>
@@ -436,7 +436,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
       <div className="relative">
         {/* 車両イメージ - 中央配置 */}
         <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-          <i className="fas fa-car text-9xl text-gray-400"></i>
+          <i className="fas fa-car text-9xl text-gray-400 dark:text-gray-600"></i>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <WheelSettings position="fl" data={suspensionData.fl} />
@@ -451,7 +451,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-gray-700">ブレーキバイアス</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ブレーキバイアス</span>
               <div className="flex items-center space-x-2">
                 <AutoComplete
                   defaultValue="60"
@@ -464,7 +464,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                   className="w-16"
                   options={generateIntOptions(40, 80)}
                 />
-                <span className="text-gray-500">:</span>
+                <span className="text-gray-500 dark:text-gray-400">:</span>
                 <AutoComplete
                   defaultValue="40"
                   onChange={(value) => {
@@ -482,7 +482,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
             {/* パッド走行距離 */}
             <div className="flex items-center space-x-4 text-sm">
               <div className="flex items-center space-x-2">
-                <span className="text-gray-600">F走行:</span>
+                <span className="text-gray-600 dark:text-gray-400">F走行:</span>
                 <AutoComplete
                   defaultValue="500"
                   onChange={(value) => {
@@ -494,10 +494,10 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                   className="w-20"
                   options={generateIntOptions(0, 5000, 100)}
                 />
-                <span className="text-gray-500">km</span>
+                <span className="text-gray-500 dark:text-gray-400">km</span>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="text-gray-600">R走行:</span>
+                <span className="text-gray-600 dark:text-gray-400">R走行:</span>
                 <AutoComplete
                   defaultValue="500"
                   onChange={(value) => {
@@ -509,7 +509,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                   className="w-20"
                   options={generateIntOptions(0, 5000, 100)}
                 />
-                <span className="text-gray-500">km</span>
+                <span className="text-gray-500 dark:text-gray-400">km</span>
               </div>
             </div>
           </div>
@@ -517,7 +517,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
           {showDetails && (
             <div className="flex items-center space-x-4 text-sm">
               <div className="flex items-center space-x-2">
-                <span className="text-gray-600">F パッド:</span>
+                <span className="text-gray-600 dark:text-gray-400">F パッド:</span>
                 <AutoComplete
                   defaultValue="Type-R"
                   onChange={(value) => {
@@ -534,7 +534,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                 />
               </div>
               <div className="flex items-center space-x-2">
-                <span className="text-gray-600">R パッド:</span>
+                <span className="text-gray-600 dark:text-gray-400">R パッド:</span>
                 <AutoComplete
                   defaultValue="Type-R"
                   onChange={(value) => {

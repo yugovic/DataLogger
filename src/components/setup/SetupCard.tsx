@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, Tag } from 'antd';
-import { CalendarOutlined, CarOutlined, CloudOutlined, FieldTimeOutlined, DashboardOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { Card, Tag, Tooltip } from 'antd';
+import { CalendarOutlined, CarOutlined, CloudOutlined, EnvironmentOutlined, EditOutlined, CopyOutlined } from '@ant-design/icons';
 import { CarSetup } from '../../types/setup';
 
 interface SetupCardProps {
@@ -8,9 +8,6 @@ interface SetupCardProps {
 }
 
 export const SetupCard: React.FC<SetupCardProps> = ({ setup }) => {
-  const handleCardClick = () => {
-    window.location.href = `/setup/${setup.id}`;
-  };
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('ja-JP', {
       year: 'numeric',
@@ -56,83 +53,73 @@ export const SetupCard: React.FC<SetupCardProps> = ({ setup }) => {
   return (
     <Card
       hoverable
-      onClick={handleCardClick}
-      className="shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-      bodyStyle={{ padding: '20px' }}
+      className="shadow-sm hover:shadow-md transition-shadow"
+      styles={{ body: { padding: '16px' } }}
     >
-      <div className="space-y-4">
-        {/* 日付とセッションタイプ */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center text-gray-600">
-            <CalendarOutlined className="mr-2" />
-            <span className="text-sm">{formatDate(setup.date)}</span>
-          </div>
-          <Tag color={sessionType.color}>{sessionType.label}</Tag>
-        </div>
-
-        {/* サーキット */}
-        <div className="flex items-center text-gray-800">
-          <EnvironmentOutlined className="mr-2 text-blue-500" />
-          <span className="font-medium">{setup.circuit}</span>
-        </div>
-
-        {/* 車種 */}
-        <div className="flex items-center text-gray-700">
-          <CarOutlined className="mr-2 text-gray-500" />
-          <span>{setup.carModel}</span>
-        </div>
-
-        {/* 天気情報 */}
-        <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-          <div className="flex items-center">
-            <CloudOutlined className="mr-2 text-blue-500" />
-            <span className="text-sm">
-              {getWeatherIcon(setup.weather.condition)} {setup.weather.condition}
-            </span>
-          </div>
-          <div className="text-sm text-gray-600">
-            <span>{setup.weather.airTemp}°C / {setup.weather.trackTemp}°C</span>
-          </div>
-        </div>
-
-        {/* タイヤ情報 */}
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-800">タイヤ</span>
-            <span className="text-sm text-blue-600">
-              {setup.tireInfo.brand} {setup.tireInfo.compound}
-            </span>
-          </div>
-        </div>
-
-        {/* セッション情報 */}
-        <div className="grid grid-cols-2 gap-4 pt-2">
-          <div className="text-center">
-            <div className="flex items-center justify-center text-gray-500 mb-1">
-              <FieldTimeOutlined className="mr-1" />
-              <span className="text-xs">周回数</span>
+      <div className="space-y-3">
+        {/* ヘッダー：日付とアクションボタン */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center text-gray-600 dark:text-gray-400 mb-1">
+              <CalendarOutlined className="mr-2" />
+              <span className="text-sm dark:text-gray-300">{formatDate(setup.date)}</span>
             </div>
-            <span className="text-lg font-semibold text-gray-800">
-              {Math.floor(setup.sessionInfo.distance / 5.8)} 周
-            </span>
+            <Tag color={sessionType.color} className="ml-6">{sessionType.label}</Tag>
           </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center text-gray-500 mb-1">
-              <DashboardOutlined className="mr-1" />
-              <span className="text-xs">走行距離</span>
-            </div>
-            <span className="text-lg font-semibold text-gray-800">
-              {setup.sessionInfo.distance} km
-            </span>
+          <div className="flex gap-1">
+            <Tooltip title="編集">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = `/setup/${setup.id}`;
+                }}
+                className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md transition-colors"
+              >
+                <EditOutlined style={{ fontSize: '16px' }} />
+              </button>
+            </Tooltip>
+            <Tooltip title="コピーして新規作成">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = `/?copy=${setup.id}`;
+                }}
+                className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-md transition-colors"
+              >
+                <CopyOutlined style={{ fontSize: '16px' }} />
+              </button>
+            </Tooltip>
           </div>
         </div>
 
-        {/* ベストラップ（仮のデータ） */}
-        <div className="border-t pt-3">
-          <div className="text-center">
-            <span className="text-xs text-gray-500">ベストラップ</span>
-            <div className="text-xl font-bold text-green-600">1:58.423</div>
+        {/* メイン情報 */}
+        <div>
+          <div className="flex items-center justify-between text-gray-900 dark:text-gray-100 font-medium text-lg mb-1">
+            <div className="flex items-center">
+              <EnvironmentOutlined className="mr-2 text-blue-500 dark:text-blue-400" />
+              {setup.circuit}
+            </div>
+            <div className="text-base font-bold text-green-600 dark:text-green-400">
+              1:58.423
+            </div>
           </div>
+          <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm ml-6">
+            <CarOutlined className="mr-2" />
+            {setup.carModel}
+          </div>
+        </div>
+
+        {/* コンディション情報 */}
+        <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-md">
+          <div className="flex items-center gap-3">
+            <span className="text-lg">{getWeatherIcon(setup.weather.condition)}</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {setup.weather.airTemp}°C / {setup.weather.trackTemp}°C
+            </span>
+          </div>
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {setup.tireInfo.brand} {setup.tireInfo.compound}
+          </span>
         </div>
       </div>
     </Card>

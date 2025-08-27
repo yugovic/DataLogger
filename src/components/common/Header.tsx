@@ -1,8 +1,9 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Modal, Switch, Checkbox, message } from 'antd';
-import { SettingOutlined, PlusOutlined, BellOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined, LogoutOutlined } from '@ant-design/icons';
+import { SettingOutlined, PlusOutlined, BellOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined, LogoutOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { logout } from '../../services/authService';
 
 interface HeaderProps {
@@ -21,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { darkMode, toggleDarkMode } = useTheme();
 
   const handleLogout = async () => {
     try {
@@ -37,50 +39,64 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="bg-white shadow-sm py-3 px-6 flex items-center justify-between">
+    <header className="bg-white dark:bg-gray-800 shadow-sm py-3 px-6 flex items-center justify-between">
       <div className="flex items-center">
         <h1 className="text-2xl font-bold">
-          <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800">LOGGER</span>
+          <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800 dark:text-gray-200">LOGGER</span>
         </h1>
       </div>
       <div className="flex items-center space-x-4">
         <button 
           onClick={() => navigate('/dashboard')}
-          className={`flex items-center px-3 py-2 ${isActive('/dashboard') ? 'bg-gray-200 text-gray-700' : 'text-gray-600 hover:bg-gray-100'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`flex items-center px-3 py-2 ${isActive('/dashboard') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
         >
           <i className="fas fa-tachometer-alt mr-2"></i>
           ダッシュボード
         </button>
         <button 
           onClick={() => navigate('/')}
-          className={`flex items-center px-3 py-2 ${isActive('/') ? 'bg-gray-200 text-gray-700' : 'text-gray-600 hover:bg-gray-100'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`flex items-center px-3 py-2 ${isActive('/') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
         >
           <i className="fas fa-cog mr-2"></i>
           セットアップ記録
         </button>
         <button 
           onClick={() => navigate('/history')}
-          className={`flex items-center px-3 py-2 ${isActive('/history') ? 'bg-gray-200 text-gray-700' : 'text-gray-600 hover:bg-gray-100'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`flex items-center px-3 py-2 ${isActive('/history') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
         >
           <i className="fas fa-history mr-2"></i>
           履歴一覧
         </button>
+        <button 
+          onClick={() => navigate('/vehicles')}
+          className={`flex items-center px-3 py-2 ${isActive('/vehicles') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+        >
+          <i className="fas fa-car mr-2"></i>
+          車両管理
+        </button>
       </div>
       <div className="flex items-center space-x-4">
-        <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer">
+        <button
+          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer"
+          onClick={toggleDarkMode}
+          title={darkMode ? 'ライトモードに切替' : 'ダークモードに切替'}
+        >
+          {darkMode ? <SunOutlined style={{ fontSize: '20px' }} /> : <MoonOutlined style={{ fontSize: '20px' }} />}
+        </button>
+        <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer">
           <PlusOutlined style={{ fontSize: '20px' }} />
         </button>
-        <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer">
+        <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer">
           <BellOutlined style={{ fontSize: '20px' }} />
         </button>
         <button
-          className="p-2 text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer"
+          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer"
           onClick={() => setSettingsModal(true)}
         >
           <SettingOutlined style={{ fontSize: '20px' }} />
         </button>
         <button
-          className="p-2 text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer"
+          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer"
           onClick={handleLogout}
           title="ログアウト"
         >

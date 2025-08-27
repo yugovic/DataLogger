@@ -132,7 +132,16 @@ export const getAuthErrorMessage = (errorCode: string): string => {
       return 'ログイン試行回数が多すぎます。しばらく待ってから再度お試しください。';
     case 'auth/popup-closed-by-user':
       return 'ログインがキャンセルされました。';
+    case 'auth/popup-blocked':
+      return 'ポップアップがブロックされました。ポップアップを許可してください。';
+    case 'auth/cancelled-popup-request':
+      return '別のポップアップリクエストが進行中です。';
+    case 'auth/operation-not-allowed':
+      return 'この認証方法は無効になっています。Firebase Consoleで有効化してください。';
+    case 'auth/unauthorized-domain':
+      return 'このドメインは認証されていません。Firebase Consoleで承認してください。';
     default:
-      return 'エラーが発生しました。もう一度お試しください。';
+      console.error('認証エラーコード:', errorCode);
+      return `エラーが発生しました。(${errorCode})`;
   }
 };

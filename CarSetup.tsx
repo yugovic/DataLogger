@@ -1,11 +1,12 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { AutoComplete, Input, Tabs, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
-import { saveSetup, getUserSetups, getSetup } from './src/services/setupService';
+import { saveSetup, getUserSetups, getSetup, updateSetup } from './src/services/setupService';
 import { CarSetup as CarSetupType } from './src/types/setup';
+import { checkFirestoreConnection } from './src/utils/initFirestore';
 import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
 import { SuspensionTab } from './src/components/setup/tabs/SuspensionTab';
 import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
@@ -22,10 +23,22 @@ options: { value: string; label: string }[];
 const App: React.FC = () => {
 const { currentUser } = useAuth();
 const { id: setupId } = useParams<{ id: string }>();
+const location = useLocation();
+const searchParams = new URLSearchParams(location.search);
+const copyId = searchParams.get('copy');
 const [isViewMode, setIsViewMode] = useState(false);
 const [loadingSetup, setLoadingSetup] = useState(false);
-// 将来的にユーザー情報を表示に使用
-console.log('Current user:', currentUser?.email);
+
+// Firestore接続確認
+useEffect(() => {
+  if (currentUser) {
+    checkFirestoreConnection(currentUser.uid).then(success => {
+      if (!success) {
+        console.error('Firestore connection check failed');
+      }
+    });
+  }
+}, [currentUser]);
 const [isSaving, setIsSaving] = useState(false);
 const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
 const [settingsModal, setSettingsModal] = useState(false);
@@ -229,13 +242,24 @@ const handleSave = async () => {
       notes: notes
     };
 
-    // Firestoreに保存
-    const setupId = await saveSetup(setupData);
-    message.success('セットアップデータを保存しました');
-    console.log('Saved setup with ID:', setupId);
-  } catch (error) {
+    // 新規保存か更新かを判定
+    if (setupId && !isViewMode) {
+      // 編集モードから保存する場合は更新
+      await updateSetup(setupId, setupData);
+      message.success('セットアップデータを更新しました');
+      console.log('Updated setup with ID:', setupId);
+    } else {
+      // 新規作成
+      const newSetupId = await saveSetup(setupData);
+      message.success('セットアップデータを保存しました');
+      console.log('Saved setup with ID:', newSetupId);
+    }
+  } catch (error: any) {
     console.error('Save error:', error);
-    message.error('保存に失敗しました');
+    const errorMessage = error?.code === 'permission-denied' 
+      ? 'アクセス権限がありません。再度ログインしてください' 
+      : `保存に失敗しました: ${error?.message || 'エラーが発生しました'}`;
+    message.error(errorMessage);
   } finally {
     setIsSaving(false);
   }
@@ -339,9 +363,12 @@ const handleLoadPrevious = async () => {
     });
     
     message.success(`前回のセットアップデータを読み込みました（${previousData.date.toLocaleDateString('ja-JP')}）`);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Load previous data error:', error);
-    message.error('前回のデータ読み込みに失敗しました');
+    const errorMessage = error?.code === 'permission-denied' 
+      ? 'アクセス権限がありません。再度ログインしてください' 
+      : `前回のデータ読み込みに失敗しました: ${error?.message || 'エラーが発生しました'}`;
+    message.error(errorMessage);
   } finally {
     setIsLoadingPrevious(false);
   }
@@ -444,9 +471,12 @@ useEffect(() => {
         rr: { bump: setupData.suspensionSettings?.rearDamper.compression || 7, rebound: setupData.suspensionSettings?.rearDamper.rebound || 9 }
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading setup:', error);
-      message.error('セットアップデータの読み込みに失敗しました');
+      const errorMessage = error?.code === 'permission-denied' 
+        ? 'アクセス権限がありません。再度ログインしてください' 
+        : `セットアップデータの読み込みに失敗しました: ${error?.message || 'エラーが発生しました'}`;
+      message.error(errorMessage);
     } finally {
       setLoadingSetup(false);
     }
@@ -455,8 +485,115 @@ useEffect(() => {
   loadSetupData();
 }, [setupId]);
 
+// URLパラメータでcopyが指定された場合の処理
+useEffect(() => {
+  const loadCopyData = async () => {
+    if (!copyId) return;
+
+    setLoadingSetup(true);
+    
+    try {
+      const setupData = await getSetup(copyId);
+      if (!setupData) {
+        message.error('コピー元のデータが見つかりません');
+        return;
+      }
+
+      // 基本情報の設定（新規作成モードなのでIDはセットしない）
+      setWeatherCondition(setupData.weather.condition);
+      setAirTemp(setupData.weather.airTemp.toString());
+      setTrackTemp(setupData.weather.trackTemp.toString());
+      setHumidity(setupData.weather.humidity.toString());
+      setPressure(setupData.weather.pressure.toString());
+      
+      // タイヤ情報
+      setTireBrand(setupData.tireInfo.brand);
+      setTireCompound(setupData.tireInfo.compound);
+      setDistance(setupData.sessionInfo.distance.toString());
+      setFuel(setupData.sessionInfo.fuel.toString());
+      
+      // タイヤ圧設定
+      setTirePressures({
+        fl: { 
+          before: setupData.tireSettings.fl.before.toString(), 
+          after: setupData.tireSettings.fl.after.toString(), 
+          diff: (setupData.tireSettings.fl.diff || 0) >= 0 ? `+${setupData.tireSettings.fl.diff || 0}` : (setupData.tireSettings.fl.diff || 0).toString()
+        },
+        fr: { 
+          before: setupData.tireSettings.fr.before.toString(), 
+          after: setupData.tireSettings.fr.after.toString(), 
+          diff: (setupData.tireSettings.fr.diff || 0) >= 0 ? `+${setupData.tireSettings.fr.diff || 0}` : (setupData.tireSettings.fr.diff || 0).toString()
+        },
+        rl: { 
+          before: setupData.tireSettings.rl.before.toString(), 
+          after: setupData.tireSettings.rl.after.toString(), 
+          diff: (setupData.tireSettings.rl.diff || 0) >= 0 ? `+${setupData.tireSettings.rl.diff || 0}` : (setupData.tireSettings.rl.diff || 0).toString()
+        },
+        rr: { 
+          before: setupData.tireSettings.rr.before.toString(), 
+          after: setupData.tireSettings.rr.after.toString(), 
+          diff: (setupData.tireSettings.rr.diff || 0) >= 0 ? `+${setupData.tireSettings.rr.diff || 0}` : (setupData.tireSettings.rr.diff || 0).toString()
+        }
+      });
+      
+      // サスペンション設定
+      if (setupData.suspensionSettings) {
+        setFrontDamperCompression(setupData.suspensionSettings.frontDamper.compression);
+        setFrontDamperRebound(setupData.suspensionSettings.frontDamper.rebound);
+        setRearDamperCompression(setupData.suspensionSettings.rearDamper.compression);
+        setRearDamperRebound(setupData.suspensionSettings.rearDamper.rebound);
+        setFrontSpringRate(setupData.suspensionSettings.springRate.front.toString());
+        setRearSpringRate(setupData.suspensionSettings.springRate.rear.toString());
+        setFrontRideHeight(setupData.suspensionSettings.rideHeight.front.toString());
+        setRearRideHeight(setupData.suspensionSettings.rideHeight.rear.toString());
+        setFrontStabilizer(setupData.suspensionSettings.antiRollBar.front.toString());
+        setRearStabilizer(setupData.suspensionSettings.antiRollBar.rear.toString());
+      }
+      
+      // アライメント設定
+      if (setupData.alignmentSettings) {
+        setFrontCamber(setupData.alignmentSettings.camber.front.toString());
+        setRearCamber(setupData.alignmentSettings.camber.rear.toString());
+        setFrontToe(setupData.alignmentSettings.toe.front.toString());
+        setRearToe(setupData.alignmentSettings.toe.rear.toString());
+        setCaster(setupData.alignmentSettings.caster.toString());
+      }
+      
+      // ドライビングノート
+      if (setupData.notes) {
+        setNotes(setupData.notes);
+      }
+      
+      // セッション情報
+      setCarModel(setupData.carModel);
+      setCircuit(setupData.circuit);
+      setSessionType(setupData.sessionType);
+      
+      // ダンパー設定
+      setDamperSettings({
+        fl: { bump: setupData.suspensionSettings?.frontDamper.compression || 8, rebound: setupData.suspensionSettings?.frontDamper.rebound || 10 },
+        fr: { bump: setupData.suspensionSettings?.frontDamper.compression || 8, rebound: setupData.suspensionSettings?.frontDamper.rebound || 10 },
+        rl: { bump: setupData.suspensionSettings?.rearDamper.compression || 7, rebound: setupData.suspensionSettings?.rearDamper.rebound || 9 },
+        rr: { bump: setupData.suspensionSettings?.rearDamper.compression || 7, rebound: setupData.suspensionSettings?.rearDamper.rebound || 9 }
+      });
+      
+      message.success('セットアップデータをコピーしました');
+    } catch (error: any) {
+      console.error('Error loading copy data:', error);
+      const errorMessage = error?.code === 'permission-denied' 
+        ? 'アクセス権限がありません。再度ログインしてください' 
+        : `データのコピーに失敗しました: ${error?.message || 'エラーが発生しました'}`;
+      message.error(errorMessage);
+    } finally {
+      setLoadingSetup(false);
+    }
+  };
+
+  loadCopyData();
+}, [copyId]);
+
 return (
-<div className="min-h-screen bg-gray-50">
+<div className="min-h-screen bg-gray-50 dark:bg-gray-900">
 <Header 
   settingsModal={settingsModal}
   setSettingsModal={setSettingsModal}
@@ -466,12 +603,12 @@ return (
 {/* メインコンテンツ */}
 <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 {/* セッション情報バー */}
-<div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
 <div className="flex items-center justify-between">
 <div className="flex items-center space-x-4">
-<div className="text-gray-800 font-medium">{new Date().toLocaleDateString('ja-JP')} {new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</div>
+<div className="text-gray-800 dark:text-gray-200 font-medium">{new Date().toLocaleDateString('ja-JP')} {new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</div>
 <div className="flex items-center">
-<i className="fas fa-map-marker-alt text-gray-500 mr-2"></i>
+<i className="fas fa-map-marker-alt text-gray-500 dark:text-gray-400 mr-2"></i>
 <AutoComplete
   value={circuit}
   onChange={setCircuit}
@@ -506,7 +643,7 @@ options={[
   { value: 'Nissan Fairlady Z' }
 ]}
 bordered={false}
-suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 />
 <AutoComplete
 defaultValue="鈴木健太"
@@ -514,7 +651,7 @@ className="w-32"
 disabled={isViewMode}
 options={[{ value: '鈴木健太' }]}
 bordered={false}
-suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 onDropdownVisibleChange={(open) => {
   if (open) {
     setTimeout(() => {
@@ -541,19 +678,31 @@ options={[
   { value: 'レース' }
 ]}
 bordered={false}
-suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 />
 </div>
 {isViewMode ? (
-  <button 
-    className="flex items-center bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap"
-    onClick={() => window.location.href = '/history'}
-  >
-    <i className="fas fa-arrow-left mr-2"></i>
-    履歴一覧へ戻る
-  </button>
+  <div className="flex items-center space-x-2">
+    <button 
+      className="flex items-center bg-green-100 dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800 text-green-700 dark:text-green-300 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap"
+      onClick={() => setIsViewMode(false)}
+    >
+      <i className="fas fa-edit mr-2"></i>
+      編集
+    </button>
+    <button 
+      className="flex items-center bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap"
+      onClick={() => {
+        // データを保持したまま新規作成画面へ
+        window.location.href = '/';
+      }}
+    >
+      <i className="fas fa-copy mr-2"></i>
+      コピーして新規作成
+    </button>
+  </div>
 ) : (
-  <button className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap">
+  <button className="flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap">
     <i className="fas fa-bolt mr-2"></i>
     クイック入力
   </button>
@@ -563,16 +712,16 @@ suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
 {/* データ表示セクション */}
 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 {/* 環境データ */}
-<div className="bg-white rounded-lg shadow-sm p-6">
+<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex items-center mb-4">
-<i className="fas fa-temperature-high text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800">環境データ</h3>
-<div className="ml-auto text-sm text-gray-500">
+<i className="fas fa-temperature-high text-blue-500 dark:text-blue-400 mr-2"></i>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">環境データ</h3>
+<div className="ml-auto text-sm text-gray-500 dark:text-gray-400">
 平均気温: 24°C &nbsp; 平均路温: 33°C
 </div>
 </div>
 <div className="mb-4">
-<label className="block text-sm font-medium text-gray-700 mb-1">天候</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">天候</label>
 <AutoComplete
 value={weatherCondition}
 onChange={setWeatherCondition}
@@ -584,7 +733,7 @@ options={[
 { value: 'ウェット' },
 { value: 'フルウェット' }
 ]}
-suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 onDropdownVisibleChange={(open) => {
   if (open) {
     setTimeout(() => {
@@ -599,7 +748,7 @@ onDropdownVisibleChange={(open) => {
 </div>
 <div className="grid grid-cols-2 gap-4">
 <div>
-<label className="block text-sm font-medium text-gray-700 mb-1">気温 (°C)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">気温 (°C)</label>
 <Input
 value={airTemp}
 onChange={(e) => setAirTemp(e.target.value)}
@@ -608,7 +757,7 @@ disabled={isViewMode}
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 mb-1">路面温度 (°C)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">路面温度 (°C)</label>
 <Input
 value={trackTemp}
 onChange={(e) => setTrackTemp(e.target.value)}
@@ -616,7 +765,7 @@ className="w-full"
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 mb-1">湿度 (%)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">湿度 (%)</label>
 <Input
 value={humidity}
 onChange={(e) => setHumidity(e.target.value)}
@@ -624,7 +773,7 @@ className="w-full"
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 mb-1">気圧 (hPa)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">気圧 (hPa)</label>
 <Input
 value={pressure}
 onChange={(e) => setPressure(e.target.value)}
@@ -634,14 +783,14 @@ className="w-full"
 </div>
 </div>
 {/* タイヤ情報 */}
-<div className="bg-white rounded-lg shadow-sm p-6">
+<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex items-center mb-4">
-<i className="fas fa-tire text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800">タイヤ情報</h3>
+<i className="fas fa-tire text-blue-500 dark:text-blue-400 mr-2"></i>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">タイヤ情報</h3>
 </div>
 <div className="grid grid-cols-2 gap-4 mb-4">
 <div>
-<label className="block text-sm font-medium text-gray-700 mb-1">ブランド</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ブランド</label>
 <AutoComplete
 value={tireBrand}
 onChange={setTireBrand}
@@ -651,7 +800,7 @@ options={[
 { value: 'BRIDGESTONE' },
 { value: 'MICHELIN' }
 ]}
-suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 onDropdownVisibleChange={(open) => {
   if (open) {
     setTimeout(() => {
@@ -665,7 +814,7 @@ onDropdownVisibleChange={(open) => {
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 mb-1">コンパウンド</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">コンパウンド</label>
 <AutoComplete
 value={tireCompound}
 onChange={setTireCompound}
@@ -675,7 +824,7 @@ options={[
 { value: 'RE71R' },
 { value: 'PS4S' }
 ]}
-suffixIcon={<i className="fas fa-chevron-down text-gray-400"></i>}
+suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 onDropdownVisibleChange={(open) => {
   if (open) {
     setTimeout(() => {
@@ -690,7 +839,7 @@ onDropdownVisibleChange={(open) => {
 </div>
 </div>
 <div className="mb-4">
-<label className="block text-sm font-medium text-gray-700 mb-1">走行距離 (km)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">走行距離 (km)</label>
 <Input
 value={distance}
 onChange={(e) => setDistance(e.target.value)}
@@ -698,7 +847,7 @@ className="w-full"
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 mb-1">燃料量 (L)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">燃料量 (L)</label>
 <Input
 value={fuel}
 onChange={(e) => setFuel(e.target.value)}
@@ -707,15 +856,15 @@ className="w-full"
 </div>
 </div>
 {/* ラップタイム */}
-<div className="bg-white rounded-lg shadow-sm p-6">
+<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex items-center justify-between mb-4">
 <div className="flex items-center">
-<i className="fas fa-stopwatch text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800">ラップタイム</h3>
+<i className="fas fa-stopwatch text-blue-500 dark:text-blue-400 mr-2"></i>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">ラップタイム</h3>
 </div>
 <button 
   onClick={() => setShowLapTimeModal(true)}
-  className="text-blue-500 hover:text-blue-700 text-sm cursor-pointer whitespace-nowrap !rounded-button"
+  className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm cursor-pointer whitespace-nowrap !rounded-button"
 >
   詳細入力
 </button>
@@ -723,7 +872,7 @@ className="w-full"
 <div className="mb-4">
 <div className="space-y-3">
 <div>
-<label className="block text-sm font-medium text-gray-600 mb-1">ベストラップ</label>
+<label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">ベストラップ</label>
 <Input
   value={bestLap}
   onChange={(e) => setBestLap(e.target.value)}
@@ -732,7 +881,7 @@ className="w-full"
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-600 mb-1">総周回数</label>
+<label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">総周回数</label>
 <Input
   value={totalLaps}
   onChange={(e) => setTotalLaps(e.target.value)}
@@ -746,7 +895,7 @@ className="w-full"
 </div>
 </div>
 {/* 設定タブセクション */}
-<div className="bg-white rounded-lg shadow-sm mb-6">
+<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6">
 <Tabs defaultActiveKey="1" className="px-6 pt-4">
 <TabPane tab="基本設定" key="1">
 <BasicInfoTab
@@ -764,10 +913,10 @@ className="w-full"
 <div className="p-6">
 <div className="space-y-8">
 {/* エンジン設定 */}
-<div className="bg-white rounded-lg p-6 shadow-sm">
+<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
 <div className="flex items-center mb-6">
 <i className="fas fa-engine text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800">エンジン設定</h3>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">エンジン設定</h3>
 </div>
 <div className="grid grid-cols-2 gap-6">
 <div>
@@ -822,10 +971,10 @@ onDropdownVisibleChange={(open) => {
 </div>
 </div>
 {/* 空力設定 */}
-<div className="bg-white rounded-lg p-6 shadow-sm">
+<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
 <div className="flex items-center mb-6">
 <i className="fas fa-wind text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800">空力設定</h3>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">空力設定</h3>
 </div>
 <div className="grid grid-cols-2 gap-6">
 <div>
@@ -880,10 +1029,10 @@ onDropdownVisibleChange={(open) => {
 </div>
 </div>
 {/* 冷却系設定 */}
-<div className="bg-white rounded-lg p-6 shadow-sm">
+<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
 <div className="flex items-center mb-6">
 <i className="fas fa-temperature-low text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800">冷却系設定</h3>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">冷却系設定</h3>
 </div>
 <div className="grid grid-cols-2 gap-6">
 <div>
@@ -959,14 +1108,14 @@ onDropdownVisibleChange={(open) => {
 } key="6">
 <div className="p-6 space-y-8">
 {/* セットアップ提案 */}
-<div className="bg-white rounded-lg p-6 shadow-sm">
+<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
 <div className="flex items-center mb-6">
 <i className="fas fa-sliders-h text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800">セットアップ提案</h3>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">セットアップ提案</h3>
 </div>
 <div className="space-y-6">
 <div className="bg-green-50 p-4 rounded-lg">
-<p className="text-sm text-gray-600">
+<p className="text-sm text-gray-600 dark:text-gray-400">
 フロント：空気圧を-3kPa調整することで、高速コーナーでのアンダーステア傾向を軽減できる可能性があります。
 リア：現状の空気圧を維持し、温度管理に注力することを推奨します。
 </p>
@@ -974,10 +1123,10 @@ onDropdownVisibleChange={(open) => {
 </div>
 </div>
 {/* ドライビングアドバイス */}
-<div className="bg-white rounded-lg p-6 shadow-sm">
+<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
 <div className="flex items-center mb-6">
 <i className="fas fa-car text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800">ドライビングアドバイス</h3>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">ドライビングアドバイス</h3>
 </div>
 <div className="space-y-4">
 <div className="bg-yellow-50 p-4 rounded-lg">
@@ -1040,7 +1189,7 @@ onDropdownVisibleChange={(open) => {
 {dropdownState.isOpen && (
 <div
 ref={dropdownRef}
-className="fixed bg-white shadow-lg rounded-md overflow-hidden z-50"
+className="fixed bg-white dark:bg-gray-800 shadow-lg rounded-md overflow-hidden z-50"
 style={{
 top: `${dropdownState.position.top}px`,
 left: `${dropdownState.position.left}px`,
@@ -1052,7 +1201,7 @@ minWidth: '100px'
 {dropdownState.options.map((option) => (
 <div
 key={option.value}
-className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm dark:text-gray-300"
 onClick={() => handleOptionSelect(option.value)}
 >
 {option.label}
@@ -1060,7 +1209,7 @@ onClick={() => handleOptionSelect(option.value)}
 ))}
 </div>
 )}
-<footer className="bg-white py-6 border-t border-gray-200">
+<footer className="bg-white dark:bg-gray-800 py-6 border-t border-gray-200 dark:border-gray-700">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 <div className="text-center text-sm text-gray-500">
 © 2025 VELOCITY LOGGER. All rights reserved.

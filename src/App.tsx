@@ -2,19 +2,21 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { Login } from './components/auth/Login';
 import { SignUp } from './components/auth/SignUp';
 import { PrivateRoute } from './components/auth/PrivateRoute';
 import CarSetup from '../CarSetup';
 import { SetupHistory } from './components/setup/SetupHistory';
 import { Dashboard } from './components/Dashboard';
+import { VehicleList } from './components/vehicle/VehicleList';
 
 const App: React.FC = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
 
   const AuthPage = () => {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         {authMode === 'login' ? (
           <Login
             onSuccess={() => window.location.href = '/'}
@@ -31,46 +33,56 @@ const App: React.FC = () => {
   };
 
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/auth" element={<AuthPage />} />
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <CarSetup />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/history"
-            element={
-              <PrivateRoute>
-                <SetupHistory />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/setup/:id"
-            element={
-              <PrivateRoute>
-                <CarSetup />
-              </PrivateRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/auth" element={<AuthPage />} />
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <CarSetup />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                <PrivateRoute>
+                  <SetupHistory />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/vehicles"
+              element={
+                <PrivateRoute>
+                  <VehicleList />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/setup/:id"
+              element={
+                <PrivateRoute>
+                  <CarSetup />
+                </PrivateRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

@@ -50,23 +50,23 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
       {/* タイヤ空気圧とダンパー設定を横並び */}
       <div className="grid grid-cols-2 gap-6">
         {/* タイヤ空気圧設定 */}
-        <div className="bg-blue-50 rounded-lg p-6 relative">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6 relative">
           {/* 車両イメージ - タイヤ空気圧 */}
           <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-            <i className="fas fa-car text-9xl text-gray-400"></i>
+            <i className="fas fa-car text-9xl text-gray-400 dark:text-gray-600"></i>
           </div>
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center">
-              <i className="fas fa-tachometer-alt text-blue-500 mr-2"></i>
-              <h3 className="text-lg font-medium text-gray-800">タイヤ空気圧</h3>
+              <i className="fas fa-tachometer-alt text-blue-500 dark:text-blue-400 mr-2"></i>
+              <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">タイヤ空気圧</h3>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
               走行前 → 走行後 (kPa)
             </div>
           </div>
           <div className="grid grid-cols-2 gap-x-8 gap-y-6">
           <div className="relative">
-            <div className="text-center mb-2 font-medium">FL</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">FL</div>
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
@@ -134,10 +134,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 />
               </div>
             </div>
-            <div className="text-red-500 text-sm text-right mt-1">{tirePressures.fl.diff}</div>
+            <div className="text-red-500 dark:text-red-400 text-sm text-right mt-1">{tirePressures.fl.diff}</div>
           </div>
           <div className="relative">
-            <div className="text-center mb-2 font-medium">FR</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">FR</div>
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
@@ -205,10 +205,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 />
               </div>
             </div>
-            <div className="text-red-500 text-sm text-right mt-1">{tirePressures.fr.diff}</div>
+            <div className="text-red-500 dark:text-red-400 text-sm text-right mt-1">{tirePressures.fr.diff}</div>
           </div>
           <div className="relative">
-            <div className="text-center mb-2 font-medium">RL</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">RL</div>
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
@@ -276,10 +276,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 />
               </div>
             </div>
-            <div className="text-red-500 text-sm text-right mt-1">{tirePressures.rl.diff}</div>
+            <div className="text-red-500 dark:text-red-400 text-sm text-right mt-1">{tirePressures.rl.diff}</div>
           </div>
           <div className="relative">
-            <div className="text-center mb-2 font-medium">RR</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">RR</div>
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
@@ -347,29 +347,29 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 />
               </div>
             </div>
-            <div className="text-red-500 text-sm text-right mt-1">{tirePressures.rr.diff}</div>
+            <div className="text-red-500 dark:text-red-400 text-sm text-right mt-1">{tirePressures.rr.diff}</div>
           </div>
         </div>
       </div>
         
         {/* ダンパー設定 */}
-        <div className="relative bg-blue-50 rounded-lg p-6">
+        <div className="relative bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
         {/* 車両イメージ - ダンパー設定 */}
         <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-          <i className="fas fa-car text-9xl text-gray-400"></i>
+          <i className="fas fa-car text-9xl text-gray-400 dark:text-gray-600"></i>
         </div>
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center">
-            <i className="fas fa-car-side text-blue-500 mr-2"></i>
-            <h3 className="text-lg font-medium text-gray-800">ダンパー設定</h3>
+            <i className="fas fa-car-side text-blue-500 dark:text-blue-400 mr-2"></i>
+            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">ダンパー設定</h3>
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
             Bump / Rebound (クリック)
           </div>
         </div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-6">
           <div>
-            <div className="text-center mb-2 font-medium">FL</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">FL</div>
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
@@ -433,7 +433,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-center mb-2 font-medium">FR</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">FR</div>
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
@@ -497,7 +497,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-center mb-2 font-medium">RL</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">RL</div>
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
@@ -561,7 +561,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-center mb-2 font-medium">RR</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">RR</div>
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete

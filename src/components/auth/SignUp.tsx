@@ -61,11 +61,11 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
+    <div className="max-w-md mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-2xl font-bold text-center mb-6">
-        <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800">LOGGER</span>
+        <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800 dark:text-gray-200">LOGGER</span>
       </h2>
-      <h3 className="text-lg text-center text-gray-600 mb-6">新規アカウント作成</h3>
+      <h3 className="text-lg text-center text-gray-600 dark:text-gray-400 mb-6">新規アカウント作成</h3>
       
       <div className="space-y-4">
         <Input
@@ -126,7 +126,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
         </Button>
         
         <div className="text-center mt-4">
-          <span className="text-gray-600">既にアカウントをお持ちの方は</span>
+          <span className="text-gray-600 dark:text-gray-400">既にアカウントをお持ちの方は</span>
           <Button
             type="link"
             onClick={onLoginClick}

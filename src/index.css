@@ -1,3 +1,412 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Ant Design ダークモード対応 */
+.dark .ant-input,
+.dark .ant-input-number-input,
+.dark .ant-select-selector,
+.dark .ant-picker,
+.dark .ant-checkbox-inner,
+.dark .ant-radio-inner {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-input:hover,
+.dark .ant-input-number-input:hover,
+.dark .ant-select-selector:hover,
+.dark .ant-picker:hover {
+  border-color: rgb(107 114 128) !important;
+}
+
+.dark .ant-input:focus,
+.dark .ant-input-number-input:focus,
+.dark .ant-select-selector:focus,
+.dark .ant-picker:focus,
+.dark .ant-input-focused,
+.dark .ant-select-focused .ant-select-selector {
+  border-color: rgb(59 130 246) !important;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 20%) !important;
+}
+
+.dark .ant-input::placeholder {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-select-dropdown,
+.dark .ant-picker-panel-container,
+.dark .ant-dropdown-menu,
+.dark .ant-tooltip-inner {
+  background-color: rgb(55 65 81) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-select-item,
+.dark .ant-picker-cell,
+.dark .ant-dropdown-menu-item {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-select-item:hover,
+.dark .ant-picker-cell:hover .ant-picker-cell-inner,
+.dark .ant-dropdown-menu-item:hover {
+  background-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-select-item-option-selected {
+  background-color: rgb(75 85 99) !important;
+  font-weight: 600;
+}
+
+.dark .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner::before {
+  border-color: rgb(59 130 246) !important;
+}
+
+.dark .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner {
+  background: rgb(59 130 246) !important;
+}
+
+/* Tabsのダークモード対応 */
+.dark .ant-tabs-tab {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-tabs-tab:hover {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: rgb(59 130 246) !important;
+}
+
+.dark .ant-tabs-ink-bar {
+  background: rgb(59 130 246) !important;
+}
+
+/* AutoCompleteのダークモード対応 */
+.dark .ant-select-selection-placeholder {
+  color: rgb(156 163 175) !important;
+}
+
+/* Select内のアイコンとテキストのダークモード対応 */
+.dark .ant-select-arrow {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-select-clear {
+  color: rgb(156 163 175) !important;
+  background-color: transparent !important;
+}
+
+.dark .ant-select-clear:hover {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-select-selection-item {
+  color: rgb(229 231 235) !important;
+}
+
+/* DatePicker内のアイコンの色修正 */
+.dark .ant-picker-suffix {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-picker-clear {
+  color: rgb(156 163 175) !important;
+  background-color: transparent !important;
+}
+
+.dark .ant-picker-clear:hover {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-picker-separator {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-input-group-addon {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+  color: rgb(229 231 235) !important;
+}
+
+/* Modalのダークモード対応 */
+.dark .ant-modal-content {
+  background-color: rgb(31 41 55) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-modal-header {
+  background-color: rgb(31 41 55) !important;
+  border-bottom-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-modal-title {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-modal-close {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-modal-close:hover {
+  color: rgb(229 231 235) !important;
+}
+
+/* Buttonのダークモード対応 */
+.dark .ant-btn-default {
+  background-color: transparent !important;
+  border-color: rgb(75 85 99) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-btn-default:hover {
+  border-color: rgb(59 130 246) !important;
+  color: rgb(59 130 246) !important;
+}
+
+.dark .ant-btn-primary {
+  background-color: rgb(59 130 246) !important;
+  border-color: rgb(59 130 246) !important;
+}
+
+.dark .ant-btn-primary:hover {
+  background-color: rgb(37 99 235) !important;
+  border-color: rgb(37 99 235) !important;
+}
+
+/* Textボタンのダークモード対応 */
+.dark .ant-btn-text {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-btn-text:hover {
+  background-color: rgb(55 65 81) !important;
+  color: rgb(59 130 246) !important;
+}
+
+.dark .ant-btn-text.ant-btn-dangerous {
+  color: rgb(239 68 68) !important;
+}
+
+.dark .ant-btn-text.ant-btn-dangerous:hover {
+  background-color: rgb(127 29 29 / 30%) !important;
+  color: rgb(248 113 113) !important;
+}
+
+/* Linkボタンのダークモード対応 */
+.dark .ant-btn-link {
+  color: rgb(59 130 246) !important;
+}
+
+.dark .ant-btn-link:hover {
+  color: rgb(96 165 250) !important;
+}
+
+/* Switchのダークモード対応 */
+.dark .ant-switch {
+  background-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-switch-checked {
+  background-color: rgb(59 130 246) !important;
+}
+
+/* Checkboxのダークモード対応 */
+.dark .ant-checkbox-wrapper {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-checkbox-checked .ant-checkbox-inner {
+  background-color: rgb(59 130 246) !important;
+  border-color: rgb(59 130 246) !important;
+}
+
+/* Messageのダークモード対応 */
+.dark .ant-message-notice-content {
+  background-color: rgb(55 65 81) !important;
+  color: rgb(229 231 235) !important;
+}
+
+/* InputNumberのダークモード対応 */
+.dark .ant-input-number {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-input-number:hover {
+  border-color: rgb(107 114 128) !important;
+}
+
+.dark .ant-input-number-focused,
+.dark .ant-input-number:focus {
+  border-color: rgb(59 130 246) !important;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 20%) !important;
+}
+
+.dark .ant-input-number-handler {
+  color: rgb(156 163 175) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-input-number-handler:hover {
+  color: rgb(59 130 246) !important;
+}
+
+.dark .ant-input-number-handler-wrap {
+  background-color: rgb(55 65 81) !important;
+}
+
+/* Cardのダークモード対応 */
+.dark .ant-card {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-card-head {
+  background-color: transparent !important;
+  border-bottom-color: rgb(75 85 99) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-card-head-title {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-card-body {
+  background-color: transparent !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-card-meta-title {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-card-meta-description {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-card-actions {
+  background-color: transparent !important;
+  border-top-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-card-actions > li {
+  border-inline-end-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-card-hoverable:hover {
+  border-color: rgb(107 114 128) !important;
+}
+
+/* Tagのダークモード対応 */
+.dark .ant-tag {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-tag-blue {
+  background-color: rgb(30 58 138) !important;
+  border-color: rgb(37 99 235) !important;
+  color: rgb(147 197 253) !important;
+}
+
+.dark .ant-tag-orange {
+  background-color: rgb(124 45 18) !important;
+  border-color: rgb(251 146 60) !important;
+  color: rgb(254 215 170) !important;
+}
+
+.dark .ant-tag-red {
+  background-color: rgb(127 29 29) !important;
+  border-color: rgb(239 68 68) !important;
+  color: rgb(252 165 165) !important;
+}
+
+.dark .ant-tag-green {
+  background-color: rgb(20 83 45) !important;
+  border-color: rgb(34 197 94) !important;
+  color: rgb(134 239 172) !important;
+}
+
+/* DatePickerのカレンダー内テキスト */
+.dark .ant-picker-header-view button {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-picker-header-view button:hover {
+  color: rgb(59 130 246) !important;
+}
+
+.dark .ant-picker-content th {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-picker-cell-disabled .ant-picker-cell-inner {
+  color: rgb(107 114 128) !important;
+}
+
+/* DatePickerの追加スタイル */
+.dark .ant-picker-cell-inner {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-picker-cell:hover .ant-picker-cell-inner {
+  background-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-picker-today .ant-picker-cell-inner {
+  border-color: rgb(59 130 246) !important;
+}
+
+.dark .ant-picker-cell-in-view {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-picker-cell-in-view.ant-picker-cell-in-range::before {
+  background: rgb(59 130 246 / 20%) !important;
+}
+
+.dark .ant-picker-prev-icon,
+.dark .ant-picker-next-icon,
+.dark .ant-picker-super-prev-icon,
+.dark .ant-picker-super-next-icon {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-picker-prev-icon:hover,
+.dark .ant-picker-next-icon:hover,
+.dark .ant-picker-super-prev-icon:hover,
+.dark .ant-picker-super-next-icon:hover {
+  color: rgb(229 231 235) !important;
+}
+
+/* Spinのダークモード対応 */
+.dark .ant-spin-dot-item {
+  background-color: rgb(59 130 246) !important;
+}
+
+.dark .ant-spin-text {
+  color: rgb(156 163 175) !important;
+}
+
+/* Tooltipの追加対応 */
+.dark .ant-tooltip-arrow-content {
+  background-color: rgb(55 65 81) !important;
+}
+
+/* その他の調整 */
+.dark .ant-form-item-label > label {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-divider {
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-empty-description {
+  color: rgb(156 163 175) !important;
+}
