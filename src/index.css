@@ -430,6 +430,200 @@
   background-color: rgb(55 65 81) !important;
 }
 
+/* Segmentedのダークモード対応 */
+.dark .ant-segmented {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-segmented-item {
+  color: rgb(156 163 175) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-segmented-item:hover {
+  color: rgb(229 231 235) !important;
+  background-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-segmented-item-selected {
+  background-color: rgb(59 130 246) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-segmented-item-label {
+  color: rgb(229 231 235) !important;
+}
+
+/* Sliderのダークモード対応 */
+.dark .ant-slider {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-slider-mark-text {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-slider-mark-text-active {
+  color: rgb(59 130 246) !important;
+}
+
+.dark .ant-slider-rail {
+  background-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-slider-track {
+  background-color: rgb(59 130 246) !important;
+}
+
+.dark .ant-slider-handle {
+  background-color: rgb(59 130 246) !important;
+  border-color: rgb(59 130 246) !important;
+}
+
+.dark .ant-slider-handle:hover {
+  background-color: rgb(37 99 235) !important;
+  border-color: rgb(37 99 235) !important;
+}
+
+.dark .ant-slider-dot {
+  background-color: rgb(75 85 99) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-slider-dot-active {
+  background-color: rgb(59 130 246) !important;
+  border-color: rgb(59 130 246) !important;
+}
+
+/* Collapseのダークモード対応 */
+.dark .ant-collapse {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-collapse-item {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-collapse-header {
+  background-color: rgb(31 41 55) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-collapse-header:hover {
+  background-color: rgb(55 65 81) !important;
+}
+
+.dark .ant-collapse-content {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-collapse-content-box {
+  background-color: rgb(31 41 55) !important;
+  color: rgb(229 231 235) !important;
+}
+
+/* タイヤ位置ラベル（FL、FR、RL、RR）のダークモード対応 */
+.dark .w-10.text-center.font-semibold {
+  color: rgb(229 231 235) !important;
+}
+
+/* ホイール入力画面のダークモード対応 */
+.dark .bg-white.border-2 {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .bg-white.border {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .text-gray-500 {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .text-gray-400 {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .text-gray-600 {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .text-gray-700 {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: rgb(55 65 81) !important;
+}
+
+.dark .hover\:bg-gray-200:hover {
+  background-color: rgb(75 85 99) !important;
+}
+
+.dark .bg-gray-200 {
+  background-color: rgb(75 85 99) !important;
+  color: rgb(229 231 235) !important;
+}
+
+/* 車両管理の検索フィールドとセレクトボックスのダークモード対応 */
+.dark .ant-input-affix-wrapper {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-input-affix-wrapper input {
+  background-color: transparent !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-input-affix-wrapper:hover {
+  border-color: rgb(107 114 128) !important;
+}
+
+.dark .ant-input-affix-wrapper-focused {
+  border-color: rgb(59 130 246) !important;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 20%) !important;
+}
+
+.dark .ant-input-affix-wrapper .ant-input-prefix {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-select-selector {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-select-selector:hover {
+  border-color: rgb(107 114 128) !important;
+}
+
+.dark .ant-select-focused .ant-select-selector {
+  border-color: rgb(59 130 246) !important;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 20%) !important;
+}
+
+.dark .ant-select-arrow {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-select-selection-placeholder {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-select-selection-item {
+  color: rgb(229 231 235) !important;
+}
+
 /* その他の調整 */
 .dark .ant-form-item-label > label {
   color: rgb(229 231 235) !important;

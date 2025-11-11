@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Empty, Spin, message, Card, Button, Modal, Input, Select } from 'antd';
-import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined, SortAscendingOutlined } from '@ant-design/icons';
+import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserVehicles, deleteVehicle } from '../../services/vehicleService';
 import { Vehicle } from '../../types/vehicle';
@@ -99,7 +99,7 @@ export const VehicleList: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
         <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
       </div>
     );
@@ -185,7 +185,7 @@ export const VehicleList: React.FC = () => {
                         src={vehicle.photoURL}
                         loading="lazy"
                         className="h-48 object-cover"
-                        onError={(e) => {
+                        onError={() => {
                           console.error('Debug - Image load error for vehicle:', vehicle.id);
                           console.error('Debug - Failed URL:', vehicle.photoURL?.substring(0, 100));
                         }}

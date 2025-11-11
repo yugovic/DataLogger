@@ -161,7 +161,7 @@ export const SetupHistory: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
         <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
       </div>
     );
@@ -212,11 +212,11 @@ export const SetupHistory: React.FC = () => {
                 format="YYYY年MM月"
                 cellRender={(date, info) => {
                   if (info.type !== 'month') return info.originNode;
-                  const monthKey = date.format('YYYY-MM');
+                  const monthKey = dayjs(date).format('YYYY-MM');
                   const count = monthlyDataCounts.get(monthKey) || 0;
                   return (
                     <div className="h-full flex flex-col items-center justify-center py-1 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded cursor-pointer transition-colors">
-                      <div>{date.format('MMM')}</div>
+                      <div>{dayjs(date).format('MMM')}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">({count})</div>
                     </div>
                   );
