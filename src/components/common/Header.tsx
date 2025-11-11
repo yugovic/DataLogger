@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Modal, Switch, Checkbox, message } from 'antd';
-import { SettingOutlined, PlusOutlined, BellOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined, LogoutOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons';
+import { SettingOutlined, PlusOutlined, BellOutlined, LogoutOutlined, SunOutlined, MoonOutlined, DashboardOutlined, HistoryOutlined, CarOutlined, ToolOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { logout } from '../../services/authService';
@@ -47,31 +47,35 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
       <div className="flex items-center space-x-4">
         <button 
+          aria-label="ダッシュボード"
           onClick={() => navigate('/dashboard')}
           className={`flex items-center px-3 py-2 ${isActive('/dashboard') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
         >
-          <i className="fas fa-tachometer-alt mr-2"></i>
+          <DashboardOutlined className="mr-2" />
           ダッシュボード
         </button>
         <button 
+          aria-label="セットアップ記録"
           onClick={() => navigate('/')}
           className={`flex items-center px-3 py-2 ${isActive('/') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
         >
-          <i className="fas fa-cog mr-2"></i>
+          <ToolOutlined className="mr-2" />
           セットアップ記録
         </button>
         <button 
+          aria-label="履歴一覧"
           onClick={() => navigate('/history')}
           className={`flex items-center px-3 py-2 ${isActive('/history') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
         >
-          <i className="fas fa-history mr-2"></i>
+          <HistoryOutlined className="mr-2" />
           履歴一覧
         </button>
         <button 
+          aria-label="車両管理"
           onClick={() => navigate('/vehicles')}
           className={`flex items-center px-3 py-2 ${isActive('/vehicles') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
         >
-          <i className="fas fa-car mr-2"></i>
+          <CarOutlined className="mr-2" />
           車両管理
         </button>
       </div>
@@ -126,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'vehicle' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('vehicle')}
                 >
-                  <i className="fas fa-car mr-3"></i>
+                  <CarOutlined className="mr-3" />
                   車両設定
                 </button>
                 <button
@@ -169,7 +173,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">メーカー</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">メーカー</label>
                         <input
                           type="text"
                           defaultValue="honda"
@@ -177,7 +181,7 @@ export const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">モデル</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">モデル</label>
                         <input
                           type="text"
                           defaultValue="s2000"
@@ -187,7 +191,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">年式</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">年式</label>
                         <input
                           type="text"
                           defaultValue="2005"
@@ -195,7 +199,7 @@ export const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">エンジン型式</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">エンジン型式</label>
                         <input
                           type="text"
                           defaultValue="f20c"
@@ -205,7 +209,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">駆動方式</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">駆動方式</label>
                         <input
                           type="text"
                           defaultValue="fr"
@@ -213,7 +217,7 @@ export const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">トランスミッション</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">トランスミッション</label>
                         <input
                           type="text"
                           defaultValue="6mt"
@@ -222,7 +226,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">備考</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">備考</label>
                       <textarea
                         rows={4}
                         placeholder="車両に関する特記事項があれば入力してください"

@@ -1,7 +1,7 @@
 // Firebase初期化ファイル
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getAnalytics } from 'firebase/analytics';
 import { getStorage } from 'firebase/storage';
 
@@ -31,7 +31,20 @@ const app = initializeApp(firebaseConfig);
 // サービスの初期化
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const analytics = getAnalytics(app);
+// オフライン永続化
+enableIndexedDbPersistence(db).catch((err) => {
+  console.warn('IndexedDB persistence not enabled:', err?.code || err);
+});
+// Analyticsは対応環境のみ
+let analyticsInst: ReturnType<typeof getAnalytics> | undefined;
+try {
+  if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+    analyticsInst = getAnalytics(app);
+  }
+} catch (e) {
+  console.warn('Analytics not initialized:', e);
+}
+export const analytics = analyticsInst as any;
 export const storage = getStorage(app);
 
 export default app;

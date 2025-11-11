@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI/UX 変更点レポート</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --card: #10182b;
+    --ink: #dbe3ff;
+    --ink-dim: #9fb2ff;
+    --good: #2bd576;
+    --warn: #ffd166;
+    --bad: #ff6b6b;
+    --accent: #5a8cff;
+    --muted: #8ea1d3;
+    --line: #1c2742;
+  }
+  html, body { background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; margin: 0; }
+  .wrap { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+  h1 { font-size: 28px; margin: 0 0 16px; }
+  .lead { color: var(--ink-dim); margin-bottom: 24px; }
+  .toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 16px 0 28px; }
+  .toc a { display: block; background: var(--card); border: 1px solid var(--line); padding: 10px 12px; border-radius: 10px; color: var(--ink); text-decoration: none; }
+  .section { margin: 38px 0; }
+  .title { font-size: 20px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+  .tag { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .card h3 { font-size: 14px; margin: 0 0 10px; letter-spacing: .04em; }
+  .shot { background: #0e1427; border: 1px dashed #263255; border-radius: 10px; padding: 12px; min-height: 140px; position: relative; overflow: hidden; }
+  .label { position: absolute; top: 8px; left: 8px; font-size: 11px; padding: 2px 6px; border-radius: 6px; }
+  .before .label { background: rgba(255,107,107,.2); color: var(--bad); border: 1px solid rgba(255,107,107,.3); }
+  .after .label { background: rgba(43,213,118,.18); color: var(--good); border: 1px solid rgba(43,213,118,.3); }
+  ul { margin: 10px 0 0 18px; color: var(--ink-dim); }
+  li { margin: 4px 0; }
+  .row + .row { margin-top: 12px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--ink-dim); background: #0f1831; margin-right: 6px; }
+  .kbd { background: #0f1831; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); font-size: 11px; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .ok { color: var(--good); }
+  .warn { color: var(--warn); }
+  .bad { color: var(--bad); }
+  .file { color: var(--ink-dim); font-size: 12px; }
+  .divider { height: 1px; background: var(--line); margin: 26px 0; }
+  .chip { display: inline-block; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; padding: 2px 8px; font-size: 12px; margin: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UI/UX 変更点レポート（Before / After）</h1>
+    <p class="lead">主要画面の変更点をスクリーンイメージ風モックで示します。左がBefore、右がAfterです。各項目の下に「何が変わったか」「該当ファイル」を併記しました。</p>
+
+    <div class="toc">
+      <a href="#vehicle-modal">車両モーダル（画像/保存体験）</a>
+      <a href="#vehicle-list">車両一覧（検索/並び替え/編集導線）</a>
+      <a href="#setup-history">走行履歴（フィルターの持続化）</a>
+      <a href="#loading">ローディング/エラーフォールバック</a>
+      <a href="#numbers">数値UI（StepNumber）</a>
+      <a href="#deprecations">非推奨APIの解消</a>
+    </div>
+
+    <div id="vehicle-modal" class="section">
+      <div class="title">車両モーダル（画像/保存体験） <span class="tag">VehicleModal</span></div>
+      <div class="row">
+        <div class="card before">
+          <h3>Before</h3>
+          <div class="shot before">
+            <div class="label">BEFORE</div>
+            <ul>
+              <li>画像制限が曖昧（1MB目安・実際はCORS等で不安定）</li>
+              <li>アップロード中でも保存できてしまう</li>
+              <li>プレビューに容量/解像度の情報なし</li>
+              <li>未保存のまま閉じても警告なし</li>
+            </ul>
+          </div>
+          <div class="file">src/components/vehicle/VehicleModal.tsx（旧実装）</div>
+        </div>
+        <div class="card after">
+          <h3>After</h3>
+          <div class="shot after">
+            <div class="label">AFTER</div>
+            <div class="pill">画像上限: 0.5MB</div>
+            <div class="pill">アップロード中: 保存不可</div>
+            <div class="pill">プレビュー: 解像度/容量表示</div>
+            <div class="pill">未保存離脱: 確認ダイアログ</div>
+            <ul>
+              <li><span class="ok">0.5MB超を即ブロック</span>＋圧縮も0.5MB目標</li>
+              <li><span class="ok">アップロード中は保存ボタン無効</span></li>
+              <li>プレビュー下に「<span class="ok">WxH / KB</span>」を表示</li>
+              <li><span class="ok">未保存で閉じる/リロード時に警告</span></li>
+            </ul>
+          </div>
+          <div class="file">src/components/vehicle/VehicleModal.tsx（現行）</div>
+        </div>
+      </div>
+      <div class="note">Storageを使わず、FirestoreへData URL保存に統一。保存前に0.5MB超を再チェック。</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="vehicle-list" class="section">
+      <div class="title">車両一覧（検索/並び替え/編集導線） <span class="tag">VehicleList</span></div>
+      <div class="row">
+        <div class="card before">
+          <h3>Before</h3>
+          <div class="shot before">
+            <div class="label">BEFORE</div>
+            <ul>
+              <li>検索/並び替えなし</li>
+              <li>カードは画像のみ・クリックで編集不可</li>
+              <li>画像は即読み込み（遅延なし）</li>
+            </ul>
+          </div>
+          <div class="file">src/components/vehicle/VehicleList.tsx（旧実装）</div>
+        </div>
+        <div class="card after">
+          <h3>After</h3>
+          <div class="shot after">
+            <div class="label">AFTER</div>
+            <div class="pill">検索（メーカー/モデル/ナンバー）</div>
+            <div class="pill">並び替え（新旧/年式/メーカー）</div>
+            <div class="pill">画像遅延読み込み</div>
+            <div class="pill">カード全体クリックで編集</div>
+            <ul>
+              <li>上部に <span class="ok">検索ボックス</span>＋<span class="ok">並び替え</span></li>
+              <li>カード全体クリック＝<span class="ok">編集モーダル</span></li>
+              <li>画像に <span class="ok">loading="lazy"</span></li>
+            </ul>
+          </div>
+          <div class="file">src/components/vehicle/VehicleList.tsx（現行）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="setup-history" class="section">
+      <div class="title">走行履歴（フィルターの持続化） <span class="tag">SetupHistory</span></div>
+      <div class="row">
+        <div class="card before">
+          <h3>Before</h3>
+          <div class="shot before">
+            <div class="label">BEFORE</div>
+            <ul>
+              <li>フィルターはページ遷移や再読込でリセット</li>
+              <li>URL共有で同じ条件を再現できない</li>
+            </ul>
+          </div>
+          <div class="file">src/components/setup/SetupHistory.tsx（旧実装）</div>
+        </div>
+        <div class="card after">
+          <h3>After</h3>
+          <div class="shot after">
+            <div class="label">AFTER</div>
+            <div class="pill">URLとlocalStorageに同期</div>
+            <div class="pill">再訪時に自動復元</div>
+            <ul>
+              <li>フィルター変更→<span class="ok">URLクエリ</span>＋<span class="ok">localStorage</span>へ保存</li>
+              <li>再訪時/共有時も<span class="ok">同じ条件で表示</span></li>
+            </ul>
+          </div>
+          <div class="file">src/components/setup/SetupHistory.tsx（現行）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="loading" class="section">
+      <div class="title">ローディング/エラーフォールバック <span class="tag">Loading & ErrorBoundary</span></div>
+      <div class="row">
+        <div class="card before">
+          <h3>Before</h3>
+          <div class="shot before">
+            <div class="label">BEFORE</div>
+            <ul>
+              <li>ページ内にスピナー（Ant警告: tipはフルスクリーン/ネストのみ）</li>
+              <li>UI例外時は白画面の可能性</li>
+            </ul>
+          </div>
+          <div class="file">src/components/auth/PrivateRoute.tsx（旧）</div>
+        </div>
+        <div class="card after">
+          <h3>After</h3>
+          <div class="shot after">
+            <div class="label">AFTER</div>
+            <div class="pill">フルスクリーン・スピナー</div>
+            <div class="pill">ErrorBoundary 追加</div>
+            <ul>
+              <li><span class="ok">Spin fullscreen</span> で警告解消</li>
+              <li><span class="ok">ErrorBoundary</span> で安全な復帰表示</li>
+            </ul>
+          </div>
+          <div class="file">
+            src/components/auth/PrivateRoute.tsx（現行）<br/>
+            src/components/common/ErrorBoundary.tsx（新規）
+          </div>
+        </div>
+      </div>
+      <div class="note">IndexedDB 永続化（オフライン強化）と Analytics 初期化の条件化は見た目の変化はありません。</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="numbers" class="section">
+      <div class="title">数値UIの改善（クリック/ボタン/キー） <span class="tag">StepNumber</span></div>
+      <div class="row">
+        <div class="card before">
+          <h3>Before</h3>
+          <div class="shot before">
+            <div class="label">BEFORE</div>
+            <ul>
+              <li>数値はテキスト入力や候補選択が中心</li>
+              <li>微調整に手間がかかる（連続クリック不可）</li>
+            </ul>
+          </div>
+          <div class="file">各タブ（旧UI）</div>
+        </div>
+        <div class="card after">
+          <h3>After</h3>
+          <div class="shot after">
+            <div class="label">AFTER</div>
+            <div class="pill">＋/−ボタン</div>
+            <div class="pill">長押しで加速</div>
+            <div class="pill">ホイール/矢印キー対応</div>
+            <ul>
+              <li>タイヤ圧（FL/FR/RL/RR）: <span class="ok">5kPa刻み</span>で前後の「走行前→走行後」を素早く入力</li>
+              <li>走行距離（km）/ 燃料（L）: <span class="ok">+/-で増減</span>、微調整が簡単</li>
+              <li>車高・ブレーキバイアス・Pad距離: <span class="ok">クリックや長押しで連続増減</span></li>
+            </ul>
+          </div>
+          <div class="file">
+            src/components/common/StepNumber.tsx（新規）<br/>
+            src/components/setup/BasicInfoTab.tsx（適用）<br/>
+            src/components/setup/SuspensionTab.tsx（適用）<br/>
+            CarSetup.tsx（走行距離/燃料に適用）
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        拡張案: <span class="kbd">Shift</span> で×5 / <span class="kbd">Alt</span> で×10ステップ、タイヤ圧のプリセットチップ（180/200/220kPa）など。
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="deprecations" class="section">
+      <div class="title">非推奨APIの解消とヘッダーの統一 <span class="tag">Deprecations & Header</span></div>
+      <div class="row">
+        <div class="card before">
+          <h3>Before</h3>
+          <div class="shot before">
+            <div class="label">BEFORE</div>
+            <ul>
+              <li><span class="bad">Tabs.TabPane</span> 利用（警告）</li>
+              <li><span class="bad">onDropdownVisibleChange</span> 利用（警告）</li>
+              <li><span class="bad">Select bordered</span> 警告</li>
+              <li>ヘッダーで FontAwesome と Ant Icons が混在</li>
+            </ul>
+          </div>
+          <div class="file">CarSetup.tsx / BasicInfoTab / SuspensionTab / Header</div>
+        </div>
+        <div class="card after">
+          <h3>After</h3>
+          <div class="shot after">
+            <div class="label">AFTER</div>
+            <div class="pill">Tabs: items形式</div>
+            <div class="pill">AutoComplete: onOpenChange</div>
+            <div class="pill">Select: variant="borderless"</div>
+            <div class="pill">Header: Ant Iconsへ統一</div>
+            <ul>
+              <li>Antの警告を <span class="ok">全て解消</span></li>
+              <li>ヘッダーの表示崩れ（未インポート）を修正</li>
+            </ul>
+          </div>
+          <div class="file">
+            CarSetup.tsx（Tabs移行/variant置換）<br/>
+            BasicInfoTab.tsx, SuspensionTab.tsx（onOpenChange）<br/>
+            src/components/common/Header.tsx（アイコン統一）
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p class="lead">このレポートで「画面のどこがどう変わったか」が掴めるはずです。さらに、プリセットチップや相関ステッパ（例: バイアス=100固定）などの強化も実装可能です。必要なら続けます！</p>
+  </div>
+</body>
+</html>
+

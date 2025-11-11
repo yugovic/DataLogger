@@ -21,6 +21,8 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
   const [activeTab, setActiveTab] = useState('basic');
   const [uploading, setUploading] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [imageMeta, setImageMeta] = useState<{w:number; h:number; bytes:number} | null>(null);
 
   // Base64長からおおよそのバイト数を推定
   const estimateBase64Bytes = (dataUrl: string) => {
@@ -85,6 +87,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
 
   useEffect(() => {
     if (visible) {
+      setIsDirty(false);
       if (vehicle) {
         form.setFieldsValue(vehicle);
         // 既存の画像がある場合、ファイルリストに設定
@@ -109,6 +112,18 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
       setActiveTab('basic');
     }
   }, [visible, vehicle, form]);
+
+  // 未保存離脱のガード
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const handleSubmit = async (values: any) => {
     if (!currentUser) return;
@@ -162,6 +177,20 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
     }
   };
 
+  const requestClose = () => {
+    if (isDirty) {
+      Modal.confirm({
+        title: '未保存の変更があります',
+        content: '変更を破棄して閉じますか？',
+        okText: '破棄',
+        cancelText: 'キャンセル',
+        onOk: () => onClose(),
+      });
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Modal
       title={
@@ -171,7 +200,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
         </div>
       }
       open={visible}
-      onCancel={onClose}
+      onCancel={requestClose}
       footer={null}
       width={800}
     >
@@ -179,6 +208,12 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
+        onValuesChange={() => setIsDirty(true)}
+        onFinishFailed={({ errorFields }) => {
+          if (errorFields && errorFields[0]) {
+            form.scrollToField(errorFields[0].name, { behavior: 'smooth', block: 'center' });
+          }
+        }}
       >
         <Tabs activeKey={activeTab} onChange={setActiveTab}
           items={[
@@ -210,7 +245,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                 label="モデル"
                 rules={[{ required: true, message: 'モデルを入力してください' }]}
               >
-                <Input placeholder="例: S2000, Supra" />
+                <Input placeholder="例: S2000, Supra" autoFocus />
               </Form.Item>
 
               <Form.Item
@@ -338,6 +373,15 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                       return;
                     }
                     form.setFieldsValue({ photoURL: dataUrl });
+                    // 画像メタ
+                    await new Promise<void>((resolve) => {
+                      const img = new Image();
+                      img.onload = () => {
+                        setImageMeta({ w: img.width, h: img.height, bytes: approxBytes });
+                        resolve();
+                      };
+                      img.src = dataUrl;
+                    });
                     setFileList([
                       {
                         uid: '-1',
@@ -361,6 +405,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                 onRemove={() => {
                   form.setFieldsValue({ photoURL: '' });
                   setFileList([]);
+                  setImageMeta(null);
                 }}
                 onChange={({ fileList: newFileList }) => {
                   console.log('Debug - FileList changed:', newFileList);
@@ -386,6 +431,11 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   </div>
                 )}
               </Upload>
+              {imageMeta && (
+                <div className="text-xs text-gray-500 mt-1">
+                  解像度: {imageMeta.w}×{imageMeta.h}px / 容量: {(imageMeta.bytes/1024).toFixed(0)}KB
+                </div>
+              )}
               <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 ※ 画像サイズは0.5MB以下にしてください
               </div>
@@ -558,10 +608,10 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
         />
 
         <div className="flex justify-end mt-6 space-x-2">
-          <Button onClick={onClose}>
+          <Button onClick={requestClose}>
             キャンセル
           </Button>
-          <Button type="primary" htmlType="submit" loading={loading}>
+          <Button type="primary" htmlType="submit" loading={loading} disabled={uploading}>
             {vehicle ? '更新' : '追加'}
           </Button>
         </div>

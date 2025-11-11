@@ -12,11 +12,7 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const { currentUser, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Spin size="large" tip="読み込み中..." />
-      </div>
-    );
+    return <Spin fullscreen tip="読み込み中..." />;
   }
 
   return currentUser ? <>{children}</> : <Navigate to="/auth" />;

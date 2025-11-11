@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>タイヤ空気圧 UI プラン A/B/C モック</title>
+<style>
+  :root{
+    --bg:#0b1020; --ink:#e8efff; --muted:#a4b6ff;
+    --card:#10182b; --line:#1c2742; --chip:#0f1831;
+    --pos:#ff6b6b; --neg:#5aa2ff; --hint:#90a0d0;
+    --accent:#5a8cff; --soft:#0e1427;
+  }
+  html,body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;margin:0}
+  .wrap{max-width:1100px;margin:28px auto;padding:0 16px}
+  h1{font-size:22px;margin:0 0 8px}
+  .lead{color:var(--muted);margin:0 0 18px}
+  .toc{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 18px}
+  .toc a{display:inline-block;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--chip);color:var(--ink);text-decoration:none;font-size:13px}
+  .section{margin:26px 0 34px}
+  .title{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+  .badge{font-size:12px;border:1px solid var(--line);color:var(--muted);padding:2px 8px;border-radius:8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .hint{color:var(--hint);font-size:12px;margin-top:10px}
+  .chip{display:inline-block;background:var(--chip);border:1px solid var(--line);color:var(--muted);padding:2px 8px;border-radius:999px;font-size:12px;margin-right:6px}
+  .delta{font-weight:700}
+  .pos{color:var(--pos)} .neg{color:var(--neg)}
+  .grid{display:grid;gap:12px}
+
+  /* 共通のUIピース（モック） */
+  .controls{display:inline-flex;align-items:center;gap:6px}
+  .btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:#0f1530;color:var(--ink);cursor:pointer}
+  .num{width:96px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#0c1328;color:var(--ink);text-align:right}
+  .unit{color:var(--muted);margin-left:6px;font-size:12px}
+
+  /* A: 表形式 */
+  table.tbl{width:100%;border-collapse:collapse}
+  .tbl th,.tbl td{border-bottom:1px solid var(--line);padding:10px;text-align:center}
+  .tbl th{background:var(--soft);font-weight:600}
+  .tbl .where{font-weight:700}
+  /* レスポンシブ（モバイル） */
+  @media (max-width:720px){
+    table.tbl, .tbl thead, .tbl tbody, .tbl th, .tbl td, .tbl tr{display:block}
+    .tbl thead{display:none}
+    .tbl tr{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px;background:#0f1630}
+    .tbl td{border:0;padding:6px 0;text-align:left}
+    .tbl td[data-label]::before{content:attr(data-label) " ";color:var(--muted);font-size:12px;margin-right:6px}
+  }
+
+  /* B: カード形式 */
+  .four{grid-template-columns:repeat(2,minmax(260px,1fr))}
+  @media (min-width:860px){ .four{grid-template-columns:repeat(4,1fr)} }
+  .wheel-title{font-weight:800;margin-bottom:8px}
+  .row{display:flex;align-items:center;gap:10px;margin:6px 0}
+  .label{font-size:12px;color:var(--muted);background:#0f1831;border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+
+  /* C: セグメント切替 */
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{background:#0f1831;color:var(--ink);padding:8px 12px;border:0;cursor:pointer}
+  .seg button.active{background:var(--accent)}
+  .c-card{background:#0f1630;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .c-where{width:44px;font-weight:700}
+  .soft{opacity:.55}
+  .rowC{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed #1a2442}
+  .rowC:last-child{border-bottom:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>タイヤ空気圧 UI プラン（A / B / C）</h1>
+  <p class="lead">「走行前」「走行後」「差分」が一目で分かることを重視した3パターンのモックです。値やボタンはダミーで、見た目の比較用です。</p>
+
+  <div class="toc">
+    <a href="#plan-a">A: 表形式</a>
+    <a href="#plan-b">B: コーナーカード</a>
+    <a href="#plan-c">C: セグメント切替</a>
+  </div>
+
+  <!-- PLAN A -->
+  <div id="plan-a" class="section">
+    <div class="title"><h2 style="margin:0">プラン A：表形式</h2><span class="badge">明快 / 省スペース / ミス少</span></div>
+    <div class="card">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>位置</th><th>走行前</th><th>走行後</th><th>差分</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="where">FL</td>
+            <td data-label="走行前">
+              <div class="controls"><button class="btn">−</button><input class="num" value="245"><span class="unit">kPa</span><button class="btn">＋</button></div>
+            </td>
+            <td data-label="走行後">
+              <div class="controls"><button class="btn">−</button><input class="num" value="215"><span class="unit">kPa</span><button class="btn">＋</button></div>
+            </td>
+            <td data-label="差分"><span class="delta neg">-30</span></td>
+          </tr>
+          <tr>
+            <td class="where">FR</td>
+            <td data-label="走行前">
+              <div class="controls"><button class="btn">−</button><input class="num" value="190"><span class="unit">kPa</span><button class="btn">＋</button></div>
+            </td>
+            <td data-label="走行後">
+              <div class="controls"><button class="btn">−</button><input class="num" value="218"><span class="unit">kPa</span><button class="btn">＋</button></div>
+            </td>
+            <td data-label="差分"><span class="delta pos">+28</span></td>
+          </tr>
+          <tr>
+            <td class="where">RL</td>
+            <td data-label="走行前">
+              <div class="controls"><button class="btn">−</button><input class="num" value="185"><span class="unit">kPa</span><button class="btn">＋</button></div>
+            </td>
+            <td data-label="走行後">
+              <div class="controls"><button class="btn">−</button><input class="num" value="210"><span class="unit">kPa</span><button class="btn">＋</button></div>
+            </td>
+            <td data-label="差分"><span class="delta pos">+25</span></td>
+          </tr>
+          <tr>
+            <td class="where">RR</td>
+            <td data-label="走行前">
+              <div class="controls"><button class="btn">−</button><input class="num" value="185"><span class="unit">kPa</span><button class="btn">＋</button></div>
+            </td>
+            <td data-label="走行後">
+              <div class="controls"><button class="btn">−</button><input class="num" value="213"><span class="unit">kPa</span><button class="btn">＋</button></div>
+            </td>
+            <td data-label="差分"><span class="delta pos">+28</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="hint">
+        <span class="chip">単位: kPa</span><span class="chip">ステップ: 5</span>
+        <span style="float:right">全「走行前」を「走行後」にコピーするボタンを上部に配置可能</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAN B -->
+  <div id="plan-b" class="section">
+    <div class="title"><h2 style="margin:0">プラン B：コーナーカード</h2><span class="badge">空間把握 / ラベル明瞭</span></div>
+    <div class="grid four">
+      <!-- FL -->
+      <div class="card">
+        <div class="wheel-title">FL</div>
+        <div class="row">
+          <span class="label">走行前</span>
+          <div class="controls"><button class="btn">−</button><input class="num" value="245"><span class="unit">kPa</span><button class="btn">＋</button></div>
+        </div>
+        <div class="row">
+          <span class="label">走行後</span>
+          <div class="controls"><button class="btn">−</button><input class="num" value="215"><span class="unit">kPa</span><button class="btn">＋</button></div>
+          <span class="delta neg">-30</span>
+        </div>
+      </div>
+      <!-- FR -->
+      <div class="card">
+        <div class="wheel-title">FR</div>
+        <div class="row"><span class="label">走行前</span><div class="controls"><button class="btn">−</button><input class="num" value="190"><span class="unit">kPa</span><button class="btn">＋</button></div></div>
+        <div class="row"><span class="label">走行後</span><div class="controls"><button class="btn">−</button><input class="num" value="218"><span class="unit">kPa</span><button class="btn">＋</button></div><span class="delta pos">+28</span></div>
+      </div>
+      <!-- RL -->
+      <div class="card">
+        <div class="wheel-title">RL</div>
+        <div class="row"><span class="label">走行前</span><div class="controls"><button class="btn">−</button><input class="num" value="185"><span class="unit">kPa</span><button class="btn">＋</button></div></div>
+        <div class="row"><span class="label">走行後</span><div class="controls"><button class="btn">−</button><input class="num" value="210"><span class="unit">kPa</span><button class="btn">＋</button></div><span class="delta pos">+25</span></div>
+      </div>
+      <!-- RR -->
+      <div class="card">
+        <div class="wheel-title">RR</div>
+        <div class="row"><span class="label">走行前</span><div class="controls"><button class="btn">−</button><input class="num" value="185"><span class="unit">kPa</span><button class="btn">＋</button></div></div>
+        <div class="row"><span class="label">走行後</span><div class="controls"><button class="btn">−</button><input class="num" value="213"><span class="unit">kPa</span><button class="btn">＋</button></div><span class="delta pos">+28</span></div>
+      </div>
+    </div>
+    <div class="hint">各カード右上に「コピー」「リセット」を置くと、ピット作業が更に早くなります。</div>
+  </div>
+
+  <!-- PLAN C -->
+  <div id="plan-c" class="section">
+    <div class="title"><h2 style="margin:0">プラン C：セグメント切替</h2><span class="badge">スッキリ / 入力ミス防止</span></div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="seg" id="seg">
+          <button class="active" onclick="setMode('before')">走行前</button>
+          <button onclick="setMode('after')">走行後</button>
+          <button onclick="setMode('compare')">比較</button>
+        </div>
+        <div class="hint">編集モードを切替。比較では両方を表示し、差分を右端に。</div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr">
+        <!-- 1行ずつ -->
+        <div class="c-card">
+          <div class="rowC">
+            <div class="c-where">FL</div>
+            <div class="controls" data-before>
+              <button class="btn">−</button><input class="num" value="245"><span class="unit">kPa</span><button class="btn">＋</button>
+            </div>
+            <div class="controls soft" data-after>
+              <button class="btn">−</button><input class="num" value="215"><span class="unit">kPa</span><button class="btn">＋</button>
+            </div>
+            <div class="delta" data-delta><span class="neg">-30</span></div>
+          </div>
+          <div class="rowC">
+            <div class="c-where">FR</div>
+            <div class="controls" data-before>
+              <button class="btn">−</button><input class="num" value="190"><span class="unit">kPa</span><button class="btn">＋</button>
+            </div>
+            <div class="controls soft" data-after>
+              <button class="btn">−</button><input class="num" value="218"><span class="unit">kPa</span><button class="btn">＋</button>
+            </div>
+            <div class="delta" data-delta><span class="pos">+28</span></div>
+          </div>
+          <div class="rowC">
+            <div class="c-where">RL</div>
+            <div class="controls" data-before>
+              <button class="btn">−</button><input class="num" value="185"><span class="unit">kPa</span><button class="btn">＋</button>
+            </div>
+            <div class="controls soft" data-after>
+              <button class="btn">−</button><input class="num" value="210"><span class="unit">kPa</span><button class="btn">＋</button>
+            </div>
+            <div class="delta" data-delta><span class="pos">+25</span></div>
+          </div>
+          <div class="rowC">
+            <div class="c-where">RR</div>
+            <div class="controls" data-before>
+              <button class="btn">−</button><input class="num" value="185"><span class="unit">kPa</span><button class="btn">＋</button>
+            </div>
+            <div class="controls soft" data-after>
+              <button class="btn">−</button><input class="num" value="213"><span class="unit">kPa</span><button class="btn">＋</button>
+            </div>
+            <div class="delta" data-delta><span class="pos">+28</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint">「走行前」または「走行後」だけを編集し、もう一方は薄表示。比較モードで両方＋差分を確認。</div>
+    </div>
+  </div>
+
+  <div class="hint">お好みのプランをお知らせください。選択後、実アプリのAnt Design + Tailwind構成に組み込むパッチを作成します。</div>
+</div>
+
+<script>
+function setMode(mode){
+  const seg = document.getElementById('seg');
+  [...seg.children].forEach(btn => btn.classList.remove('active'));
+  if(mode==='before') seg.children[0].classList.add('active');
+  if(mode==='after') seg.children[1].classList.add('active');
+  if(mode==='compare') seg.children[2].classList.add('active');
+
+  const befores = document.querySelectorAll('[data-before]');
+  const afters  = document.querySelectorAll('[data-after]');
+  const deltas  = document.querySelectorAll('[data-delta]');
+  befores.forEach(e=>e.style.opacity = (mode==='after')? .3 : 1);
+  afters.forEach(e=>{
+    e.classList.toggle('soft', mode!=='compare');
+    e.style.display = (mode==='before')? 'none' : 'inline-flex';
+    e.style.opacity = (mode==='after')? 1 : (mode==='compare'? 1 : .55);
+  });
+  deltas.forEach(e=> e.style.display = (mode==='compare')? 'block' : 'none');
+}
+setMode('before');
+</script>
+</body>
+</html>
+

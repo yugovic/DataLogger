@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Empty, Spin, message, Card, Button, Modal } from 'antd';
-import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined } from '@ant-design/icons';
+import { Empty, Spin, message, Card, Button, Modal, Input, Select } from 'antd';
+import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserVehicles, deleteVehicle } from '../../services/vehicleService';
 import { Vehicle } from '../../types/vehicle';
@@ -15,6 +15,8 @@ export const VehicleList: React.FC = () => {
   const [currentSettingView, setCurrentSettingView] = useState('account');
   const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [keyword, setKeyword] = useState('');
+  const [sortKey, setSortKey] = useState<'newest'|'oldest'|'yearDesc'|'yearAsc'|'makeAsc'>('newest');
 
   useEffect(() => {
     fetchVehicles();
@@ -34,6 +36,28 @@ export const VehicleList: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const filtered = vehicles.filter(v => {
+    if (!keyword.trim()) return true;
+    const k = keyword.toLowerCase();
+    return [v.make, v.model, v.licensePlate].some(x => String(x || '').toLowerCase().includes(k));
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    switch (sortKey) {
+      case 'oldest':
+        return a.createdAt.getTime() - b.createdAt.getTime();
+      case 'yearDesc':
+        return (b.year || 0) - (a.year || 0);
+      case 'yearAsc':
+        return (a.year || 0) - (b.year || 0);
+      case 'makeAsc':
+        return String(a.make).localeCompare(String(b.make));
+      case 'newest':
+      default:
+        return b.createdAt.getTime() - a.createdAt.getTime();
+    }
+  });
 
   const handleAddVehicle = () => {
     setSelectedVehicle(null);
@@ -96,17 +120,39 @@ export const VehicleList: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">車両管理</h2>
             <p className="text-gray-600 dark:text-gray-400">登録されている車両の一覧と設定</p>
           </div>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddVehicle}
-            size="large"
-          >
-            車両を追加
-          </Button>
+          <div className="flex items-center gap-2">
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="メーカー・モデル・ナンバー検索"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className="w-64"
+            />
+            <Select
+              value={sortKey}
+              onChange={(v) => setSortKey(v)}
+              className="w-44"
+              options={[
+                { value: 'newest', label: '新しい順' },
+                { value: 'oldest', label: '古い順' },
+                { value: 'yearDesc', label: '年式 高→低' },
+                { value: 'yearAsc', label: '年式 低→高' },
+                { value: 'makeAsc', label: 'メーカー順' },
+              ]}
+            />
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddVehicle}
+              size="large"
+            >
+              車両を追加
+            </Button>
+          </div>
         </div>
 
-        {vehicles.length === 0 ? (
+        {sorted.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12">
             <Empty
               image={<CarOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />}
@@ -124,18 +170,20 @@ export const VehicleList: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {vehicles.map((vehicle) => (
+            {sorted.map((vehicle) => (
               <Card
                 key={vehicle.id}
                 hoverable
                 className="shadow-sm hover:shadow-md transition-shadow"
+                onClick={() => handleEditVehicle(vehicle)}
                 cover={
                   vehicle.photoURL ? (
                     <>
                       {console.log('Debug - Vehicle photo URL:', vehicle.photoURL?.substring(0, 100))}
                       <img 
                         alt={`${vehicle.make} ${vehicle.model}`} 
-                        src={vehicle.photoURL} 
+                        src={vehicle.photoURL}
+                        loading="lazy"
                         className="h-48 object-cover"
                         onError={(e) => {
                           console.error('Debug - Image load error for vehicle:', vehicle.id);
@@ -153,7 +201,7 @@ export const VehicleList: React.FC = () => {
                   <Button
                     type="text"
                     icon={<EditOutlined />}
-                    onClick={() => handleEditVehicle(vehicle)}
+                    onClick={(e) => { e.stopPropagation(); handleEditVehicle(vehicle); }}
                   >
                     編集
                   </Button>,
@@ -161,7 +209,7 @@ export const VehicleList: React.FC = () => {
                     type="text"
                     danger
                     icon={<DeleteOutlined />}
-                    onClick={() => handleDeleteVehicle(vehicle)}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteVehicle(vehicle); }}
                   >
                     削除
                   </Button>,

@@ -108,6 +108,25 @@
   color: rgb(229 231 235) !important;
 }
 
+/* AutoComplete/Select検索入力フィールド */
+.dark .ant-select-selection-search-input {
+  color: rgb(229 231 235) !important;
+}
+
+/* 検索可能なSelectの入力フィールド */
+.dark .ant-select-show-search .ant-select-selector input {
+  color: rgb(229 231 235) !important;
+}
+
+/* AutoCompleteのドロップダウン項目 */
+.dark .ant-select-dropdown .ant-select-item-option-content {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-select-dropdown .ant-select-item-option-active {
+  background-color: rgb(75 85 99) !important;
+}
+
 /* DatePicker内のアイコンの色修正 */
 .dark .ant-picker-suffix {
   color: rgb(156 163 175) !important;
@@ -257,6 +276,19 @@
 
 .dark .ant-input-number-handler-wrap {
   background-color: rgb(55 65 81) !important;
+}
+
+/* InputNumber内のinput要素の直接スタイル */
+.dark .ant-input-number input {
+  background-color: transparent !important;
+  color: rgb(229 231 235) !important;
+}
+
+/* InputNumberのaddonAfter（単位表示）*/
+.dark .ant-input-number-group-addon {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+  color: rgb(156 163 175) !important;
 }
 
 /* Cardのダークモード対応 */
@@ -409,4 +441,48 @@
 
 .dark .ant-empty-description {
   color: rgb(156 163 175) !important;
+}
+
+/* Uploadコンポーネントのダークモード対応 */
+.dark .ant-upload.ant-upload-select-picture-card {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-upload.ant-upload-select-picture-card:hover {
+  border-color: rgb(59 130 246) !important;
+}
+
+.dark .ant-upload-list-picture-card .ant-upload-list-item {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-upload-list-picture-card .ant-upload-list-item-info {
+  background-color: transparent !important;
+}
+
+/* 履歴一覧のカレンダーセル内の件数表示改善 */
+.dark .ant-picker-cell-inner > div > .text-gray-500 {
+  color: rgb(156 163 175) !important;
+}
+
+/* 車両リストのInputとSelect検索フィールド */
+.dark .ant-input-affix-wrapper {
+  background-color: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-input-affix-wrapper input {
+  background-color: transparent !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-input-affix-wrapper:hover {
+  border-color: rgb(107 114 128) !important;
+}
+
+.dark .ant-input-affix-wrapper-focused {
+  border-color: rgb(59 130 246) !important;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 20%) !important;
 }

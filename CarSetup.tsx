@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { AutoComplete, Input, Tabs, message } from 'antd';
+import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { saveSetup, getUserSetups, getSetup, updateSetup } from './src/services/setupService';
@@ -13,7 +14,6 @@ import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
 import { LapTime } from './src/types/setup';
 import { Header } from './src/components/common/Header';
-const { TabPane } = Tabs;
 interface DropdownState {
 isOpen: boolean;
 position: { top: number; left: number };
@@ -205,6 +205,12 @@ const handleSave = async () => {
       sessionInfo: {
         distance: parseFloat(distance) || 0,
         fuel: parseFloat(fuel) || 0
+      },
+      // ラップタイムデータを保存
+      lapTimeData: {
+        bestLap: bestLap || undefined,
+        totalLaps: parseInt(totalLaps || '0') || 0,
+        laps: detailedLaps || []
       },
       suspensionSettings: {
         frontDamper: {
@@ -457,11 +463,22 @@ useEffect(() => {
       if (setupData.notes) {
         setNotes(setupData.notes);
       }
-      
+
       // セッション情報
       setCarModel(setupData.carModel);
       setCircuit(setupData.circuit);
       setSessionType(setupData.sessionType);
+
+      // ラップタイムデータ
+      if (setupData.lapTimeData) {
+        setBestLap(setupData.lapTimeData.bestLap || '');
+        setTotalLaps((setupData.lapTimeData.totalLaps || 0).toString());
+        setDetailedLaps(setupData.lapTimeData.laps || []);
+      } else {
+        setBestLap('');
+        setTotalLaps('');
+        setDetailedLaps([]);
+      }
       
       // ダンパー設定
       setDamperSettings({
@@ -563,11 +580,22 @@ useEffect(() => {
       if (setupData.notes) {
         setNotes(setupData.notes);
       }
-      
+
       // セッション情報
       setCarModel(setupData.carModel);
       setCircuit(setupData.circuit);
       setSessionType(setupData.sessionType);
+
+      // ラップタイムデータ
+      if (setupData.lapTimeData) {
+        setBestLap(setupData.lapTimeData.bestLap || '');
+        setTotalLaps((setupData.lapTimeData.totalLaps || 0).toString());
+        setDetailedLaps(setupData.lapTimeData.laps || []);
+      } else {
+        setBestLap('');
+        setTotalLaps('');
+        setDetailedLaps([]);
+      }
       
       // ダンパー設定
       setDamperSettings({
@@ -642,7 +670,7 @@ options={[
   { value: 'Nissan GT-R' },
   { value: 'Nissan Fairlady Z' }
 ]}
-bordered={false}
+variant="borderless"
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 />
 <AutoComplete
@@ -650,9 +678,9 @@ defaultValue="鈴木健太"
 className="w-32"
 disabled={isViewMode}
 options={[{ value: '鈴木健太' }]}
-bordered={false}
+variant="borderless"
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
-onDropdownVisibleChange={(open) => {
+onOpenChange={(open) => {
   if (open) {
     setTimeout(() => {
       const selectedItem = document.querySelector('.ant-select-item[title="鈴木健太"]');
@@ -677,7 +705,7 @@ options={[
   { value: '予選' },
   { value: 'レース' }
 ]}
-bordered={false}
+variant="borderless"
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 />
 </div>
@@ -734,7 +762,7 @@ options={[
 { value: 'フルウェット' }
 ]}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
-onDropdownVisibleChange={(open) => {
+onOpenChange={(open) => {
   if (open) {
     setTimeout(() => {
       const selectedItem = document.querySelector(`.ant-select-item[title="${weatherCondition}"]`);
@@ -801,7 +829,7 @@ options={[
 { value: 'MICHELIN' }
 ]}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
-onDropdownVisibleChange={(open) => {
+onOpenChange={(open) => {
   if (open) {
     setTimeout(() => {
       const selectedItem = document.querySelector(`.ant-select-item[title="${tireBrand}"]`);
@@ -825,7 +853,7 @@ options={[
 { value: 'PS4S' }
 ]}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
-onDropdownVisibleChange={(open) => {
+onOpenChange={(open) => {
   if (open) {
     setTimeout(() => {
       const selectedItem = document.querySelector(`.ant-select-item[title="${tireCompound}"]`);
@@ -840,19 +868,32 @@ onDropdownVisibleChange={(open) => {
 </div>
 <div className="mb-4">
 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">走行距離 (km)</label>
-<Input
-value={distance}
-onChange={(e) => setDistance(e.target.value)}
-className="w-full"
-/>
+{/* クリックで増減できる数値入力 */}
+<div className="w-full">
+  <StepNumber
+    value={parseFloat(distance) || 0}
+    onChange={(n) => setDistance(String(n))}
+    min={0}
+    max={10000}
+    step={1}
+    unit="km"
+    size="middle"
+  />
+  </div>
 </div>
 <div>
 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">燃料量 (L)</label>
-<Input
-value={fuel}
-onChange={(e) => setFuel(e.target.value)}
-className="w-full"
-/>
+<div className="w-full">
+  <StepNumber
+    value={parseFloat(fuel) || 0}
+    onChange={(n) => setFuel(String(n))}
+    min={0}
+    max={200}
+    step={1}
+    unit="L"
+    size="middle"
+  />
+  </div>
 </div>
 </div>
 {/* ラップタイム */}
@@ -896,251 +937,271 @@ className="w-full"
 </div>
 {/* 設定タブセクション */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6">
-<Tabs defaultActiveKey="1" className="px-6 pt-4">
-<TabPane tab="基本設定" key="1">
-<BasicInfoTab
-  tirePressures={tirePressures}
-  setTirePressures={setTirePressures}
-  damperSettings={damperSettings}
-  setDamperSettings={setDamperSettings}
-  handleDropdownClick={handleDropdownClick}
-/>
-</TabPane>
-<TabPane tab="サスペンション" key="2">
-<SuspensionTab />
-</TabPane>
-<TabPane tab="エンジン・空力" key="3">
-<div className="p-6">
-<div className="space-y-8">
-{/* エンジン設定 */}
-<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-<div className="flex items-center mb-6">
-<i className="fas fa-engine text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">エンジン設定</h3>
-</div>
-<div className="grid grid-cols-2 gap-6">
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">点火時期 (°BTDC)</label>
-<div className="relative">
-<Input defaultValue="12" className="text-center pr-8 h-8 text-sm" />
-<button className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500">
-<i className="fas fa-chevron-down text-xs"></i>
-</button>
-</div>
-</div>
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">燃料噴射時期 (ms)</label>
-<div className="relative">
-<Input defaultValue="2.8" className="text-center pr-8 h-8 text-sm" />
-<button className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500">
-<i className="fas fa-chevron-down text-xs"></i>
-</button>
-</div>
-</div>
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">ブースト圧 (kPa)</label>
-<div className="relative">
-<Input defaultValue="120" className="text-center pr-8 h-8 text-sm" />
-<button className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500">
-<i className="fas fa-chevron-down text-xs"></i>
-</button>
-</div>
-</div>
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">スロットル開度マップ</label>
-<AutoComplete
-defaultValue="track"
-className="w-full"
-options={[
-{ value: 'track' },
-{ value: 'sport' },
-{ value: 'eco' }
-]}
-onDropdownVisibleChange={(open) => {
-  if (open) {
-    setTimeout(() => {
-      const selectedItem = document.querySelector('.ant-select-item[title="track"]');
-      if (selectedItem) {
-        selectedItem.scrollIntoView({ block: 'center' });
-      }
-    }, 10);
-  }
-}}
-/>
-</div>
-</div>
-</div>
-{/* 空力設定 */}
-<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-<div className="flex items-center mb-6">
-<i className="fas fa-wind text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">空力設定</h3>
-</div>
-<div className="grid grid-cols-2 gap-6">
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">フロントスプリッター (mm)</label>
-<div className="relative">
-<Input defaultValue="50" className="text-center pr-8 h-8 text-sm" />
-<button className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500">
-<i className="fas fa-chevron-down text-xs"></i>
-</button>
-</div>
-</div>
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">リアウイング角度 (°)</label>
-<div className="relative">
-<Input defaultValue="12" className="text-center pr-8 h-8 text-sm" />
-<button className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500">
-<i className="fas fa-chevron-down text-xs"></i>
-</button>
-</div>
-</div>
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">アンダーパネル設定</label>
-<AutoComplete
-defaultValue="full"
-className="w-full"
-options={[
-{ value: 'full' },
-{ value: 'partial' },
-{ value: 'none' }
-]}
-onDropdownVisibleChange={(open) => {
-  if (open) {
-    setTimeout(() => {
-      const selectedItem = document.querySelector('.ant-select-item[title="full"]');
-      if (selectedItem) {
-        selectedItem.scrollIntoView({ block: 'center' });
-      }
-    }, 10);
-  }
-}}
-/>
-</div>
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">サイドスカート高さ (mm)</label>
-<div className="relative">
-<Input defaultValue="35" className="text-center pr-8 h-8 text-sm" />
-<button className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500">
-<i className="fas fa-chevron-down text-xs"></i>
-</button>
-</div>
-</div>
-</div>
-</div>
-{/* 冷却系設定 */}
-<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-<div className="flex items-center mb-6">
-<i className="fas fa-temperature-low text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">冷却系設定</h3>
-</div>
-<div className="grid grid-cols-2 gap-6">
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">ラジエター開度 (%)</label>
-<div className="relative">
-<Input defaultValue="80" className="text-center pr-8 h-8 text-sm" />
-<button className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500">
-<i className="fas fa-chevron-down text-xs"></i>
-</button>
-</div>
-</div>
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">オイルクーラー開度 (%)</label>
-<div className="relative">
-<Input defaultValue="75" className="text-center pr-8 h-8 text-sm" />
-<button className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500">
-<i className="fas fa-chevron-down text-xs"></i>
-</button>
-</div>
-</div>
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">インタークーラースプレー</label>
-<AutoComplete
-defaultValue="auto"
-className="w-full"
-options={[
-{ value: 'auto' },
-{ value: 'manual' },
-{ value: 'off' }
-]}
-onDropdownVisibleChange={(open) => {
-  if (open) {
-    setTimeout(() => {
-      const selectedItem = document.querySelector('.ant-select-item[title="auto"]');
-      if (selectedItem) {
-        selectedItem.scrollIntoView({ block: 'center' });
-      }
-    }, 10);
-  }
-}}
-/>
-</div>
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">ブレーキダクト開度 (%)</label>
-<div className="relative">
-<Input defaultValue="90" className="text-center pr-8 h-8 text-sm" />
-<button className="absolute right-0 top-0 h-full px-2 text-gray-500 hover:text-blue-500">
-<i className="fas fa-chevron-down text-xs"></i>
-</button>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</TabPane>
-<TabPane tab="ドライバーフィードバック" key="4">
-<DrivingTab
-  notes={notes}
-  setNotes={setNotes}
-/>
-</TabPane>
-<TabPane tab="セッション後記録" key="5">
-<div className="h-96 flex items-center justify-center text-gray-500">
-セッション後記録コンテンツ
-</div>
-</TabPane>
-<TabPane tab={
-<div className="flex items-center">
-<i className="fas fa-robot text-blue-500 mr-2"></i>
-<span>AI アドバイス</span>
-</div>
-} key="6">
-<div className="p-6 space-y-8">
-{/* セットアップ提案 */}
-<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-<div className="flex items-center mb-6">
-<i className="fas fa-sliders-h text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">セットアップ提案</h3>
-</div>
-<div className="space-y-6">
-<div className="bg-green-50 p-4 rounded-lg">
-<p className="text-sm text-gray-600 dark:text-gray-400">
-フロント：空気圧を-3kPa調整することで、高速コーナーでのアンダーステア傾向を軽減できる可能性があります。
-リア：現状の空気圧を維持し、温度管理に注力することを推奨します。
-</p>
-</div>
-</div>
-</div>
-{/* ドライビングアドバイス */}
-<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-<div className="flex items-center mb-6">
-<i className="fas fa-car text-blue-500 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">ドライビングアドバイス</h3>
-</div>
-<div className="space-y-4">
-<div className="bg-yellow-50 p-4 rounded-lg">
-<ul className="text-sm text-gray-600 space-y-2">
-<li>• タイヤ温度の推移を注視し、最適な温度帯でのアタックを心がけてください</li>
-<li>• 提案したセットアップ変更後の車両挙動の変化を確認してください</li>
-<li>• 特に高速コーナーでのステアリング操作に注目し、アンダーステアの改善を確認してください</li>
-</ul>
-</div>
-</div>
-</div>
-</div>
-</TabPane>
-</Tabs>
+{(() => {
+  const tabItems = [
+    {
+      key: '1',
+      label: '基本設定',
+      children: (
+        <BasicInfoTab
+          tirePressures={tirePressures}
+          setTirePressures={setTirePressures}
+          damperSettings={damperSettings}
+          setDamperSettings={setDamperSettings}
+          handleDropdownClick={handleDropdownClick}
+        />
+      ),
+    },
+    {
+      key: '2',
+      label: 'サスペンション',
+      children: <SuspensionTab />,
+    },
+    {
+      key: '3',
+      label: 'エンジン・空力',
+      children: (
+        <div className="p-6">
+          <div className="space-y-8">
+            {/* エンジン設定 */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+              <div className="flex items-center mb-6">
+                <i className="fas fa-engine text-blue-500 mr-2"></i>
+                <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">エンジン設定</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">点火時期 (°BTDC)</label>
+                  <div className="relative">
+                    <Input defaultValue="12" className="text-center pr-8 h-8 text-sm" />
+                    <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">燃料噴射時期 (ms)</label>
+                  <div className="relative">
+                    <Input defaultValue="2.8" className="text-center pr-8 h-8 text-sm" />
+                    <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ブースト圧 (kPa)</label>
+                  <div className="relative">
+                    <Input defaultValue="120" className="text-center pr-8 h-8 text-sm" />
+                    <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">スロットル開度マップ</label>
+                  <AutoComplete
+                    defaultValue="track"
+                    className="w-full"
+                    options={[
+                      { value: 'track' },
+                      { value: 'sport' },
+                      { value: 'eco' }
+                    ]}
+                    onOpenChange={(open) => {
+                      if (open) {
+                        setTimeout(() => {
+                          const selectedItem = document.querySelector('.ant-select-item[title="track"]');
+                          if (selectedItem) {
+                            selectedItem.scrollIntoView({ block: 'center' });
+                          }
+                        }, 10);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            {/* 空力設定 */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+              <div className="flex items-center mb-6">
+                <i className="fas fa-wind text-blue-500 mr-2"></i>
+                <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">空力設定</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">フロントスプリッター (mm)</label>
+                  <div className="relative">
+                    <Input defaultValue="50" className="text-center pr-8 h-8 text-sm" />
+                    <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">リアウイング角度 (°)</label>
+                  <div className="relative">
+                    <Input defaultValue="12" className="text-center pr-8 h-8 text-sm" />
+                    <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">アンダーパネル設定</label>
+                  <AutoComplete
+                    defaultValue="full"
+                    className="w-full"
+                    options={[
+                      { value: 'full' },
+                      { value: 'partial' },
+                      { value: 'none' }
+                    ]}
+                    onOpenChange={(open) => {
+                      if (open) {
+                        setTimeout(() => {
+                          const selectedItem = document.querySelector('.ant-select-item[title="full"]');
+                          if (selectedItem) {
+                            selectedItem.scrollIntoView({ block: 'center' });
+                          }
+                        }, 10);
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">サイドスカート高さ (mm)</label>
+                  <div className="relative">
+                    <Input defaultValue="35" className="text-center pr-8 h-8 text-sm" />
+                    <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* 冷却系設定 */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+              <div className="flex items-center mb-6">
+                <i className="fas fa-temperature-low text-blue-500 mr-2"></i>
+                <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">冷却系設定</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ラジエター開度 (%)</label>
+                  <div className="relative">
+                    <Input defaultValue="80" className="text-center pr-8 h-8 text-sm" />
+                    <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">オイルクーラー開度 (%)</label>
+                  <div className="relative">
+                    <Input defaultValue="75" className="text-center pr-8 h-8 text-sm" />
+                    <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">インタークーラースプレー</label>
+                  <AutoComplete
+                    defaultValue="auto"
+                    className="w-full"
+                    options={[
+                      { value: 'auto' },
+                      { value: 'manual' },
+                      { value: 'off' }
+                    ]}
+                    onOpenChange={(open) => {
+                      if (open) {
+                        setTimeout(() => {
+                          const selectedItem = document.querySelector('.ant-select-item[title="auto"]');
+                          if (selectedItem) {
+                            selectedItem.scrollIntoView({ block: 'center' });
+                          }
+                        }, 10);
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ブレーキダクト開度 (%)</label>
+                  <div className="relative">
+                    <Input defaultValue="90" className="text-center pr-8 h-8 text-sm" />
+                    <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: '4',
+      label: 'ドライバーフィードバック',
+      children: <DrivingTab notes={notes} setNotes={setNotes} />,
+    },
+    {
+      key: '5',
+      label: 'セッション後記録',
+      children: (
+        <div className="h-96 flex items-center justify-center text-gray-500">
+          セッション後記録コンテンツ
+        </div>
+      ),
+    },
+    {
+      key: '6',
+      label: (
+        <div className="flex items-center">
+          <i className="fas fa-robot text-blue-500 mr-2"></i>
+          <span>AI アドバイス</span>
+        </div>
+      ),
+      children: (
+        <div className="p-6 space-y-8">
+          {/* セットアップ提案 */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+            <div className="flex items-center mb-6">
+              <i className="fas fa-sliders-h text-blue-500 mr-2"></i>
+              <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">セットアップ提案</h3>
+            </div>
+            <div className="space-y-6">
+              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  フロント：空気圧を-3kPa調整することで、高速コーナーでのアンダーステア傾向を軽減できる可能性があります。
+                  リア：現状の空気圧を維持し、温度管理に注力することを推奨します。
+                </p>
+              </div>
+            </div>
+          </div>
+          {/* ドライビングアドバイス */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+            <div className="flex items-center mb-6">
+              <i className="fas fa-car text-blue-500 mr-2"></i>
+              <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">ドライビングアドバイス</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+                  <li>• タイヤ温度の推移を注視し、最適な温度帯でのアタックを心がけてください</li>
+                  <li>• 提案したセットアップ変更後の車両挙動の変化を確認してください</li>
+                  <li>• 特に高速コーナーでのステアリング操作に注目し、アンダーステアの改善を確認してください</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+  ];
+  return <Tabs defaultActiveKey="1" className="px-6 pt-4" items={tabItems} />;
+})()}
 </div>
 {/* 保存ボタンと前回データ読み込みボタン */}
 {!isViewMode && (

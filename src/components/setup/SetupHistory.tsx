@@ -7,9 +7,12 @@ import { CarSetup } from '../../types/setup';
 import { SetupCard } from './SetupCard';
 import { Header } from '../common/Header';
 import dayjs from 'dayjs';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export const SetupHistory: React.FC = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [setups, setSetups] = useState<CarSetup[]>([]);
   const [loading, setLoading] = useState(true);
   const [settingsModal, setSettingsModal] = useState(false);
@@ -22,6 +25,17 @@ export const SetupHistory: React.FC = () => {
   const [filterCarModel, setFilterCarModel] = useState<string | null>(null);
 
   useEffect(() => {
+    // 初期フィルターの復元（URL優先 → localStorage）
+    const params = new URLSearchParams(location.search);
+    const month = params.get('month') || localStorage.getItem('filterMonth');
+    const session = params.get('session') || localStorage.getItem('filterSessionType');
+    const circuit = params.get('circuit') || localStorage.getItem('filterCircuit');
+    const model = params.get('carModel') || localStorage.getItem('filterCarModel');
+    if (month) setFilterMonth(dayjs(month));
+    if (session) setFilterSessionType(session);
+    if (circuit) setFilterCircuit(circuit);
+    if (model) setFilterCarModel(model);
+
     const fetchSetups = async () => {
       if (!currentUser) return;
 
@@ -41,6 +55,26 @@ export const SetupHistory: React.FC = () => {
 
     fetchSetups();
   }, [currentUser]);
+
+  // フィルター変更時にURL/ローカルへ保存
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filterMonth) params.set('month', filterMonth.format('YYYY-MM'));
+    if (filterSessionType) params.set('session', filterSessionType);
+    if (filterCircuit) params.set('circuit', filterCircuit);
+    if (filterCarModel) params.set('carModel', filterCarModel);
+    const qs = params.toString();
+    navigate({ pathname: location.pathname, search: qs ? `?${qs}` : '' }, { replace: true });
+
+    if (filterMonth) localStorage.setItem('filterMonth', filterMonth.format('YYYY-MM'));
+    else localStorage.removeItem('filterMonth');
+    if (filterSessionType) localStorage.setItem('filterSessionType', filterSessionType);
+    else localStorage.removeItem('filterSessionType');
+    if (filterCircuit) localStorage.setItem('filterCircuit', filterCircuit);
+    else localStorage.removeItem('filterCircuit');
+    if (filterCarModel) localStorage.setItem('filterCarModel', filterCarModel);
+    else localStorage.removeItem('filterCarModel');
+  }, [filterMonth, filterSessionType, filterCircuit, filterCarModel]);
 
   // ユニークな値と件数を取得
   const uniqueCircuits = useMemo(() => {

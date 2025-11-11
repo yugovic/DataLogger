@@ -39,7 +39,7 @@ export const AlignmentTab: React.FC<AlignmentTabProps> = ({
         <h3 className="text-lg font-semibold mb-4">キャンバー角</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">フロント</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">フロント</label>
             <Input
               value={frontCamber}
               onChange={(e) => setFrontCamber(e.target.value)}
@@ -49,7 +49,7 @@ export const AlignmentTab: React.FC<AlignmentTabProps> = ({
             <p className="text-xs text-gray-500 mt-1">ネガティブ値を入力（例: -2.5）</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">リア</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">リア</label>
             <Input
               value={rearCamber}
               onChange={(e) => setRearCamber(e.target.value)}
@@ -66,7 +66,7 @@ export const AlignmentTab: React.FC<AlignmentTabProps> = ({
         <h3 className="text-lg font-semibold mb-4">トー角</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">フロント</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">フロント</label>
             <Input
               value={frontToe}
               onChange={(e) => setFrontToe(e.target.value)}
@@ -76,7 +76,7 @@ export const AlignmentTab: React.FC<AlignmentTabProps> = ({
             <p className="text-xs text-gray-500 mt-1">トーイン: 正の値、トーアウト: 負の値</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">リア</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">リア</label>
             <Input
               value={rearToe}
               onChange={(e) => setRearToe(e.target.value)}
@@ -93,7 +93,7 @@ export const AlignmentTab: React.FC<AlignmentTabProps> = ({
         <h3 className="text-lg font-semibold mb-4">キャスター角</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">キャスター</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">キャスター</label>
             <Input
               value={caster}
               onChange={(e) => setCaster(e.target.value)}

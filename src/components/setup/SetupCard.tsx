@@ -100,7 +100,7 @@ export const SetupCard: React.FC<SetupCardProps> = ({ setup }) => {
               {setup.circuit}
             </div>
             <div className="text-base font-bold text-green-600 dark:text-green-400">
-              1:58.423
+              {setup.lapTimeData?.bestLap ? setup.lapTimeData.bestLap : '-'}
             </div>
           </div>
           <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm ml-6">

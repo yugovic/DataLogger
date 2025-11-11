@@ -20,6 +20,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
 }) => {
   const [laps, setLaps] = useState<LapTime[]>(initialLaps);
   const [activeTab, setActiveTab] = useState('manual');
+  const [csvText, setCsvText] = useState<string>('');
   const [inputMode, setInputMode] = useState<'keyboard' | 'button' | 'wheel'>('keyboard');
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const lastInputRef = useRef<HTMLDivElement>(null);
@@ -776,6 +777,72 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
               </div>
             )}
           </div>
+            )
+          },
+          {
+            key: 'csv',
+            label: 'CSV/貼り付け',
+            children: (
+              <div className="space-y-4">
+                <div className="text-sm text-gray-600">
+                  1列に1ラップの形式（例: 1:58.423）。カンマ区切りや改行を自動判定します。
+                </div>
+                <Input.TextArea
+                  rows={8}
+                  value={csvText}
+                  onChange={(e) => setCsvText(e.target.value)}
+                  placeholder={`例\n1:58.423\n1:59.012\n2:00.100`}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      const text = csvText || '';
+                      // タイムのパターンを全部拾う（1:23.456 または 123456）
+                      const times: string[] = [];
+                      const regex = /(\d+:\d{2}\.\d{3})/g;
+                      let m: RegExpExecArray | null;
+                      while ((m = regex.exec(text)) !== null) {
+                        times.push(m[1]);
+                      }
+                      // 数字のみのものも取り込む
+                      const numOnly = text.split(/[\s,]+/).filter(x => /^\d{3,}$/.test(x));
+                      numOnly.forEach(n => {
+                        // 右詰めフォーマット
+                        const digits = n.replace(/\D/g, '');
+                        if (digits.length >= 4) {
+                          let formatted = '';
+                          if (digits.length <= 5) {
+                            const seconds = digits.slice(0, -3);
+                            const millis = digits.slice(-3);
+                            formatted = `0:${seconds.padStart(2, '0')}.${millis}`;
+                          } else {
+                            const minutes = digits.slice(0, -5);
+                            const seconds = digits.slice(-5, -3);
+                            const millis = digits.slice(-3);
+                            formatted = `${minutes}:${seconds}.${millis}`;
+                          }
+                          times.push(formatted);
+                        }
+                      });
+
+                      if (times.length === 0) {
+                        message.warning('タイムが検出できませんでした');
+                        return;
+                      }
+                      const newLaps: LapTime[] = times.map((t, i) => {
+                        const p = parseTimeString(t);
+                        return { lapNumber: i + 1, time: t, type: 'NORMAL', minutes: p.minutes, seconds: p.seconds, milliseconds: p.milliseconds };
+                      });
+                      setLaps(newLaps);
+                      message.success(`${newLaps.length}ラップを取り込みました`);
+                      setActiveTab('manual');
+                    }}
+                  >
+                    取り込みして置換
+                  </Button>
+                  <Button onClick={() => setCsvText('')}>クリア</Button>
+                </div>
+              </div>
             )
           },
           {

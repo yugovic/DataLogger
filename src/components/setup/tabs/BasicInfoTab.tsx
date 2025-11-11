@@ -1,6 +1,8 @@
 // 基本情報タブコンポーネント
-import React from 'react';
-import { AutoComplete } from 'antd';
+import React, { useState } from 'react';
+import { AutoComplete, Segmented } from 'antd';
+import { StepNumber } from '../../common/StepNumber';
+// 余計なボタンは削除し、シンプルなUIに戻す
 
 interface TirePressure {
   before: string;
@@ -32,18 +34,28 @@ interface BasicInfoTabProps {
   setTirePressures: React.Dispatch<React.SetStateAction<TirePressures>>;
   damperSettings: DamperSettings;
   setDamperSettings: React.Dispatch<React.SetStateAction<DamperSettings>>;
+  handleDropdownClick?: (e: React.MouseEvent, inputValue: string, options: { value: string; label: string }[]) => void;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   tirePressures,
   setTirePressures,
   damperSettings,
-  setDamperSettings
+  setDamperSettings,
+  handleDropdownClick
 }) => {
+  const [tpMode, setTpMode] = useState<'before'|'after'|'compare'>('before');
   const calculatePressureDiff = (before: string, after: string) => {
     const diff = parseInt(after) - parseInt(before);
     return diff >= 0 ? `+${diff}` : diff.toString();
   };
+
+  const wheels: Array<{ key: 'fl'|'fr'|'rl'|'rr'; label: string }> = [
+    { key: 'fl', label: 'FL' },
+    { key: 'fr', label: 'FR' },
+    { key: 'rl', label: 'RL' },
+    { key: 'rr', label: 'RR' },
+  ];
 
   return (
     <div className="p-6 space-y-8">
@@ -64,293 +76,98 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               走行前 → 走行後 (kPa)
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-          <div className="relative">
-            <div className="text-center mb-2 font-medium dark:text-gray-200">FL</div>
-            <div className="flex items-center space-x-2">
-              <div className="flex-1">
-                <AutoComplete
-                  value={tirePressures.fl.before}
-                  onChange={(value) => {
-                    if (/^\d*$/.test(value) && value.length <= 4) {
-                      setTirePressures(prev => ({
-                        ...prev,
-                        fl: {
-                          ...prev.fl,
-                          before: value,
-                          diff: calculatePressureDiff(value, prev.fl.after)
-                        }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 61 }, (_, i) => ({ 
-                    value: (100 + i * 5).toString()
-                  }))}
-                  onDropdownVisibleChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = tirePressures.fl.before;
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-              <div className="text-gray-500">→</div>
-              <div className="flex-1">
-                <AutoComplete
-                  value={tirePressures.fl.after}
-                  onChange={(value) => {
-                    if (/^\d*$/.test(value) && value.length <= 4) {
-                      setTirePressures(prev => ({
-                        ...prev,
-                        fl: {
-                          ...prev.fl,
-                          after: value,
-                          diff: calculatePressureDiff(prev.fl.before, value)
-                        }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 61 }, (_, i) => ({ 
-                    value: (100 + i * 5).toString()
-                  }))}
-                  onDropdownVisibleChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = tirePressures.fl.after;
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-            <div className="text-red-500 dark:text-red-400 text-sm text-right mt-1">{tirePressures.fl.diff}</div>
+          {/* セグメント切替（Plan C） */}
+          <div className="flex items-center justify-between mb-3">
+            <Segmented
+              options={[
+                { label: '走行前', value: 'before' },
+                { label: '走行後', value: 'after' },
+                { label: '比較', value: 'compare' },
+              ]}
+              value={tpMode}
+              onChange={(v) => setTpMode(v as any)}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setTirePressures(prev => ({
+                  ...prev,
+                  fl: { ...prev.fl, after: prev.fl.before, diff: calculatePressureDiff(prev.fl.before, prev.fl.before) },
+                  fr: { ...prev.fr, after: prev.fr.before, diff: calculatePressureDiff(prev.fr.before, prev.fr.before) },
+                  rl: { ...prev.rl, after: prev.rl.before, diff: calculatePressureDiff(prev.rl.before, prev.rl.before) },
+                  rr: { ...prev.rr, after: prev.rr.before, diff: calculatePressureDiff(prev.rr.before, prev.rr.before) },
+                }));
+                setTpMode('compare');
+              }}
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              走行前→走行後にコピー
+            </button>
           </div>
-          <div className="relative">
-            <div className="text-center mb-2 font-medium dark:text-gray-200">FR</div>
-            <div className="flex items-center space-x-2">
-              <div className="flex-1">
-                <AutoComplete
-                  value={tirePressures.fr.before}
-                  onChange={(value) => {
-                    if (/^\d*$/.test(value) && value.length <= 4) {
-                      setTirePressures(prev => ({
+
+          <div className="space-y-3">
+            {wheels.map(({key,label}) => (
+              <div key={key} className="flex items-center justify-between gap-2 py-2 border-b border-blue-200/40 last:border-b-0">
+                <div className="w-10 text-center font-semibold">{label}</div>
+                {/* before */}
+                <div className="flex-1 flex items-center justify-end">
+                  <div style={{ display: tpMode === 'after' ? 'none' : 'inline-flex', opacity: tpMode === 'compare' ? 1 : 1 }}>
+                    <StepNumber
+                      value={parseInt((tirePressures as any)[key].before || '0')}
+                      onChange={(n) => setTirePressures(prev => ({
                         ...prev,
-                        fr: {
-                          ...prev.fr,
-                          before: value,
-                          diff: calculatePressureDiff(value, prev.fr.after)
+                        [key]: {
+                          ...(prev as any)[key],
+                          before: String(n),
+                          diff: calculatePressureDiff(String(n), (prev as any)[key].after)
                         }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 61 }, (_, i) => ({ 
-                    value: (100 + i * 5).toString()
-                  }))}
-                  onDropdownVisibleChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = tirePressures.fr.before;
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-              <div className="text-gray-500">→</div>
-              <div className="flex-1">
-                <AutoComplete
-                  value={tirePressures.fr.after}
-                  onChange={(value) => {
-                    if (/^\d*$/.test(value) && value.length <= 4) {
-                      setTirePressures(prev => ({
+                      }))}
+                      min={50}
+                      max={400}
+                      step={5}
+                      unit="kPa"
+                      size="small"
+                    />
+                  </div>
+                </div>
+                {/* after (muted or hidden when before mode) */}
+                <div className="flex-1 flex items-center">
+                  <div style={{ display: tpMode === 'before' ? 'none' : 'inline-flex', opacity: tpMode === 'compare' ? 1 : 1 }}>
+                    <StepNumber
+                      value={parseInt((tirePressures as any)[key].after || '0')}
+                      onChange={(n) => setTirePressures(prev => ({
                         ...prev,
-                        fr: {
-                          ...prev.fr,
-                          after: value,
-                          diff: calculatePressureDiff(prev.fr.before, value)
+                        [key]: {
+                          ...(prev as any)[key],
+                          after: String(n),
+                          diff: calculatePressureDiff((prev as any)[key].before, String(n))
                         }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 61 }, (_, i) => ({ 
-                    value: (100 + i * 5).toString()
-                  }))}
-                  onDropdownVisibleChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = tirePressures.fr.after;
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
+                      }))}
+                      min={50}
+                      max={400}
+                      step={5}
+                      unit="kPa"
+                      size="small"
+                    />
+                  </div>
+                </div>
+                {/* delta */}
+                <div className="w-16 text-right text-sm">
+                  {tpMode === 'compare' && (
+                    (() => {
+                      const b = parseInt((tirePressures as any)[key].before || '0');
+                      const a = parseInt((tirePressures as any)[key].after || '0');
+                      const d = a - b;
+                      const s = d >= 0 ? `+${d}` : `${d}`;
+                      return <span className={d >= 0 ? 'text-red-500' : 'text-blue-400'}>{s}</span>;
+                    })()
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="text-red-500 dark:text-red-400 text-sm text-right mt-1">{tirePressures.fr.diff}</div>
+            ))}
           </div>
-          <div className="relative">
-            <div className="text-center mb-2 font-medium dark:text-gray-200">RL</div>
-            <div className="flex items-center space-x-2">
-              <div className="flex-1">
-                <AutoComplete
-                  value={tirePressures.rl.before}
-                  onChange={(value) => {
-                    if (/^\d*$/.test(value) && value.length <= 4) {
-                      setTirePressures(prev => ({
-                        ...prev,
-                        rl: {
-                          ...prev.rl,
-                          before: value,
-                          diff: calculatePressureDiff(value, prev.rl.after)
-                        }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 61 }, (_, i) => ({ 
-                    value: (100 + i * 5).toString()
-                  }))}
-                  onDropdownVisibleChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = tirePressures.rl.before;
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-              <div className="text-gray-500">→</div>
-              <div className="flex-1">
-                <AutoComplete
-                  value={tirePressures.rl.after}
-                  onChange={(value) => {
-                    if (/^\d*$/.test(value) && value.length <= 4) {
-                      setTirePressures(prev => ({
-                        ...prev,
-                        rl: {
-                          ...prev.rl,
-                          after: value,
-                          diff: calculatePressureDiff(prev.rl.before, value)
-                        }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 61 }, (_, i) => ({ 
-                    value: (100 + i * 5).toString()
-                  }))}
-                  onDropdownVisibleChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = tirePressures.rl.after;
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-            <div className="text-red-500 dark:text-red-400 text-sm text-right mt-1">{tirePressures.rl.diff}</div>
-          </div>
-          <div className="relative">
-            <div className="text-center mb-2 font-medium dark:text-gray-200">RR</div>
-            <div className="flex items-center space-x-2">
-              <div className="flex-1">
-                <AutoComplete
-                  value={tirePressures.rr.before}
-                  onChange={(value) => {
-                    if (/^\d*$/.test(value) && value.length <= 4) {
-                      setTirePressures(prev => ({
-                        ...prev,
-                        rr: {
-                          ...prev.rr,
-                          before: value,
-                          diff: calculatePressureDiff(value, prev.rr.after)
-                        }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 61 }, (_, i) => ({ 
-                    value: (100 + i * 5).toString()
-                  }))}
-                  onDropdownVisibleChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = tirePressures.rr.before;
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-              <div className="text-gray-500">→</div>
-              <div className="flex-1">
-                <AutoComplete
-                  value={tirePressures.rr.after}
-                  onChange={(value) => {
-                    if (/^\d*$/.test(value) && value.length <= 4) {
-                      setTirePressures(prev => ({
-                        ...prev,
-                        rr: {
-                          ...prev.rr,
-                          after: value,
-                          diff: calculatePressureDiff(prev.rr.before, value)
-                        }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 61 }, (_, i) => ({ 
-                    value: (100 + i * 5).toString()
-                  }))}
-                  onDropdownVisibleChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = tirePressures.rr.after;
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-            <div className="text-red-500 dark:text-red-400 text-sm text-right mt-1">{tirePressures.rr.diff}</div>
-          </div>
+
         </div>
-      </div>
         
         {/* ダンパー設定 */}
         <div className="relative bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
@@ -387,7 +204,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   options={Array.from({ length: 21 }, (_, i) => ({ 
                     value: i.toString()
                   }))}
-                  onDropdownVisibleChange={(open) => {
+                  onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
                         const currentValue = damperSettings.fl.bump.toString();
@@ -417,7 +234,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   options={Array.from({ length: 21 }, (_, i) => ({ 
                     value: i.toString()
                   }))}
-                  onDropdownVisibleChange={(open) => {
+                  onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
                         const currentValue = damperSettings.fl.rebound.toString();
@@ -451,7 +268,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   options={Array.from({ length: 21 }, (_, i) => ({ 
                     value: i.toString()
                   }))}
-                  onDropdownVisibleChange={(open) => {
+                  onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
                         const currentValue = damperSettings.fr.bump.toString();
@@ -481,7 +298,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   options={Array.from({ length: 21 }, (_, i) => ({ 
                     value: i.toString()
                   }))}
-                  onDropdownVisibleChange={(open) => {
+                  onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
                         const currentValue = damperSettings.fr.rebound.toString();
@@ -515,7 +332,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   options={Array.from({ length: 21 }, (_, i) => ({ 
                     value: i.toString()
                   }))}
-                  onDropdownVisibleChange={(open) => {
+                  onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
                         const currentValue = damperSettings.rl.bump.toString();
@@ -545,7 +362,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   options={Array.from({ length: 21 }, (_, i) => ({ 
                     value: i.toString()
                   }))}
-                  onDropdownVisibleChange={(open) => {
+                  onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
                         const currentValue = damperSettings.rl.rebound.toString();
@@ -579,7 +396,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   options={Array.from({ length: 21 }, (_, i) => ({ 
                     value: i.toString()
                   }))}
-                  onDropdownVisibleChange={(open) => {
+                  onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
                         const currentValue = damperSettings.rr.bump.toString();
@@ -609,7 +426,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   options={Array.from({ length: 21 }, (_, i) => ({ 
                     value: i.toString()
                   }))}
-                  onDropdownVisibleChange={(open) => {
+                  onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
                         const currentValue = damperSettings.rr.rebound.toString();

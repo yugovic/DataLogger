@@ -1,6 +1,7 @@
 // サスペンションタブコンポーネント
 import React, { useState } from 'react';
 import { AutoComplete, Checkbox, Button } from 'antd';
+import { StepNumber } from '../../common/StepNumber';
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
 interface SuspensionTabProps {
@@ -58,6 +59,14 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
       bumpStopperLength: '40'
     }
   });
+
+  // 追加: 概要セクションで操作する数値を状態管理
+  const [rideHeightF, setRideHeightF] = useState<number>(120);
+  const [rideHeightR, setRideHeightR] = useState<number>(125);
+  const [brakeBiasF, setBrakeBiasF] = useState<number>(60);
+  const [brakeBiasR, setBrakeBiasR] = useState<number>(40);
+  const [padKmF, setPadKmF] = useState<number>(500);
+  const [padKmR, setPadKmR] = useState<number>(500);
 
   // 数値選択肢の生成
   const generateOptions = (start: number, end: number, step: number = 0.1) => {
@@ -181,7 +190,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                       const validated = validateDecimal(value, true);
                       handleValueChange(position, 'camber', validated);
                     }}
-                    onDropdownVisibleChange={scrollToView}
+                    onOpenChange={scrollToView}
                     className="flex-1"
                     size="small"
                     options={generateOptions(-5, 0, 0.1)}
@@ -199,7 +208,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                         const validated = validateDecimal(value, false);
                         handleValueChange(position, 'caster', validated);
                       }}
-                      onDropdownVisibleChange={scrollToView}
+                      onOpenChange={scrollToView}
                       className="flex-1"
                       size="small"
                       options={generateOptions(0, 10, 0.1)}
@@ -217,7 +226,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                       const validated = validateDecimal(value, true);
                       handleValueChange(position, 'toe', validated);
                     }}
-                    onDropdownVisibleChange={scrollToView}
+                    onOpenChange={scrollToView}
                     className="flex-1"
                     size="small"
                     options={generateOptions(-5, 5, 0.1)}
@@ -241,7 +250,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                       const validated = validateDecimal(value, false);
                       handleValueChange(position, 'springRate', validated);
                     }}
-                    onDropdownVisibleChange={scrollToView}
+                    onOpenChange={scrollToView}
                     className="flex-1"
                     size="small"
                     options={generateOptions(2, 20, 0.1)}
@@ -261,7 +270,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                           const validated = validateDecimal(value, false);
                           handleValueChange(position, 'helperSpringRate', validated);
                         }}
-                        onDropdownVisibleChange={scrollToView}
+                        onOpenChange={scrollToView}
                         className="flex-1"
                         size="small"
                         options={generateOptions(0, 10, 0.1)}
@@ -278,7 +287,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                           const validated = validateInteger(value);
                           handleValueChange(position, 'helperSpringLength', validated);
                         }}
-                        onDropdownVisibleChange={scrollToView}
+                        onOpenChange={scrollToView}
                         className="flex-1"
                         size="small"
                         options={generateIntOptions(0, 100, 5)}
@@ -306,7 +315,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                       const validated = validateDecimal(value, false);
                       handleValueChange(position, 'bumpStopperRate', validated);
                     }}
-                    onDropdownVisibleChange={scrollToView}
+                    onOpenChange={scrollToView}
                     className="flex-1"
                     size="small"
                     options={generateOptions(0, 10, 0.1)}
@@ -323,7 +332,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                       const validated = validateInteger(value);
                       handleValueChange(position, 'bumpStopperLength', validated);
                     }}
-                    onDropdownVisibleChange={scrollToView}
+                    onOpenChange={scrollToView}
                     className="flex-1"
                     size="small"
                     options={generateIntOptions(0, 100, 5)}
@@ -342,36 +351,14 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
     <div className="p-6 space-y-4">
       {/* 統合サマリーセクション - シンプルで一目で分かる */}
       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-        <div className="grid grid-cols-4 gap-4 text-sm">
-          <div className="flex items-center">
-            <span className="text-gray-600 dark:text-gray-400 mr-2">車高F:</span>
-            <AutoComplete
-              defaultValue="120"
-              onChange={(value) => {
-                const validated = validateInteger(value);
-                // ここで車高Fの値を更新する処理を追加
-              }}
-              onDropdownVisibleChange={scrollToView}
-              size="small"
-              className="w-20"
-              options={generateIntOptions(80, 150, 5)}
-            />
-            <span className="text-gray-500 dark:text-gray-400 ml-1">mm</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <span className="text-gray-600 dark:text-gray-400">車高F:</span>
+            <StepNumber value={rideHeightF} onChange={setRideHeightF} min={80} max={150} step={1} unit="mm" size="small" />
           </div>
-          <div className="flex items-center">
-            <span className="text-gray-600 dark:text-gray-400 mr-2">車高R:</span>
-            <AutoComplete
-              defaultValue="125"
-              onChange={(value) => {
-                const validated = validateInteger(value);
-                // ここで車高Rの値を更新する処理を追加
-              }}
-              onDropdownVisibleChange={scrollToView}
-              size="small"
-              className="w-20"
-              options={generateIntOptions(80, 150, 5)}
-            />
-            <span className="text-gray-500 dark:text-gray-400 ml-1">mm</span>
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <span className="text-gray-600 dark:text-gray-400">車高R:</span>
+            <StepNumber value={rideHeightR} onChange={setRideHeightR} min={80} max={150} step={1} unit="mm" size="small" />
           </div>
           <div className="flex items-center">
             <span className="text-gray-600 dark:text-gray-400 mr-2">ARB F:</span>
@@ -381,7 +368,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                 const validated = validateInteger(value);
                 // ここでARB Fの値を更新する処理を追加
               }}
-              onDropdownVisibleChange={scrollToView}
+              onOpenChange={scrollToView}
               size="small"
               className="w-20"
               options={generateIntOptions(10, 40)}
@@ -396,7 +383,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                 const validated = validateInteger(value);
                 // ここでARB Rの値を更新する処理を追加
               }}
-              onDropdownVisibleChange={scrollToView}
+              onOpenChange={scrollToView}
               size="small"
               className="w-20"
               options={generateIntOptions(10, 40)}
@@ -453,29 +440,9 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
             <div className="flex items-center space-x-4">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ブレーキバイアス</span>
               <div className="flex items-center space-x-2">
-                <AutoComplete
-                  defaultValue="60"
-                  onChange={(value) => {
-                    const validated = validateInteger(value);
-                    // ここでブレーキバイアス前の値を更新する処理を追加
-                  }}
-                  onDropdownVisibleChange={scrollToView}
-                  size="small"
-                  className="w-16"
-                  options={generateIntOptions(40, 80)}
-                />
+                <StepNumber value={brakeBiasF} onChange={setBrakeBiasF} min={40} max={80} step={1} size="small" />
                 <span className="text-gray-500 dark:text-gray-400">:</span>
-                <AutoComplete
-                  defaultValue="40"
-                  onChange={(value) => {
-                    const validated = validateInteger(value);
-                    // ここでブレーキバイアス後の値を更新する処理を追加
-                  }}
-                  onDropdownVisibleChange={scrollToView}
-                  size="small"
-                  className="w-16"
-                  options={generateIntOptions(20, 60)}
-                />
+                <StepNumber value={brakeBiasR} onChange={setBrakeBiasR} min={20} max={60} step={1} size="small" />
               </div>
             </div>
             
@@ -483,32 +450,12 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
             <div className="flex items-center space-x-4 text-sm">
               <div className="flex items-center space-x-2">
                 <span className="text-gray-600 dark:text-gray-400">F走行:</span>
-                <AutoComplete
-                  defaultValue="500"
-                  onChange={(value) => {
-                    const validated = validateInteger(value);
-                    // ここでF走行距離の値を更新する処理を追加
-                  }}
-                  onDropdownVisibleChange={scrollToView}
-                  size="small"
-                  className="w-20"
-                  options={generateIntOptions(0, 5000, 100)}
-                />
+                <StepNumber value={padKmF} onChange={setPadKmF} min={0} max={5000} step={10} unit="km" size="small" />
                 <span className="text-gray-500 dark:text-gray-400">km</span>
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-gray-600 dark:text-gray-400">R走行:</span>
-                <AutoComplete
-                  defaultValue="500"
-                  onChange={(value) => {
-                    const validated = validateInteger(value);
-                    // ここでR走行距離の値を更新する処理を追加
-                  }}
-                  onDropdownVisibleChange={scrollToView}
-                  size="small"
-                  className="w-20"
-                  options={generateIntOptions(0, 5000, 100)}
-                />
+                <StepNumber value={padKmR} onChange={setPadKmR} min={0} max={5000} step={10} unit="km" size="small" />
                 <span className="text-gray-500 dark:text-gray-400">km</span>
               </div>
             </div>
@@ -518,37 +465,11 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
             <div className="flex items-center space-x-4 text-sm">
               <div className="flex items-center space-x-2">
                 <span className="text-gray-600 dark:text-gray-400">F パッド:</span>
-                <AutoComplete
-                  defaultValue="Type-R"
-                  onChange={(value) => {
-                    // ここでFパッドタイプの値を更新する処理を追加
-                  }}
-                  onDropdownVisibleChange={scrollToView}
-                  size="small"
-                  className="w-24"
-                  options={[
-                    { value: 'Type-R' },
-                    { value: 'Type-S' },
-                    { value: 'Type-N' }
-                  ]}
-                />
+                <AutoComplete defaultValue="Type-R" size="small" className="w-24" options={[{value:'Type-R'},{value:'Type-S'},{value:'Type-N'}]} />
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-gray-600 dark:text-gray-400">R パッド:</span>
-                <AutoComplete
-                  defaultValue="Type-R"
-                  onChange={(value) => {
-                    // ここでRパッドタイプの値を更新する処理を追加
-                  }}
-                  onDropdownVisibleChange={scrollToView}
-                  size="small"
-                  className="w-24"
-                  options={[
-                    { value: 'Type-R' },
-                    { value: 'Type-S' },
-                    { value: 'Type-N' }
-                  ]}
-                />
+                <AutoComplete defaultValue="Type-R" size="small" className="w-24" options={[{value:'Type-R'},{value:'Type-S'},{value:'Type-N'}]} />
               </div>
             </div>
           )}

@@ -10,6 +10,7 @@ import CarSetup from '../CarSetup';
 import { SetupHistory } from './components/setup/SetupHistory';
 import { Dashboard } from './components/Dashboard';
 import { VehicleList } from './components/vehicle/VehicleList';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const App: React.FC = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
@@ -36,6 +37,7 @@ const App: React.FC = () => {
     <ThemeProvider>
       <AuthProvider>
         <Router>
+          <ErrorBoundary>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route
@@ -80,6 +82,7 @@ const App: React.FC = () => {
             />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
+          </ErrorBoundary>
         </Router>
       </AuthProvider>
     </ThemeProvider>
