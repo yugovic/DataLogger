@@ -11,15 +11,8 @@ import { checkFirestoreConnection } from './src/utils/initFirestore';
 import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
 import { SuspensionTab } from './src/components/setup/tabs/SuspensionTab';
 import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
-<<<<<<< HEAD
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
 import { Header } from './src/components/common/Header';
-=======
-import { MobileCardLayout } from './src/components/setup/layouts/MobileCardLayout';
-import { TirePressureCard } from './src/components/setup/cards/TirePressureCard';
-import { DamperCard } from './src/components/setup/cards/DamperCard';
-const { TabPane } = Tabs;
->>>>>>> b6f3fee5dade52ad5f6e9c5389521239df45bc60
 interface DropdownState {
 isOpen: boolean;
 position: { top: number; left: number };
@@ -49,8 +42,6 @@ const [isSaving, setIsSaving] = useState(false);
 const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
 const [settingsModal, setSettingsModal] = useState(false);
 const [currentSettingView, setCurrentSettingView] = useState('account');
-const [isMobileView, setIsMobileView] = useState(false);
-const [activeCardTab, setActiveCardTab] = useState('basic');
 const [dropdownState, setDropdownState] = useState<DropdownState>({
 isOpen: false,
 position: { top: 0, left: 0 },
@@ -405,7 +396,6 @@ const handleLoadPrevious = async () => {
   }
 };
 
-<<<<<<< HEAD
 // URLパラメータからセットアップデータを読み込む
 useEffect(() => {
   const loadSetupData = async () => {
@@ -655,123 +645,6 @@ useEffect(() => {
 
   loadCopyData();
 }, [copyId]);
-=======
-// レスポンシブ対応
-React.useEffect(() => {
-  const checkScreenSize = () => {
-    setIsMobileView(window.innerWidth < 768);
-  };
-
-  checkScreenSize();
-  window.addEventListener('resize', checkScreenSize);
-
-  return () => window.removeEventListener('resize', checkScreenSize);
-}, []);
-
-// モバイル用カードデータ
-const mobileCards = [
-  {
-    id: 'basic',
-    title: '基本設定',
-    icon: 'fas fa-tachometer-alt',
-    color: 'from-blue-500 to-blue-600',
-    content: (
-      <div className="space-y-4">
-        <TirePressureCard 
-          tirePressures={tirePressures}
-          setTirePressures={setTirePressures}
-        />
-        <DamperCard
-          damperSettings={damperSettings}
-          setDamperSettings={setDamperSettings}
-        />
-      </div>
-    )
-  },
-  {
-    id: 'suspension',
-    title: 'サスペンション',
-    icon: 'fas fa-car',
-    color: 'from-purple-500 to-purple-600',
-    content: <SuspensionTab />
-  },
-  {
-    id: 'driving',
-    title: 'ドライビング',
-    icon: 'fas fa-route',
-    color: 'from-green-500 to-green-600',
-    content: <DrivingTab notes={notes} setNotes={setNotes} />
-  }
-];
-
-// モバイルビューの場合
-if (isMobileView) {
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* モバイルヘッダー */}
-      <header className="bg-white shadow-sm px-4 py-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">
-            <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800">LOGGER</span>
-          </h1>
-          <div className="flex items-center space-x-2">
-            <button 
-              onClick={handleLoadPrevious}
-              disabled={isLoadingPrevious}
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"
-            >
-              <ReloadOutlined style={{ fontSize: '18px' }} />
-            </button>
-            <button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"
-            >
-              <i className="fas fa-save text-lg"></i>
-            </button>
-            <button
-              onClick={() => setSettingsModal(true)}
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"
-            >
-              <SettingOutlined style={{ fontSize: '18px' }} />
-            </button>
-          </div>
-        </div>
-        
-        {/* セッション情報バー（モバイル用） */}
-        <div className="mt-3 flex items-center justify-between text-sm">
-          <div className="flex items-center space-x-2">
-            <span className="text-gray-600">{circuit}</span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-600">{carModel}</span>
-          </div>
-          <div className="text-gray-500">
-            {new Date().toLocaleDateString('ja-JP')}
-          </div>
-        </div>
-      </header>
-      
-      {/* モバイルカードレイアウト */}
-      <MobileCardLayout 
-        cards={mobileCards}
-        activeTab={activeCardTab}
-        onTabChange={setActiveCardTab}
-      />
-      
-      {/* 設定モーダル（共通） */}
-      <Modal
-        title="設定"
-        open={settingsModal}
-        onCancel={() => setSettingsModal(false)}
-        footer={null}
-        width={400}
-      >
-        {/* 設定内容 */}
-      </Modal>
-    </div>
-  );
-}
->>>>>>> b6f3fee5dade52ad5f6e9c5389521239df45bc60
 
 return (
 <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
