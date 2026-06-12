@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarSetup6 - 開発サーバー接続テスト</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>CarSetup6 開発サーバー接続テスト</h1>
+    
+    <h2>手順：</h2>
+    <ol>
+        <li>ターミナルで以下のコマンドを実行：
+            <pre>cd /Users/Yugox/Documents/Program/CarSetup6
+npm run dev</pre>
+        </li>
+        <li>開発サーバーが起動したら、表示されるURLにアクセス（通常は http://localhost:5173）</li>
+        <li>ブラウザの開発者ツール（F12キー）を開いて、コンソールタブでエラーを確認</li>
+    </ol>
+
+    <h2>確認事項：</h2>
+    <ul>
+        <li>白い画面が表示される場合は、コンソールにエラーがないか確認</li>
+        <li>「VELOCITY LOGGER」のヘッダーが表示されれば、SimpleModernCarSetupは正常動作</li>
+        <li>エラーが表示される場合は、そのエラーメッセージをコピー</li>
+    </ul>
+
+    <h2>トラブルシューティング：</h2>
+    <ul>
+        <li>npm run devでエラーが出る場合： <code>npm install</code> を実行</li>
+        <li>ポートが使用中の場合： 別のポートを使用するか、既存のプロセスを終了</li>
+        <li>認証エラーの場合： Firebaseの設定を確認</li>
+    </ul>
+</body>
+</html>
