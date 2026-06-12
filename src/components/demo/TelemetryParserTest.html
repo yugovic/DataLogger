@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telemetry Parser Test - VELOCITY LOGGER</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --accent-aim: #3b82f6;
+      --accent-digi: #10b981;
+      --accent-red: #ef4444;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .badge-aim { background: rgba(59,130,246,0.15); color: var(--accent-aim); }
+    .badge-digi { background: rgba(16,185,129,0.15); color: var(--accent-digi); }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 32px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 12px;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent-aim);
+      background: rgba(59,130,246,0.05);
+    }
+    .drop-zone-digi:hover, .drop-zone-digi.dragover {
+      border-color: var(--accent-digi);
+      background: rgba(16,185,129,0.05);
+    }
+    .drop-zone input { display: none; }
+    .drop-zone p { color: var(--text-muted); font-size: 13px; }
+    .drop-zone .icon { font-size: 28px; margin-bottom: 8px; }
+
+    .meta-table {
+      width: 100%;
+      font-size: 12px;
+      border-collapse: collapse;
+    }
+    .meta-table td {
+      padding: 4px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .meta-table td:first-child {
+      color: var(--text-muted);
+      width: 120px;
+    }
+
+    .chart-area {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .chart-area h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    canvas {
+      width: 100% !important;
+      height: 300px !important;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+    .chart-canvas {
+      cursor: crosshair;
+    }
+    .chart-wrapper {
+      position: relative;
+    }
+    .chart-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(26,29,39,0.95);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: nowrap;
+      z-index: 10;
+      display: none;
+    }
+    .chart-tooltip .tt-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chart-tooltip .tt-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .chart-zoom-hint {
+      position: absolute;
+      bottom: 6px;
+      right: 8px;
+      font-size: 10px;
+      color: var(--text-muted);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .chart-reset-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      font-size: 10px;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: none;
+      z-index: 5;
+    }
+    .chart-reset-btn:hover { color: var(--text); border-color: var(--text-muted); }
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      font-size: 12px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .data-preview {
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 11px;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      white-space: pre;
+      color: var(--text-muted);
+    }
+
+    .status {
+      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 8px;
+    }
+    .status-ok { background: rgba(16,185,129,0.1); color: var(--accent-digi); }
+    .status-err { background: rgba(239,68,68,0.1); color: var(--accent-red); }
+
+    .sample-btn {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 12px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .sample-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+    /* Mode toggle */
+    .mode-bar {
+      display: none;
+      gap: 4px;
+      margin-bottom: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      width: fit-content;
+    }
+    .mode-bar.visible { display: flex; }
+    .mode-btn {
+      font-size: 13px;
+      padding: 6px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+    }
+    .mode-btn:hover:not(.active) { color: var(--text); }
+
+    /* Track map */
+    .track-container {
+      position: relative;
+      width: 100%;
+    }
+    .track-canvas {
+      width: 100% !important;
+      height: 500px !important;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+    .g-scale-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .g-gradient {
+      height: 12px;
+      flex: 1;
+      max-width: 300px;
+      border-radius: 6px;
+    }
+    .g-scale-labels {
+      display: flex;
+      justify-content: space-between;
+      flex: 1;
+      max-width: 300px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .track-info {
+      display: flex;
+      gap: 20px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .track-info-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .track-info-line {
+      width: 20px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    /* X-axis toggle */
+    .x-axis-bar {
+      display: none;
+      gap: 4px;
+      align-items: center;
+      margin-bottom: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px 8px;
+      width: fit-content;
+    }
+    .x-axis-bar.visible { display: flex; }
+    .x-axis-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-right: 4px;
+    }
+
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Telemetry Parser Test</h1>
+<p class="subtitle">AIM CSV / DigiSpice (.dtb / NMEA) data import and visualization prototype</p>
+
+<div class="grid">
+  <!-- AIM CSV -->
+  <div class="card">
+    <div class="card-title">
+      <span class="badge badge-aim">AIM CSV</span>
+      Race Studio 3 Export
+    </div>
+    <div class="drop-zone" id="aim-drop">
+      <input type="file" id="aim-file" accept=".csv,.txt">
+      <div class="icon">+</div>
+      <p>AIM CSVファイルをドロップ<br>またはクリックして選択</p>
+    </div>
+    <button class="sample-btn" onclick="loadAimSample()">サンプルデータで試す</button>
+    <div id="aim-status"></div>
+    <table class="meta-table" id="aim-meta" style="display:none"></table>
+    <div class="data-preview" id="aim-preview" style="display:none"></div>
+  </div>
+
+  <!-- DigiSpice -->
+  <div class="card">
+    <div class="card-title">
+      <span class="badge badge-digi">DigiSpice</span>
+      .dtb (native) / NMEA
+    </div>
+    <div class="drop-zone drop-zone-digi" id="digi-drop">
+      <input type="file" id="digi-file" accept=".dtb,.txt,.nmea,.log">
+      <div class="icon">+</div>
+      <p>.dtb または NMEA (.txt) ファイルをドロップ<br>またはクリックして選択</p>
+    </div>
+    <button class="sample-btn" onclick="loadDigiSample()">サンプルデータで試す (NMEA)</button>
+    <div id="digi-status"></div>
+    <table class="meta-table" id="digi-meta" style="display:none"></table>
+    <div class="data-preview" id="digi-preview" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Mode Toggle -->
+<div class="mode-bar" id="mode-bar">
+  <button class="mode-btn active" data-mode="charts" onclick="switchMode('charts')">Time Series Charts</button>
+  <button class="mode-btn" data-mode="track-g" onclick="switchMode('track-g')">Track Map (Accel/Brake)</button>
+  <button class="mode-btn" data-mode="track-speed" onclick="switchMode('track-speed')">Track Map (Speed)</button>
+</div>
+
+<!-- X-axis Toggle -->
+<div class="x-axis-bar" id="x-axis-bar">
+  <span class="x-axis-label">横軸:</span>
+  <button class="mode-btn active" data-xaxis="distance" onclick="switchXAxis('distance')">距離 (m)</button>
+  <button class="mode-btn" data-xaxis="time" onclick="switchXAxis('time')">時間 (s)</button>
+</div>
+
+<!-- Charts View -->
+<div id="view-charts">
+  <div class="chart-area" id="chart-section" style="display:none">
+    <h2>Speed Comparison</h2>
+    <div class="chart-wrapper" id="speedChartWrapper">
+      <canvas id="speedChart" class="chart-canvas"></canvas>
+      <div class="chart-tooltip" id="speedChartTooltip"></div>
+      <button class="chart-reset-btn" id="speedChartReset" onclick="resetZoom('speedChart')">Reset Zoom</button>
+      <div class="chart-zoom-hint">Scroll: Zoom / Drag: Pan</div>
+    </div>
+    <div class="chart-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-aim)"></div> AIM</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-digi)"></div> DigiSpice</div>
+    </div>
+  </div>
+  <div class="chart-area" id="g-chart-section" style="display:none">
+    <h2>Longitudinal G (Accel/Brake)</h2>
+    <div class="chart-wrapper" id="gChartWrapper">
+      <canvas id="gChart" class="chart-canvas"></canvas>
+      <div class="chart-tooltip" id="gChartTooltip"></div>
+      <button class="chart-reset-btn" id="gChartReset" onclick="resetZoom('gChart')">Reset Zoom</button>
+      <div class="chart-zoom-hint">Scroll: Zoom / Drag: Pan</div>
+    </div>
+    <div class="chart-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-aim)"></div> AIM</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-digi)"></div> DigiSpice</div>
+    </div>
+  </div>
+</div>
+
+<!-- Track Map (Speed) View -->
+<div id="view-track-speed" style="display:none">
+  <div class="chart-area">
+    <h2>Track Map - Speed Overlay</h2>
+    <div class="track-container">
+      <canvas id="trackSpeedCanvas" class="track-canvas"></canvas>
+    </div>
+    <div class="g-scale-bar">
+      <span>0 km/h</span>
+      <canvas id="speedGradient" class="g-gradient"></canvas>
+      <span id="speed-max-label">120 km/h</span>
+    </div>
+    <div class="track-info" id="track-speed-legend"></div>
+  </div>
+</div>
+
+<!-- Track Map (Accel/Brake) View -->
+<div id="view-track-g" style="display:none">
+  <div class="chart-area">
+    <h2>Track Map - Accel / Brake Overlay</h2>
+    <div class="track-container">
+      <canvas id="trackGCanvas" class="track-canvas"></canvas>
+    </div>
+    <div class="g-scale-bar">
+      <span id="g-label-brake">Brake</span>
+      <canvas id="gGradient" class="g-gradient"></canvas>
+      <span id="g-label-accel">Accel</span>
+    </div>
+    <div class="track-info" id="track-g-legend"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Internal normalized data model
+// ============================================================
+// Both parsers produce arrays of TelemetryPoint
+// {time: seconds, speed: km/h, lat: deg, lon: deg, heading: deg}
+
+// ============================================================
+// AIM CSV Parser
+// ============================================================
+function parseAimCsv(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  // Parse metadata (first rows until channel header)
+  const meta = {};
+  let dataStartIdx = 0;
+
+  for (let i = 0; i < Math.min(lines.length, 20); i++) {
+    const line = lines[i];
+    // Metadata rows: "Key","Value" or "Key",Value
+    const metaMatch = line.match(/^"(\w[\w\s]*)"\s*,\s*"?([^"]*)"?$/);
+    if (metaMatch) {
+      const key = metaMatch[1].trim();
+      const val = metaMatch[2].trim();
+      if (['Format', 'Venue', 'Date', 'Time', 'Sample Rate', 'Segment'].includes(key)) {
+        meta[key] = val;
+        dataStartIdx = i + 1;
+        continue;
+      }
+    }
+    // If we find a line with multiple quoted headers, that's the channel names row
+    if (line.startsWith('"') && line.split(',').length > 3) {
+      dataStartIdx = i;
+      break;
+    }
+  }
+
+  // Channel names row
+  const channelLine = lines[dataStartIdx];
+  const channels = channelLine.split(',').map(s => s.replace(/"/g, '').trim());
+
+  // Units row
+  const unitsLine = lines[dataStartIdx + 1];
+  const units = unitsLine.split(',').map(s => s.replace(/"/g, '').trim());
+
+  // Find column indices
+  const timeIdx = channels.findIndex(c => c.toLowerCase() === 'time');
+  const speedIdx = channels.findIndex(c => /gps.?speed/i.test(c) || (c.toLowerCase() === 'speed' && units[channels.indexOf(c)] === 'km/h'));
+  const latIdx = channels.findIndex(c => /gps.?lat/i.test(c) || c.toLowerCase() === 'latitude');
+  const lonIdx = channels.findIndex(c => /gps.?lon/i.test(c) || c.toLowerCase() === 'longitude');
+  const headingIdx = channels.findIndex(c => /gps.?heading/i.test(c) || c.toLowerCase() === 'heading');
+
+  // Parse data rows
+  const points = [];
+  for (let i = dataStartIdx + 2; i < lines.length; i++) {
+    const vals = lines[i].split(',');
+    if (vals.length < channels.length) continue;
+
+    const time = parseFloat(vals[timeIdx]);
+    if (isNaN(time)) continue;
+
+    points.push({
+      time,
+      speed: speedIdx >= 0 ? parseFloat(vals[speedIdx]) || 0 : 0,
+      lat: latIdx >= 0 ? parseFloat(vals[latIdx]) || 0 : 0,
+      lon: lonIdx >= 0 ? parseFloat(vals[lonIdx]) || 0 : 0,
+      heading: headingIdx >= 0 ? parseFloat(vals[headingIdx]) || 0 : 0,
+    });
+  }
+
+  return {
+    source: 'AIM',
+    meta,
+    channels: channels.map((name, i) => ({ name, unit: units[i] || '' })),
+    points,
+  };
+}
+
+// ============================================================
+// DigiSpice .dtb Binary Parser
+// ============================================================
+// .dtb format (reverse-engineered from official sample data):
+//   Record size: 128 bytes, Sample rate: 5 Hz
+//   [0:8]    double     Timestamp (Excel serial date, JST)
+//   [8:16]   double     Cumulative distance
+//   [16:32]  extended   Elapsed time (seconds)
+//   [32:48]  extended   Latitude (degrees)
+//   [48:64]  extended   Longitude (degrees)
+//   [64:80]  extended   Speed (km/h)
+//   [80:96]  extended   Heading (degrees)
+//   [96:112] extended   Unknown (possibly altitude or second heading)
+//   [112:128] extended  Cumulative distance (km)
+//
+// "extended" = 80-bit x86 extended precision, 16-byte aligned:
+//   bytes[0:8] = 64-bit mantissa (little-endian)
+//   bytes[8:10] = sign(1 bit) + exponent(15 bits)
+//   bytes[10:16] = padding (zeros)
+
+function readExtended(view, offset) {
+  // Read 64-bit mantissa as two 32-bit halves (DataView doesn't support getUint64)
+  const lo = view.getUint32(offset, true);
+  const hi = view.getUint32(offset + 4, true);
+  const mantissa = lo + hi * 4294967296; // lo + hi * 2^32
+  const signExp = view.getUint16(offset + 8, true);
+  const sign = (signExp >> 15) & 1;
+  const exponent = signExp & 0x7FFF;
+
+  if (exponent === 0 && mantissa === 0) return 0.0;
+  if (exponent === 0x7FFF) return sign ? -Infinity : Infinity;
+
+  const trueExp = exponent - 16383;
+  // mantissa has explicit integer bit at bit 63
+  let value = mantissa / 9223372036854775808 * Math.pow(2, trueExp); // / 2^63
+  if (sign) value = -value;
+  return value;
+}
+
+function parseDigiSpiceDtb(buffer) {
+  const view = new DataView(buffer);
+  const recordSize = 128;
+  const nRecords = Math.floor(buffer.byteLength / recordSize);
+
+  if (nRecords < 2) throw new Error('File too small to be a valid .dtb file');
+
+  // Validate: first double should be a reasonable Excel serial date (> 30000 = ~1982)
+  const firstTimestamp = view.getFloat64(0, true);
+  if (firstTimestamp < 30000 || firstTimestamp > 100000) {
+    throw new Error('Invalid .dtb format: first value is not an Excel serial date');
+  }
+
+  const points = [];
+  for (let r = 0; r < nRecords; r++) {
+    const offset = r * recordSize;
+    const elapsed = readExtended(view, offset + 16);
+    const lat = readExtended(view, offset + 32);
+    const lon = readExtended(view, offset + 48);
+    const speed = readExtended(view, offset + 64);
+    const heading = readExtended(view, offset + 80);
+
+    points.push({
+      time: Math.round(elapsed * 100) / 100,
+      speed: Math.round(speed * 10) / 10,
+      lat,
+      lon,
+      heading: Math.round(heading * 10) / 10,
+    });
+  }
+
+  // Calculate sample rate from time differences
+  let sampleRate = 5;
+  if (points.length > 2) {
+    const dt = points[2].time - points[1].time;
+    if (dt > 0) sampleRate = Math.round(1 / dt);
+  }
+
+  // Convert Excel serial date to readable date
+  const excelEpoch = new Date(1899, 11, 30);
+  const dateMs = excelEpoch.getTime() + firstTimestamp * 86400000;
+  const sessionDate = new Date(dateMs);
+  const dateStr = sessionDate.toISOString().replace('T', ' ').substring(0, 19) + ' (JST)';
+
+  const duration = points.length > 0 ? points[points.length - 1].time : 0;
+
+  return {
+    source: 'DigiSpice',
+    meta: {
+      'Format': 'DigiSpice .dtb (binary)',
+      'Date': dateStr,
+      'Sample Rate': sampleRate + ' Hz',
+      'Records': nRecords.toString(),
+      'Duration': duration.toFixed(1) + ' s (' + (duration / 60).toFixed(1) + ' min)',
+      'Lat range': points[0].lat.toFixed(4) + ' - ' + points[nRecords - 1].lat.toFixed(4),
+      'Lon range': points[0].lon.toFixed(4) + ' - ' + points[nRecords - 1].lon.toFixed(4),
+    },
+    channels: [
+      { name: 'Time', unit: 's' },
+      { name: 'Speed', unit: 'km/h' },
+      { name: 'Latitude', unit: 'deg' },
+      { name: 'Longitude', unit: 'deg' },
+      { name: 'Heading', unit: 'deg' },
+    ],
+    points,
+  };
+}
+
+// ============================================================
+// DigiSpice NMEA (RMC) Parser
+// ============================================================
+function parseNmeaRmc(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const points = [];
+  let firstTime = null;
+
+  for (const line of lines) {
+    // Accept $GPRMC and $GNRMC
+    if (!line.startsWith('$GPRMC') && !line.startsWith('$GNRMC')) continue;
+
+    // Verify checksum
+    const asterisk = line.indexOf('*');
+    if (asterisk < 0) continue;
+    const payload = line.substring(1, asterisk);
+    let checksum = 0;
+    for (let i = 0; i < payload.length; i++) checksum ^= payload.charCodeAt(i);
+    const expected = parseInt(line.substring(asterisk + 1, asterisk + 3), 16);
+    if (checksum !== expected) continue;
+
+    const fields = payload.split(',');
+    // fields[0] = GPRMC
+    // fields[1] = time, fields[2] = status, fields[3] = lat, fields[4] = N/S
+    // fields[5] = lon, fields[6] = E/W, fields[7] = speed(knots), fields[8] = course
+    // fields[9] = date
+
+    if (fields[2] !== 'A') continue; // skip invalid fixes
+
+    // Parse time (hhmmss or hhmmss.ss) - DigiSpice outputs JST, subtract 9h
+    const timeStr = fields[1];
+    const h = parseInt(timeStr.substring(0, 2));
+    const m = parseInt(timeStr.substring(2, 4));
+    const s = parseFloat(timeStr.substring(4));
+    const timeSeconds = h * 3600 + m * 60 + s;
+
+    if (firstTime === null) firstTime = timeSeconds;
+    const elapsed = timeSeconds - firstTime;
+    // Handle day rollover (if elapsed goes negative due to JST→UTC)
+    const adjustedElapsed = elapsed < 0 ? elapsed + 86400 : elapsed;
+
+    // Parse latitude: ddmm.mmmm
+    const latRaw = parseFloat(fields[3]);
+    const latDeg = Math.floor(latRaw / 100);
+    const latMin = latRaw - latDeg * 100;
+    let lat = latDeg + latMin / 60;
+    if (fields[4] === 'S') lat = -lat;
+
+    // Parse longitude: dddmm.mmmm
+    const lonRaw = parseFloat(fields[5]);
+    const lonDeg = Math.floor(lonRaw / 100);
+    const lonMin = lonRaw - lonDeg * 100;
+    let lon = lonDeg + lonMin / 60;
+    if (fields[6] === 'W') lon = -lon;
+
+    // Speed: knots → km/h
+    const speedKnots = parseFloat(fields[7]) || 0;
+    const speedKmh = speedKnots * 1.852;
+
+    // Course/heading
+    const heading = parseFloat(fields[8]) || 0;
+
+    points.push({
+      time: adjustedElapsed,
+      speed: Math.round(speedKmh * 10) / 10,
+      lat,
+      lon,
+      heading,
+    });
+  }
+
+  // Derive sample rate
+  let sampleRate = 0;
+  if (points.length > 1) {
+    const dt = points[1].time - points[0].time;
+    if (dt > 0) sampleRate = Math.round(1 / dt);
+  }
+
+  return {
+    source: 'DigiSpice',
+    meta: {
+      'Format': 'NMEA RMC',
+      'Sample Rate': sampleRate + ' Hz',
+      'Duration': points.length > 0
+        ? (points[points.length - 1].time - points[0].time).toFixed(1) + ' s'
+        : '0 s',
+      'Note': 'Time is JST (UTC+9) as-is from DigiSpice',
+    },
+    channels: [
+      { name: 'Time', unit: 's' },
+      { name: 'Speed', unit: 'km/h' },
+      { name: 'Latitude', unit: 'deg' },
+      { name: 'Longitude', unit: 'deg' },
+      { name: 'Heading', unit: 'deg' },
+    ],
+    points,
+  };
+}
+
+// ============================================================
+// Longitudinal G calculation
+// ============================================================
+function calcLongG(points) {
+  const g = [0];
+  for (let i = 1; i < points.length; i++) {
+    const dt = points[i].time - points[i - 1].time;
+    if (dt > 0) {
+      const dv = (points[i].speed - points[i - 1].speed) / 3.6; // km/h → m/s
+      g.push(dv / dt / 9.81);
+    } else {
+      g.push(0);
+    }
+  }
+  // Simple moving average smoothing (window=5)
+  const smoothed = [];
+  const w = 2;
+  for (let i = 0; i < g.length; i++) {
+    let sum = 0, count = 0;
+    for (let j = Math.max(0, i - w); j <= Math.min(g.length - 1, i + w); j++) {
+      sum += g[j]; count++;
+    }
+    smoothed.push(Math.round((sum / count) * 1000) / 1000);
+  }
+  return smoothed;
+}
+
+// ============================================================
+// Cumulative distance calculation (Haversine)
+// ============================================================
+function calcCumulativeDistance(points) {
+  const dist = [0];
+  for (let i = 1; i < points.length; i++) {
+    const p0 = points[i - 1];
+    const p1 = points[i];
+    if (p0.lat === 0 && p0.lon === 0 || p1.lat === 0 && p1.lon === 0) {
+      // No GPS — estimate from speed and time
+      const dt = p1.time - p0.time;
+      const avgSpeed = (p0.speed + p1.speed) / 2 / 3.6; // m/s
+      dist.push(dist[i - 1] + avgSpeed * dt);
+    } else {
+      const R = 6371000; // Earth radius in meters
+      const dLat = (p1.lat - p0.lat) * Math.PI / 180;
+      const dLon = (p1.lon - p0.lon) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(p0.lat * Math.PI / 180) * Math.cos(p1.lat * Math.PI / 180) *
+        Math.sin(dLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      dist.push(dist[i - 1] + R * c);
+    }
+  }
+  return dist;
+}
+
+// ============================================================
+// Canvas Chart Renderer with Zoom/Pan/Tooltip
+// ============================================================
+// Per-chart state: zoom range, datasets, etc.
+const chartStates = {};
+
+function getChartState(canvasId) {
+  if (!chartStates[canvasId]) {
+    chartStates[canvasId] = {
+      datasets: [],
+      xUnit: 's',
+      // null = auto (full range); set by zoom/pan
+      viewXMin: null,
+      viewXMax: null,
+      // cached full-data range
+      fullXMin: 0,
+      fullXMax: 1,
+      // interaction state
+      isPanning: false,
+      panStartX: 0,
+      panStartXMin: 0,
+      panStartXMax: 0,
+      initialized: false,
+    };
+  }
+  return chartStates[canvasId];
+}
+
+function formatXLabel(val, xUnit) {
+  if (xUnit === 'm') {
+    return val >= 1000 ? (val / 1000).toFixed(1) + 'km' : val.toFixed(0) + 'm';
+  }
+  return val.toFixed(1) + 's';
+}
+
+function renderChart(canvasId) {
+  const state = getChartState(canvasId);
+  const datasets = state.datasets;
+  const xUnit = state.xUnit;
+
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const W = rect.width;
+  const H = rect.height;
+  const pad = { top: 20, right: 20, bottom: 30, left: 50 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  // Full data range
+  let fxMin = Infinity, fxMax = -Infinity, fyMin = Infinity, fyMax = -Infinity;
+  for (const ds of datasets) {
+    for (const p of ds.data) {
+      if (p.x < fxMin) fxMin = p.x;
+      if (p.x > fxMax) fxMax = p.x;
+    }
+  }
+  state.fullXMin = fxMin;
+  state.fullXMax = fxMax;
+
+  // View range (zoom)
+  const xMin = state.viewXMin !== null ? state.viewXMin : fxMin;
+  const xMax = state.viewXMax !== null ? state.viewXMax : fxMax;
+
+  // Y range from visible data only
+  for (const ds of datasets) {
+    for (const p of ds.data) {
+      if (p.x >= xMin && p.x <= xMax) {
+        if (p.y < fyMin) fyMin = p.y;
+        if (p.y > fyMax) fyMax = p.y;
+      }
+    }
+  }
+  const yRange = fyMax - fyMin || 1;
+  const yMin = fyMin - yRange * 0.08;
+  const yMax = fyMax + yRange * 0.08;
+
+  // Scale helpers (stored on state for tooltip)
+  state._pad = pad;
+  state._plotW = plotW;
+  state._plotH = plotH;
+  state._W = W;
+  state._H = H;
+  state._xMin = xMin;
+  state._xMax = xMax;
+  state._yMin = yMin;
+  state._yMax = yMax;
+
+  const xScale = (v) => pad.left + ((v - xMin) / (xMax - xMin || 1)) * plotW;
+  const yScale = (v) => pad.top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+
+  // Clear
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg');
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = '#2a2d3a';
+  ctx.lineWidth = 0.5;
+  const yTicks = 5;
+  for (let i = 0; i <= yTicks; i++) {
+    const y = pad.top + (plotH / yTicks) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    const val = yMax - ((yMax - yMin) / yTicks) * i;
+    ctx.fillStyle = '#71717a';
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(1), pad.left - 6, y + 3);
+  }
+  const xTicks = 6;
+  for (let i = 0; i <= xTicks; i++) {
+    const x = pad.left + (plotW / xTicks) * i;
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
+    const val = xMin + ((xMax - xMin) / xTicks) * i;
+    ctx.fillStyle = '#71717a';
+    ctx.textAlign = 'center';
+    ctx.fillText(formatXLabel(val, xUnit), x, H - pad.bottom + 16);
+  }
+
+  // Clip to plot area
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(pad.left, pad.top, plotW, plotH);
+  ctx.clip();
+
+  // Downsample visible data
+  function downsample(data, maxPoints) {
+    if (data.length <= maxPoints) return data;
+    const step = data.length / maxPoints;
+    const result = [];
+    for (let i = 0; i < maxPoints; i++) {
+      result.push(data[Math.floor(i * step)]);
+    }
+    result.push(data[data.length - 1]);
+    return result;
+  }
+
+  // Draw lines
+  for (const ds of datasets) {
+    // Filter to visible range with one-point margin
+    const visible = ds.data.filter(p => p.x >= xMin && p.x <= xMax);
+    const sampled = downsample(visible, 2000);
+    if (sampled.length < 2) continue;
+    ctx.strokeStyle = ds.color;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(xScale(sampled[0].x), yScale(sampled[0].y));
+    for (let i = 1; i < sampled.length; i++) {
+      ctx.lineTo(xScale(sampled[i].x), yScale(sampled[i].y));
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Show/hide reset button
+  const isZoomed = state.viewXMin !== null;
+  const resetBtn = document.getElementById(canvasId + 'Reset');
+  if (resetBtn) resetBtn.style.display = isZoomed ? 'block' : 'none';
+}
+
+function drawChart(canvasId, datasets, xUnit) {
+  const state = getChartState(canvasId);
+  state.datasets = datasets;
+  state.xUnit = xUnit || 's';
+  // Reset zoom when data changes
+  state.viewXMin = null;
+  state.viewXMax = null;
+  renderChart(canvasId);
+  if (!state.initialized) {
+    initChartInteractions(canvasId);
+    state.initialized = true;
+  }
+}
+
+function resetZoom(canvasId) {
+  const state = getChartState(canvasId);
+  state.viewXMin = null;
+  state.viewXMax = null;
+  renderChart(canvasId);
+  // Also hide tooltip
+  const tooltip = document.getElementById(canvasId + 'Tooltip');
+  if (tooltip) tooltip.style.display = 'none';
+}
+
+// ============================================================
+// Chart Interactions: Zoom (wheel), Pan (drag), Tooltip (move)
+// ============================================================
+function initChartInteractions(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  const state = getChartState(canvasId);
+  const tooltip = document.getElementById(canvasId + 'Tooltip');
+
+  // --- Wheel zoom ---
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const s = state;
+    if (!s.datasets.length) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const pad = s._pad;
+    const plotW = s._plotW;
+
+    // Current view range
+    let xMin = s.viewXMin !== null ? s.viewXMin : s.fullXMin;
+    let xMax = s.viewXMax !== null ? s.viewXMax : s.fullXMax;
+    const range = xMax - xMin;
+
+    // Where the mouse is in data coordinates
+    const frac = (mouseX - pad.left) / plotW;
+    const mouseDataX = xMin + frac * range;
+
+    // Zoom factor
+    const zoomFactor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+    const newRange = Math.min(range * zoomFactor, s.fullXMax - s.fullXMin);
+
+    // Min zoom: at least 20 data points visible
+    const minRange = (s.fullXMax - s.fullXMin) / 200;
+    if (newRange < minRange) return;
+
+    // Keep mouse position anchored
+    let newXMin = mouseDataX - frac * newRange;
+    let newXMax = mouseDataX + (1 - frac) * newRange;
+
+    // Clamp to data range
+    if (newXMin < s.fullXMin) { newXMin = s.fullXMin; newXMax = newXMin + newRange; }
+    if (newXMax > s.fullXMax) { newXMax = s.fullXMax; newXMin = newXMax - newRange; }
+
+    // If zoomed out to full range, reset
+    if (newXMax - newXMin >= (s.fullXMax - s.fullXMin) * 0.99) {
+      s.viewXMin = null;
+      s.viewXMax = null;
+    } else {
+      s.viewXMin = newXMin;
+      s.viewXMax = newXMax;
+    }
+    renderChart(canvasId);
+  }, { passive: false });
+
+  // --- Drag pan ---
+  canvas.addEventListener('mousedown', (e) => {
+    if (!state.datasets.length) return;
+    state.isPanning = true;
+    state.panStartX = e.clientX;
+    state.panStartXMin = state.viewXMin !== null ? state.viewXMin : state.fullXMin;
+    state.panStartXMax = state.viewXMax !== null ? state.viewXMax : state.fullXMax;
+    canvas.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!state.isPanning) return;
+    const rect = canvas.getBoundingClientRect();
+    const dx = e.clientX - state.panStartX;
+    const plotW = state._plotW;
+    const range = state.panStartXMax - state.panStartXMin;
+    const dataDx = -(dx / plotW) * range;
+
+    let newXMin = state.panStartXMin + dataDx;
+    let newXMax = state.panStartXMax + dataDx;
+
+    // Clamp
+    if (newXMin < state.fullXMin) { newXMin = state.fullXMin; newXMax = newXMin + range; }
+    if (newXMax > state.fullXMax) { newXMax = state.fullXMax; newXMin = newXMax - range; }
+
+    state.viewXMin = newXMin;
+    state.viewXMax = newXMax;
+    renderChart(canvasId);
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (state.isPanning) {
+      state.isPanning = false;
+      canvas.style.cursor = 'crosshair';
+    }
+  });
+
+  // --- Tooltip / crosshair ---
+  canvas.addEventListener('mousemove', (e) => {
+    if (state.isPanning || !state.datasets.length || !tooltip) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const pad = state._pad;
+    const plotW = state._plotW;
+    const plotH = state._plotH;
+
+    // Only show within plot area
+    if (mouseX < pad.left || mouseX > pad.left + plotW || mouseY < pad.top || mouseY > pad.top + plotH) {
+      tooltip.style.display = 'none';
+      renderChart(canvasId);
+      return;
+    }
+
+    const xMin = state._xMin;
+    const xMax = state._xMax;
+    const yMin = state._yMin;
+    const yMax = state._yMax;
+    const frac = (mouseX - pad.left) / plotW;
+    const dataX = xMin + frac * (xMax - xMin);
+
+    // Find nearest point in each dataset via binary search
+    const rows = [];
+    for (const ds of state.datasets) {
+      const data = ds.data;
+      // Binary search for closest x
+      let lo = 0, hi = data.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (data[mid].x < dataX) lo = mid + 1; else hi = mid;
+      }
+      // Check lo and lo-1
+      let bestIdx = lo;
+      if (lo > 0 && Math.abs(data[lo - 1].x - dataX) < Math.abs(data[lo].x - dataX)) {
+        bestIdx = lo - 1;
+      }
+      const pt = data[bestIdx];
+      rows.push({ label: ds.label, color: ds.color, x: pt.x, y: pt.y });
+    }
+
+    // Build tooltip HTML
+    const xLabel = formatXLabel(dataX, state.xUnit);
+    let html = `<div style="color:var(--text-muted);margin-bottom:2px">${xLabel}</div>`;
+    for (const r of rows) {
+      html += `<div class="tt-row"><div class="tt-dot" style="background:${r.color}"></div>${r.label}: <b>${r.y.toFixed(2)}</b></div>`;
+    }
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+
+    // Position tooltip (avoid overflow)
+    const ttRect = tooltip.getBoundingClientRect();
+    let ttLeft = mouseX + 14;
+    if (ttLeft + ttRect.width > rect.width) ttLeft = mouseX - ttRect.width - 10;
+    let ttTop = mouseY - 10;
+    if (ttTop < 0) ttTop = 4;
+    tooltip.style.left = ttLeft + 'px';
+    tooltip.style.top = ttTop + 'px';
+
+    // Draw crosshair on canvas
+    renderChart(canvasId);
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1;
+    // Vertical line at mouse X
+    ctx.beginPath();
+    ctx.moveTo(mouseX, pad.top);
+    ctx.lineTo(mouseX, pad.top + plotH);
+    ctx.stroke();
+    // Dots on each dataset at nearest point
+    for (const r of rows) {
+      const px = pad.left + ((r.x - xMin) / (xMax - xMin || 1)) * plotW;
+      const py = pad.top + plotH - ((r.y - yMin) / (yMax - yMin || 1)) * plotH;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fillStyle = r.color;
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    if (tooltip) tooltip.style.display = 'none';
+    if (!state.isPanning) renderChart(canvasId);
+  });
+}
+
+// ============================================================
+// Track Map Renderer (G-Force / Speed color overlay)
+// ============================================================
+// Adaptive G range — set when data is loaded
+let gRangeMin = -1.0;
+let gRangeMax = 0.6;
+
+function gToColor(g) {
+  // Brake (negative G) → bright red, Coast (0G) → dim gray-blue, Accel (positive G) → bright green
+  // Uses the adaptive range so colors are always vivid regardless of data magnitude
+  const absMax = Math.max(Math.abs(gRangeMin), Math.abs(gRangeMax)) || 0.1;
+  const normalized = g / absMax; // -1 to +1
+
+  if (normalized < -0.05) {
+    // Braking: orange → red, stronger = more vivid red
+    const t = Math.min(1, Math.abs(normalized));
+    const r = Math.round(140 + 115 * t);
+    const g2 = Math.round(80 - 50 * t);
+    const b = Math.round(40 - 20 * t);
+    return `rgb(${r},${g2},${b})`;
+  } else if (normalized > 0.05) {
+    // Accelerating: teal → bright green
+    const t = Math.min(1, normalized);
+    const r = Math.round(30 - 20 * t);
+    const g2 = Math.round(140 + 115 * t);
+    const b = Math.round(100 - 60 * t);
+    return `rgb(${r},${g2},${b})`;
+  } else {
+    // Coast: neutral blue-gray
+    return 'rgb(70,80,110)';
+  }
+}
+
+function speedToColor(speed, maxSpeed) {
+  // 0 → blue/purple, mid → cyan/green, max → yellow/red
+  const t = Math.min(1, speed / (maxSpeed || 1));
+  let r, g, b;
+  if (t < 0.25) {
+    // dark blue → blue
+    const s = t / 0.25;
+    r = Math.round(30 + 20 * s);
+    g = Math.round(40 + 80 * s);
+    b = Math.round(140 + 100 * s);
+  } else if (t < 0.5) {
+    // blue → cyan
+    const s = (t - 0.25) / 0.25;
+    r = Math.round(50 - 20 * s);
+    g = Math.round(120 + 135 * s);
+    b = Math.round(240 - 30 * s);
+  } else if (t < 0.75) {
+    // cyan → yellow
+    const s = (t - 0.5) / 0.25;
+    r = Math.round(30 + 225 * s);
+    g = Math.round(255 - 30 * s);
+    b = Math.round(210 - 200 * s);
+  } else {
+    // yellow → red
+    const s = (t - 0.75) / 0.25;
+    r = 255;
+    g = Math.round(225 - 200 * s);
+    b = Math.round(10 + 20 * s);
+  }
+  return `rgb(${r},${g},${b})`;
+}
+
+function drawGradientBar(canvasId, colorFn, steps) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1);
+    ctx.fillStyle = colorFn(t);
+    ctx.fillRect((W / steps) * i, 0, (W / steps) + 1, H);
+  }
+}
+
+function drawTrackMap(canvasId, datasets, colorMode) {
+  // datasets: [{label, points, gValues}]
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const W = rect.width;
+  const H = rect.height;
+  const pad = { top: 30, right: 30, bottom: 30, left: 30 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  // Clear
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg');
+  ctx.fillRect(0, 0, W, H);
+
+  // Find global lat/lon bounds across all datasets
+  let latMin = Infinity, latMax = -Infinity, lonMin = Infinity, lonMax = -Infinity;
+  let globalMaxSpeed = 0;
+  for (const ds of datasets) {
+    for (const p of ds.points) {
+      if (p.lat === 0 && p.lon === 0) continue;
+      if (p.lat < latMin) latMin = p.lat;
+      if (p.lat > latMax) latMax = p.lat;
+      if (p.lon < lonMin) lonMin = p.lon;
+      if (p.lon > lonMax) lonMax = p.lon;
+      if (p.speed > globalMaxSpeed) globalMaxSpeed = p.speed;
+    }
+  }
+
+  if (latMin === Infinity) return; // no valid coords
+
+  // Add padding to bounds
+  const latRange = latMax - latMin || 0.001;
+  const lonRange = lonMax - lonMin || 0.001;
+  latMin -= latRange * 0.08;
+  latMax += latRange * 0.08;
+  lonMin -= lonRange * 0.08;
+  lonMax += lonRange * 0.08;
+
+  // Aspect ratio correction (cos of latitude)
+  const midLat = (latMin + latMax) / 2;
+  const cosLat = Math.cos(midLat * Math.PI / 180);
+  const adjustedLonRange = (lonMax - lonMin) * cosLat;
+  const adjustedLatRange = latMax - latMin;
+
+  // Fit to canvas maintaining aspect ratio
+  const scaleX = plotW / adjustedLonRange;
+  const scaleY = plotH / adjustedLatRange;
+  const scale = Math.min(scaleX, scaleY);
+
+  const offsetX = pad.left + (plotW - adjustedLonRange * scale) / 2;
+  const offsetY = pad.top + (plotH - adjustedLatRange * scale) / 2;
+
+  const projX = (lon) => offsetX + (lon - lonMin) * cosLat * scale;
+  const projY = (lat) => offsetY + (latMax - lat) * scale;
+
+  // Draw each dataset
+  for (let dsIdx = 0; dsIdx < datasets.length; dsIdx++) {
+    const ds = datasets[dsIdx];
+    const pts = ds.points;
+    const gVals = ds.gValues;
+    const lineWidth = datasets.length > 1 ? (dsIdx === 0 ? 4 : 3) : 4;
+    const offsetPx = datasets.length > 1 ? (dsIdx === 0 ? -1.5 : 1.5) : 0;
+
+    // Draw colored segments
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i].lat === 0 && pts[i].lon === 0) continue;
+      if (pts[i-1].lat === 0 && pts[i-1].lon === 0) continue;
+
+      const x0 = projX(pts[i-1].lon) + offsetPx;
+      const y0 = projY(pts[i-1].lat) + offsetPx;
+      const x1 = projX(pts[i].lon) + offsetPx;
+      const y1 = projY(pts[i].lat) + offsetPx;
+
+      let color;
+      if (colorMode === 'g') {
+        color = gToColor(gVals[i]);
+      } else {
+        color = speedToColor(pts[i].speed, globalMaxSpeed);
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // Draw start marker
+    if (pts.length > 0 && pts[0].lat !== 0) {
+      ctx.beginPath();
+      ctx.arc(projX(pts[0].lon) + offsetPx, projY(pts[0].lat) + offsetPx, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('START', projX(pts[0].lon) + offsetPx + 10, projY(pts[0].lat) + offsetPx + 4);
+    }
+  }
+
+  // North arrow
+  ctx.fillStyle = '#71717a';
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('N', W - pad.right + 5, pad.top + 15);
+  ctx.beginPath();
+  ctx.moveTo(W - pad.right, pad.top + 20);
+  ctx.lineTo(W - pad.right - 4, pad.top + 30);
+  ctx.lineTo(W - pad.right + 4, pad.top + 30);
+  ctx.closePath();
+  ctx.fillStyle = '#71717a';
+  ctx.fill();
+
+  // Update max speed label
+  if (colorMode === 'speed') {
+    const label = document.getElementById('speed-max-label');
+    if (label) label.textContent = Math.round(globalMaxSpeed) + ' km/h';
+  }
+}
+
+// ============================================================
+// Mode switching
+// ============================================================
+let currentMode = 'charts';
+let xAxisMode = 'distance'; // 'distance' or 'time' — default to distance
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('#mode-bar .mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  document.getElementById('view-charts').style.display = mode === 'charts' ? 'block' : 'none';
+  document.getElementById('view-track-speed').style.display = mode === 'track-speed' ? 'block' : 'none';
+  document.getElementById('view-track-g').style.display = mode === 'track-g' ? 'block' : 'none';
+  document.getElementById('x-axis-bar').classList.toggle('visible', mode === 'charts' && (!!aimData || !!digiData));
+
+  if (mode === 'charts') {
+    updateCharts();
+  } else if (mode === 'track-speed') {
+    updateTrackMap('speed');
+  } else if (mode === 'track-g') {
+    updateTrackMap('g');
+  }
+}
+
+function switchXAxis(mode) {
+  xAxisMode = mode;
+  document.querySelectorAll('.x-axis-bar .mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.xaxis === mode);
+  });
+  updateCharts();
+}
+
+function updateTrackMap(colorMode) {
+  const datasets = [];
+
+  if (aimData && aimData.points.some(p => p.lat !== 0)) {
+    const gVals = calcLongG(aimData.points);
+    datasets.push({ label: 'AIM', points: aimData.points, gValues: gVals });
+  }
+  if (digiData && digiData.points.some(p => p.lat !== 0)) {
+    const gVals = calcLongG(digiData.points);
+    datasets.push({ label: 'DigiSpice', points: digiData.points, gValues: gVals });
+  }
+
+  if (datasets.length === 0) return;
+
+  // Set adaptive G range from actual data
+  const allG = datasets.flatMap(ds => ds.gValues);
+  gRangeMin = Math.min(...allG) * 1.1 || -0.5;
+  gRangeMax = Math.max(...allG) * 1.1 || 0.5;
+  // Ensure minimum range for visual clarity
+  if (Math.abs(gRangeMin) < 0.02) gRangeMin = -0.1;
+  if (gRangeMax < 0.02) gRangeMax = 0.1;
+
+  const canvasId = colorMode === 'g' ? 'trackGCanvas' : 'trackSpeedCanvas';
+  drawTrackMap(canvasId, datasets, colorMode);
+
+  // Draw gradient bars
+  if (colorMode === 'g') {
+    // Update scale labels with actual range
+    const brakeLabel = document.querySelector('#view-track-g .g-scale-bar span:first-child');
+    const accelLabel = document.querySelector('#view-track-g .g-scale-bar span:last-child');
+    if (brakeLabel) brakeLabel.textContent = `Brake ${gRangeMin.toFixed(2)}G`;
+    if (accelLabel) accelLabel.textContent = `Accel +${gRangeMax.toFixed(2)}G`;
+    drawGradientBar('gGradient', (t) => gToColor(gRangeMin + t * (gRangeMax - gRangeMin)), 100);
+  } else {
+    const maxSpd = Math.max(...datasets.flatMap(ds => ds.points.map(p => p.speed)));
+    drawGradientBar('speedGradient', (t) => speedToColor(t * maxSpd, maxSpd), 100);
+  }
+
+  // Update legend
+  const legendId = colorMode === 'g' ? 'track-g-legend' : 'track-speed-legend';
+  const legendEl = document.getElementById(legendId);
+  if (legendEl) {
+    legendEl.innerHTML = datasets.map((ds, i) => {
+      const lineStyle = datasets.length > 1
+        ? `border-top: 3px ${i === 0 ? 'solid' : 'solid'} ${i === 0 ? 'var(--accent-aim)' : 'var(--accent-digi)'}; opacity: 0.7`
+        : '';
+      return `<div class="track-info-item"><div class="track-info-line" style="background: ${i === 0 ? 'var(--accent-aim)' : 'var(--accent-digi)'}; opacity:0.5"></div>${ds.label} (${ds.points.length} pts)</div>`;
+    }).join('');
+  }
+}
+
+// ============================================================
+// UI Helpers
+// ============================================================
+let aimData = null;
+let digiData = null;
+
+function showStatus(elId, msg, ok) {
+  const el = document.getElementById(elId);
+  el.innerHTML = `<div class="status ${ok ? 'status-ok' : 'status-err'}">${msg}</div>`;
+}
+
+function showMeta(tableId, meta) {
+  const el = document.getElementById(tableId);
+  el.style.display = 'table';
+  el.innerHTML = Object.entries(meta).map(([k, v]) =>
+    `<tr><td>${k}</td><td>${v}</td></tr>`
+  ).join('');
+}
+
+function showPreview(previewId, points) {
+  const el = document.getElementById(previewId);
+  el.style.display = 'block';
+  const header = 'Time(s)    Speed(km/h)  Lat          Lon          Heading';
+  const rows = points.slice(0, 20).map(p =>
+    `${p.time.toFixed(2).padStart(8)}   ${p.speed.toFixed(1).padStart(8)}     ${p.lat.toFixed(6).padStart(11)}  ${p.lon.toFixed(6).padStart(12)}  ${p.heading.toFixed(1).padStart(7)}`
+  );
+  el.textContent = header + '\n' + rows.join('\n') + (points.length > 20 ? `\n... (${points.length} points total)` : '');
+}
+
+function updateCharts() {
+  const hasData = aimData || digiData;
+  const hasGps = (aimData && aimData.points.some(p => p.lat !== 0)) ||
+                 (digiData && digiData.points.some(p => p.lat !== 0));
+
+  // Show mode bar if GPS data is available
+  const modeBar = document.getElementById('mode-bar');
+  modeBar.classList.toggle('visible', hasData && hasGps);
+
+  document.getElementById('chart-section').style.display = (hasData && currentMode === 'charts') ? 'block' : 'none';
+  document.getElementById('g-chart-section').style.display = (hasData && currentMode === 'charts') ? 'block' : 'none';
+
+  if (!hasData) return;
+
+  // If in track map mode, update that instead
+  if (currentMode === 'track-speed') { updateTrackMap('speed'); return; }
+  if (currentMode === 'track-g') { updateTrackMap('g'); return; }
+
+  const useDistance = xAxisMode === 'distance';
+  const xUnit = useDistance ? 'm' : 's';
+
+  // Show/hide x-axis toggle
+  const xAxisBar = document.getElementById('x-axis-bar');
+  xAxisBar.classList.toggle('visible', currentMode === 'charts');
+
+  // Pre-calculate distance arrays
+  const aimDist = aimData ? calcCumulativeDistance(aimData.points) : [];
+  const digiDist = digiData ? calcCumulativeDistance(digiData.points) : [];
+
+  // Speed chart
+  const speedDatasets = [];
+  if (aimData) {
+    speedDatasets.push({
+      label: 'AIM', color: '#3b82f6',
+      data: aimData.points.map((p, i) => ({ x: useDistance ? aimDist[i] : p.time, y: p.speed })),
+    });
+  }
+  if (digiData) {
+    speedDatasets.push({
+      label: 'DigiSpice', color: '#10b981',
+      data: digiData.points.map((p, i) => ({ x: useDistance ? digiDist[i] : p.time, y: p.speed })),
+    });
+  }
+  drawChart('speedChart', speedDatasets, xUnit);
+
+  // G-force chart
+  const gDatasets = [];
+  if (aimData && aimData.points.length > 1) {
+    const gVals = calcLongG(aimData.points);
+    gDatasets.push({
+      label: 'AIM', color: '#3b82f6',
+      data: aimData.points.map((p, i) => ({ x: useDistance ? aimDist[i] : p.time, y: gVals[i] })),
+    });
+  }
+  if (digiData && digiData.points.length > 1) {
+    const gVals = calcLongG(digiData.points);
+    gDatasets.push({
+      label: 'DigiSpice', color: '#10b981',
+      data: digiData.points.map((p, i) => ({ x: useDistance ? digiDist[i] : p.time, y: gVals[i] })),
+    });
+  }
+  drawChart('gChart', gDatasets, xUnit);
+}
+
+function handleFile(file, parser, statusId, metaId, previewId, assignFn) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const result = parser(e.target.result);
+      if (result.points.length === 0) {
+        showStatus(statusId, 'No valid data points found', false);
+        return;
+      }
+      showStatus(statusId, `${result.points.length} points parsed successfully`, true);
+      showMeta(metaId, result.meta);
+      showPreview(previewId, result.points);
+      assignFn(result);
+      updateCharts();
+    } catch (err) {
+      showStatus(statusId, `Parse error: ${err.message}`, false);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function handleBinaryFile(file, parser, statusId, metaId, previewId, assignFn) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const result = parser(e.target.result);
+      if (result.points.length === 0) {
+        showStatus(statusId, 'No valid data points found', false);
+        return;
+      }
+      showStatus(statusId, `${result.points.length} points parsed successfully`, true);
+      showMeta(metaId, result.meta);
+      showPreview(previewId, result.points);
+      assignFn(result);
+      updateCharts();
+    } catch (err) {
+      showStatus(statusId, `Parse error: ${err.message}`, false);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Auto-detect DigiSpice file type (.dtb binary vs .txt/.nmea text)
+function handleDigiFile(file, statusId, metaId, previewId, assignFn) {
+  if (file.name.toLowerCase().endsWith('.dtb')) {
+    handleBinaryFile(file, parseDigiSpiceDtb, statusId, metaId, previewId, assignFn);
+  } else {
+    handleFile(file, parseNmeaRmc, statusId, metaId, previewId, assignFn);
+  }
+}
+
+// Drop zone wiring
+function wireDropZone(dropId, fileId, parser, statusId, metaId, previewId, assignFn) {
+  const drop = document.getElementById(dropId);
+  const input = document.getElementById(fileId);
+
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0], parser, statusId, metaId, previewId, assignFn);
+  });
+  input.addEventListener('change', (e) => {
+    if (e.target.files.length) handleFile(e.target.files[0], parser, statusId, metaId, previewId, assignFn);
+  });
+}
+
+wireDropZone('aim-drop', 'aim-file', parseAimCsv, 'aim-status', 'aim-meta', 'aim-preview', (d) => { aimData = d; });
+
+// DigiSpice: custom drop zone to handle both .dtb and .txt/.nmea
+{
+  const drop = document.getElementById('digi-drop');
+  const input = document.getElementById('digi-file');
+  const statusId = 'digi-status', metaId = 'digi-meta', previewId = 'digi-preview';
+  const assignFn = (d) => { digiData = d; };
+
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleDigiFile(e.dataTransfer.files[0], statusId, metaId, previewId, assignFn);
+  });
+  input.addEventListener('change', (e) => {
+    if (e.target.files.length) handleDigiFile(e.target.files[0], statusId, metaId, previewId, assignFn);
+  });
+}
+
+// ============================================================
+// Sample Data Generators
+// ============================================================
+function generateAimSampleCsv() {
+  const sampleRate = 50;
+  const duration = 60; // 1 minute
+  let csv = `"Format","AIM CSV File"\n`;
+  csv += `"Venue","Tsukuba Circuit"\n`;
+  csv += `"Date","2026/06/03"\n`;
+  csv += `"Time","10:30:00"\n`;
+  csv += `"Sample Rate",${sampleRate}\n`;
+  csv += `"Segment","Session1"\n`;
+  csv += `"Time","GPS_Speed","GPS_Latitude","GPS_Longitude","GPS_Heading","RPM"\n`;
+  csv += `"s","km/h","deg","deg","deg","rpm"\n`;
+
+  const baseLat = 36.1106;
+  const baseLon = 140.0906;
+  for (let i = 0; i < duration * sampleRate; i++) {
+    const t = i / sampleRate;
+    // Simulate acceleration, constant speed, braking pattern
+    let speed;
+    const cycle = t % 20;
+    if (cycle < 5) speed = cycle * 24; // accelerate 0-120
+    else if (cycle < 12) speed = 120 + Math.sin(cycle * 0.5) * 15; // corner
+    else if (cycle < 16) speed = 120 - (cycle - 12) * 15; // brake
+    else speed = 60 + (cycle - 16) * 15; // re-accelerate
+
+    const heading = (t * 18) % 360;
+    const lat = baseLat + Math.sin(t * 0.1) * 0.002;
+    const lon = baseLon + Math.cos(t * 0.1) * 0.003;
+    const rpm = 2000 + speed * 50;
+    csv += `${t.toFixed(2)},${speed.toFixed(1)},${lat.toFixed(6)},${lon.toFixed(6)},${heading.toFixed(1)},${rpm.toFixed(0)}\n`;
+  }
+  return csv;
+}
+
+function generateDigiSampleNmea() {
+  const sampleRate = 20;
+  const duration = 60;
+  let nmea = '';
+  const baseLat = 36.1106;
+  const baseLon = 140.0906;
+  const baseHour = 10; // 10:30 JST
+  const baseMin = 30;
+
+  for (let i = 0; i < duration * sampleRate; i++) {
+    const t = i / sampleRate;
+    const totalSec = baseHour * 3600 + baseMin * 60 + t;
+    const h = Math.floor(totalSec / 3600) % 24;
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const timeStr = String(h).padStart(2, '0') + String(m).padStart(2, '0') + s.toFixed(2).padStart(5, '0');
+
+    // Similar speed pattern but slightly different (to show comparison)
+    const cycle = t % 20;
+    let speedKmh;
+    if (cycle < 5) speedKmh = cycle * 23;
+    else if (cycle < 12) speedKmh = 115 + Math.sin(cycle * 0.5) * 18;
+    else if (cycle < 16) speedKmh = 115 - (cycle - 12) * 14;
+    else speedKmh = 59 + (cycle - 16) * 14;
+
+    const speedKnots = speedKmh / 1.852;
+    const heading = (t * 18 + 2) % 360;
+    const lat = baseLat + Math.sin(t * 0.1 + 0.1) * 0.002;
+    const lon = baseLon + Math.cos(t * 0.1 + 0.1) * 0.003;
+
+    // Convert to NMEA ddmm.mmmm
+    const latDeg = Math.floor(Math.abs(lat));
+    const latMin = (Math.abs(lat) - latDeg) * 60;
+    const lonDeg = Math.floor(Math.abs(lon));
+    const lonMin = (Math.abs(lon) - lonDeg) * 60;
+
+    const latStr = String(latDeg).padStart(2, '0') + latMin.toFixed(4).padStart(7, '0');
+    const lonStr = String(lonDeg).padStart(3, '0') + lonMin.toFixed(4).padStart(7, '0');
+    const ns = lat >= 0 ? 'N' : 'S';
+    const ew = lon >= 0 ? 'E' : 'W';
+
+    const body = `GPRMC,${timeStr},A,${latStr},${ns},${lonStr},${ew},${speedKnots.toFixed(1)},${heading.toFixed(1)},030626,,,A`;
+    let checksum = 0;
+    for (let c = 0; c < body.length; c++) checksum ^= body.charCodeAt(c);
+    nmea += `$${body}*${checksum.toString(16).toUpperCase().padStart(2, '0')}\n`;
+  }
+  return nmea;
+}
+
+function loadAimSample() {
+  const csv = generateAimSampleCsv();
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const file = new File([blob], 'aim_sample.csv');
+  handleFile(file, parseAimCsv, 'aim-status', 'aim-meta', 'aim-preview', (d) => { aimData = d; });
+}
+
+function loadDigiSample() {
+  const nmea = generateDigiSampleNmea();
+  const blob = new Blob([nmea], { type: 'text/plain' });
+  const file = new File([blob], 'digispice_sample.txt');
+  handleFile(file, parseNmeaRmc, 'digi-status', 'digi-meta', 'digi-preview', (d) => { digiData = d; });
+}
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  if (aimData || digiData) {
+    if (currentMode === 'charts') updateCharts();
+    else if (currentMode === 'track-speed') updateTrackMap('speed');
+    else if (currentMode === 'track-g') updateTrackMap('g');
+  }
+});
+</script>
+
+</body>
+</html>

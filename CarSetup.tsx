@@ -6,13 +6,12 @@ import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { saveSetup, getUserSetups, getSetup, updateSetup } from './src/services/setupService';
-import { CarSetup as CarSetupType } from './src/types/setup';
+import { CarSetup as CarSetupType, KnowledgeNote, LapTime } from './src/types/setup';
 import { checkFirestoreConnection } from './src/utils/initFirestore';
 import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
 import { SuspensionTab } from './src/components/setup/tabs/SuspensionTab';
 import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
-import { LapTime } from './src/types/setup';
 import { Header } from './src/components/common/Header';
 interface DropdownState {
 isOpen: boolean;
@@ -139,6 +138,11 @@ const [caster, setCaster] = useState('5.5');
 
 // ドライビング用状態
 const [notes, setNotes] = useState('');
+const [knowledge, setKnowledge] = useState<KnowledgeNote>({
+  intention: '',
+  result: '',
+  learning: ''
+});
 
 // セッション情報用状態
 const [circuit, setCircuit] = useState('鈴鹿サーキット');
@@ -162,6 +166,12 @@ const handleSave = async () => {
 
   setIsSaving(true);
   try {
+    const trimmedKnowledge = {
+      intention: knowledge.intention?.trim() || '',
+      result: knowledge.result?.trim() || '',
+      learning: knowledge.learning?.trim() || ''
+    };
+    const hasKnowledge = Object.values(trimmedKnowledge).some((value) => value.length > 0);
     // フォームデータを収集
     const setupData: Omit<CarSetupType, 'id' | 'createdAt' | 'updatedAt'> = {
       userId: currentUser.uid,
@@ -245,6 +255,7 @@ const handleSave = async () => {
         },
         caster: parseFloat(caster) || 0
       },
+      knowledge: hasKnowledge ? trimmedKnowledge : undefined,
       notes: notes
     };
 
@@ -354,6 +365,11 @@ const handleLoadPrevious = async () => {
     if (previousData.notes) {
       setNotes(previousData.notes);
     }
+    setKnowledge({
+      intention: previousData.knowledge?.intention ?? '',
+      result: previousData.knowledge?.result ?? '',
+      learning: previousData.knowledge?.learning ?? ''
+    });
     
     // セッション情報
     setCarModel(previousData.carModel);
@@ -463,6 +479,11 @@ useEffect(() => {
       if (setupData.notes) {
         setNotes(setupData.notes);
       }
+      setKnowledge({
+        intention: setupData.knowledge?.intention ?? '',
+        result: setupData.knowledge?.result ?? '',
+        learning: setupData.knowledge?.learning ?? ''
+      });
 
       // セッション情報
       setCarModel(setupData.carModel);
@@ -580,6 +601,11 @@ useEffect(() => {
       if (setupData.notes) {
         setNotes(setupData.notes);
       }
+      setKnowledge({
+        intention: setupData.knowledge?.intention ?? '',
+        result: setupData.knowledge?.result ?? '',
+        learning: setupData.knowledge?.learning ?? ''
+      });
 
       // セッション情報
       setCarModel(setupData.carModel);
@@ -631,10 +657,10 @@ return (
 {/* メインコンテンツ */}
 <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 {/* セッション情報バー */}
-<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
-<div className="flex items-center justify-between">
-<div className="flex items-center space-x-4">
-<div className="text-gray-800 dark:text-gray-200 font-medium">{new Date().toLocaleDateString('ja-JP')} {new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</div>
+<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 mb-6">
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+<div className="flex flex-wrap items-center gap-2 sm:gap-4">
+<div className="text-sm sm:text-base text-gray-800 dark:text-gray-200 font-medium">{new Date().toLocaleDateString('ja-JP')} {new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</div>
 <div className="flex items-center">
 <i className="fas fa-map-marker-alt text-gray-500 dark:text-gray-400 mr-2"></i>
 <AutoComplete
@@ -653,11 +679,11 @@ return (
 />
 </div>
 </div>
-<div className="flex items-center space-x-4">
+<div className="flex flex-wrap items-center gap-2 sm:gap-4">
 <AutoComplete
 value={carModel}
 onChange={setCarModel}
-className="w-40"
+className="w-36 sm:w-40"
 disabled={isViewMode}
 options={[
   { value: 'Honda S2000' },
@@ -675,7 +701,7 @@ suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500">
 />
 <AutoComplete
 defaultValue="鈴木健太"
-className="w-32"
+className="w-28 sm:w-32"
 disabled={isViewMode}
 options={[{ value: '鈴木健太' }]}
 variant="borderless"
@@ -698,7 +724,7 @@ onChange={(value) => {
   else if (value === '予選') setSessionType('qualifying');
   else if (value === 'レース') setSessionType('race');
 }}
-className="w-32"
+className="w-28 sm:w-32"
 disabled={isViewMode}
 options={[
   { value: '練習走行' },
@@ -710,27 +736,27 @@ suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500">
 />
 </div>
 {isViewMode ? (
-  <div className="flex items-center space-x-2">
-    <button 
-      className="flex items-center bg-green-100 dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800 text-green-700 dark:text-green-300 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap"
+  <div className="flex items-center gap-2">
+    <button
+      className="flex items-center bg-green-100 dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800 text-green-700 dark:text-green-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm"
       onClick={() => setIsViewMode(false)}
     >
-      <i className="fas fa-edit mr-2"></i>
+      <i className="fas fa-edit mr-1 sm:mr-2"></i>
       編集
     </button>
-    <button 
-      className="flex items-center bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap"
+    <button
+      className="flex items-center bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm"
       onClick={() => {
-        // データを保持したまま新規作成画面へ
         window.location.href = '/';
       }}
     >
-      <i className="fas fa-copy mr-2"></i>
-      コピーして新規作成
+      <i className="fas fa-copy mr-1 sm:mr-2"></i>
+      <span className="hidden sm:inline">コピーして新規作成</span>
+      <span className="sm:hidden">コピー</span>
     </button>
   </div>
 ) : (
-  <button className="flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap">
+  <button className="flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm self-start sm:self-auto">
     <i className="fas fa-bolt mr-2"></i>
     クイック入力
   </button>
@@ -741,10 +767,10 @@ suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500">
 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 {/* 環境データ */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-<div className="flex items-center mb-4">
+<div className="flex flex-wrap items-center gap-2 mb-4">
 <i className="fas fa-temperature-high text-blue-500 dark:text-blue-400 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">環境データ</h3>
-<div className="ml-auto text-sm text-gray-500 dark:text-gray-400">
+<div className="ml-auto text-xs sm:text-sm text-gray-500 dark:text-gray-400">
 平均気温: 24°C &nbsp; 平均路温: 33°C
 </div>
 </div>
@@ -961,15 +987,15 @@ onOpenChange={(open) => {
       key: '3',
       label: 'エンジン・空力',
       children: (
-        <div className="p-6">
-          <div className="space-y-8">
+        <div className="p-4 sm:p-6">
+          <div className="space-y-6 sm:space-y-8">
             {/* エンジン設定 */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-              <div className="flex items-center mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm">
+              <div className="flex items-center mb-4 sm:mb-6">
                 <i className="fas fa-engine text-blue-500 mr-2"></i>
                 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">エンジン設定</h3>
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">点火時期 (°BTDC)</label>
                   <div className="relative">
@@ -1022,12 +1048,12 @@ onOpenChange={(open) => {
               </div>
             </div>
             {/* 空力設定 */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-              <div className="flex items-center mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm">
+              <div className="flex items-center mb-4 sm:mb-6">
                 <i className="fas fa-wind text-blue-500 mr-2"></i>
                 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">空力設定</h3>
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">フロントスプリッター (mm)</label>
                   <div className="relative">
@@ -1080,12 +1106,12 @@ onOpenChange={(open) => {
               </div>
             </div>
             {/* 冷却系設定 */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-              <div className="flex items-center mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm">
+              <div className="flex items-center mb-4 sm:mb-6">
                 <i className="fas fa-temperature-low text-blue-500 mr-2"></i>
                 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">冷却系設定</h3>
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ラジエター開度 (%)</label>
                   <div className="relative">
@@ -1144,7 +1170,14 @@ onOpenChange={(open) => {
     {
       key: '4',
       label: 'ドライバーフィードバック',
-      children: <DrivingTab notes={notes} setNotes={setNotes} />,
+      children: (
+        <DrivingTab
+          notes={notes}
+          setNotes={setNotes}
+          knowledge={knowledge}
+          setKnowledge={setKnowledge}
+        />
+      ),
     },
     {
       key: '5',

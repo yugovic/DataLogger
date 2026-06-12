@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Modal, Switch, Checkbox, message } from 'antd';
-import { SettingOutlined, PlusOutlined, BellOutlined, LogoutOutlined, SunOutlined, MoonOutlined, DashboardOutlined, HistoryOutlined, CarOutlined, ToolOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { SettingOutlined, PlusOutlined, BellOutlined, LogoutOutlined, SunOutlined, MoonOutlined, DashboardOutlined, HistoryOutlined, CarOutlined, ToolOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined, MenuOutlined, CloseOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { logout } from '../../services/authService';
@@ -38,15 +38,25 @@ export const Header: React.FC<HeaderProps> = ({
     return location.pathname === path;
   };
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm py-3 px-6 flex items-center justify-between">
+    <header className="bg-white dark:bg-gray-800 shadow-sm py-3 px-4 sm:px-6 flex items-center justify-between relative">
       <div className="flex items-center">
-        <h1 className="text-2xl font-bold">
+        <h1 className="text-xl sm:text-2xl font-bold">
           <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800 dark:text-gray-200">LOGGER</span>
         </h1>
       </div>
-      <div className="flex items-center space-x-4">
-        <button 
+      {/* モバイルハンバーガーボタン */}
+      <button
+        className="md:hidden p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+      >
+        {mobileMenuOpen ? <CloseOutlined style={{ fontSize: '20px' }} /> : <MenuOutlined style={{ fontSize: '20px' }} />}
+      </button>
+      {/* デスクトップナビゲーション */}
+      <div className="hidden md:flex items-center space-x-4">
+        <button
           aria-label="ダッシュボード"
           onClick={() => navigate('/dashboard')}
           className={`flex items-center px-3 py-2 ${isActive('/dashboard') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
@@ -54,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
           <DashboardOutlined className="mr-2" />
           ダッシュボード
         </button>
-        <button 
+        <button
           aria-label="セットアップ記録"
           onClick={() => navigate('/')}
           className={`flex items-center px-3 py-2 ${isActive('/') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
@@ -62,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
           <ToolOutlined className="mr-2" />
           セットアップ記録
         </button>
-        <button 
+        <button
           aria-label="履歴一覧"
           onClick={() => navigate('/history')}
           className={`flex items-center px-3 py-2 ${isActive('/history') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
@@ -70,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
           <HistoryOutlined className="mr-2" />
           履歴一覧
         </button>
-        <button 
+        <button
           aria-label="車両管理"
           onClick={() => navigate('/vehicles')}
           className={`flex items-center px-3 py-2 ${isActive('/vehicles') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
@@ -79,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
           車両管理
         </button>
       </div>
-      <div className="flex items-center space-x-4">
+      <div className="hidden md:flex items-center space-x-4">
         <button
           className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer"
           onClick={toggleDarkMode}
@@ -326,6 +336,64 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </Modal>
       </div>
+      {/* モバイルメニュー */}
+      {mobileMenuOpen && (
+        <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 shadow-lg border-t border-gray-200 dark:border-gray-700 z-50 md:hidden">
+          <nav className="flex flex-col p-2">
+            <button
+              onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}
+              className={`flex items-center px-4 py-3 ${isActive('/dashboard') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+            >
+              <DashboardOutlined className="mr-3" />
+              ダッシュボード
+            </button>
+            <button
+              onClick={() => { navigate('/'); setMobileMenuOpen(false); }}
+              className={`flex items-center px-4 py-3 ${isActive('/') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+            >
+              <ToolOutlined className="mr-3" />
+              セットアップ記録
+            </button>
+            <button
+              onClick={() => { navigate('/history'); setMobileMenuOpen(false); }}
+              className={`flex items-center px-4 py-3 ${isActive('/history') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+            >
+              <HistoryOutlined className="mr-3" />
+              履歴一覧
+            </button>
+            <button
+              onClick={() => { navigate('/vehicles'); setMobileMenuOpen(false); }}
+              className={`flex items-center px-4 py-3 ${isActive('/vehicles') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+            >
+              <CarOutlined className="mr-3" />
+              車両管理
+            </button>
+          </nav>
+          <div className="flex items-center justify-around border-t border-gray-200 dark:border-gray-700 p-3">
+            <button
+              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+              onClick={toggleDarkMode}
+            >
+              {darkMode ? <SunOutlined style={{ fontSize: '20px' }} /> : <MoonOutlined style={{ fontSize: '20px' }} />}
+            </button>
+            <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+              <BellOutlined style={{ fontSize: '20px' }} />
+            </button>
+            <button
+              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+              onClick={() => { setSettingsModal(true); setMobileMenuOpen(false); }}
+            >
+              <SettingOutlined style={{ fontSize: '20px' }} />
+            </button>
+            <button
+              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+              onClick={handleLogout}
+            >
+              <LogoutOutlined style={{ fontSize: '20px' }} />
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

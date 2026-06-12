@@ -49,6 +49,17 @@ export const SetupCard: React.FC<SetupCardProps> = ({ setup }) => {
   };
 
   const sessionType = getSessionTypeLabel(setup.sessionType);
+  const knowledgeItems = [
+    { label: '意図', value: setup.knowledge?.intention },
+    { label: '結果', value: setup.knowledge?.result },
+    { label: '学び', value: setup.knowledge?.learning }
+  ]
+    .map((item) => ({ ...item, value: item.value?.trim() }))
+    .filter((item) => item.value);
+  const summarizeText = (value: string, maxLength = 44) => {
+    if (value.length <= maxLength) return value;
+    return `${value.slice(0, maxLength)}…`;
+  };
 
   return (
     <Card
@@ -121,6 +132,24 @@ export const SetupCard: React.FC<SetupCardProps> = ({ setup }) => {
             {setup.tireInfo.brand} {setup.tireInfo.compound}
           </span>
         </div>
+
+        {knowledgeItems.length > 0 && (
+          <div className="border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
+            <div className="text-[10px] uppercase tracking-[0.4em] text-gray-400 dark:text-gray-500 mb-2">知見メモ</div>
+            <div className="space-y-2">
+              {knowledgeItems.map((item) => (
+                <div key={item.label} className="flex items-start gap-2">
+                  <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {item.label}
+                  </span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">
+                    {summarizeText(item.value as string)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   );

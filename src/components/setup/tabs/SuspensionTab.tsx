@@ -348,10 +348,10 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 sm:p-6 space-y-4">
       {/* 統合サマリーセクション - シンプルで一目で分かる */}
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 text-sm">
           <div className="flex items-center gap-2 whitespace-nowrap">
             <span className="text-gray-600 dark:text-gray-400">車高F:</span>
             <StepNumber value={rideHeightF} onChange={setRideHeightF} min={80} max={150} step={1} unit="mm" size="small" />
@@ -394,8 +394,8 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
       </div>
 
       {/* コントロールバー - よりコンパクトに */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4 text-sm">
+      <div className="flex flex-wrap justify-between items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
           <Checkbox 
             checked={isSymmetricFront}
             onChange={(e) => setIsSymmetricFront(e.target.checked)}
@@ -435,9 +435,9 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
 
       {/* ブレーキ設定 - シンプル化 */}
       <div className="border-t pt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6">
+            <div className="flex items-center gap-2 sm:gap-4">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ブレーキバイアス</span>
               <div className="flex items-center space-x-2">
                 <StepNumber value={brakeBiasF} onChange={setBrakeBiasF} min={40} max={80} step={1} size="small" />
@@ -445,24 +445,24 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
                 <StepNumber value={brakeBiasR} onChange={setBrakeBiasR} min={20} max={60} step={1} size="small" />
               </div>
             </div>
-            
-            {/* パッド走行距離 */}
-            <div className="flex items-center space-x-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-600 dark:text-gray-400">F走行:</span>
-                <StepNumber value={padKmF} onChange={setPadKmF} min={0} max={5000} step={10} unit="km" size="small" />
-                <span className="text-gray-500 dark:text-gray-400">km</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-600 dark:text-gray-400">R走行:</span>
-                <StepNumber value={padKmR} onChange={setPadKmR} min={0} max={5000} step={10} unit="km" size="small" />
-                <span className="text-gray-500 dark:text-gray-400">km</span>
-              </div>
+          </div>
+
+          {/* パッド走行距離 */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm">
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-600 dark:text-gray-400">F走行:</span>
+              <StepNumber value={padKmF} onChange={setPadKmF} min={0} max={5000} step={10} unit="km" size="small" />
+              <span className="text-gray-500 dark:text-gray-400">km</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-600 dark:text-gray-400">R走行:</span>
+              <StepNumber value={padKmR} onChange={setPadKmR} min={0} max={5000} step={10} unit="km" size="small" />
+              <span className="text-gray-500 dark:text-gray-400">km</span>
             </div>
           </div>
-          
+
           {showDetails && (
-            <div className="flex items-center space-x-4 text-sm">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <span className="text-gray-600 dark:text-gray-400">F パッド:</span>
                 <AutoComplete defaultValue="Type-R" size="small" className="w-24" options={[{value:'Type-R'},{value:'Type-S'},{value:'Type-N'}]} />

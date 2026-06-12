@@ -85,6 +85,12 @@ export interface LapTimeData {
   laps?: LapTime[];
 }
 
+export interface KnowledgeNote {
+  intention?: string;
+  result?: string;
+  learning?: string;
+}
+
 export interface CarSetup {
   id?: string;
   userId: string;
@@ -99,6 +105,7 @@ export interface CarSetup {
   suspensionSettings?: SuspensionSettings;
   alignmentSettings?: AlignmentSettings;
   notes?: string;
+  knowledge?: KnowledgeNote;
   lapTimeData?: LapTimeData;
   images?: string[];
   createdAt: Date;

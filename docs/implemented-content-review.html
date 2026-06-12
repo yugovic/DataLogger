@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>実装済みコンテンツ レビュー</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #10182b;
+    --panel-soft: #0e1527;
+    --line: #1f2a45;
+    --text: #ebf1ff;
+    --muted: #98abd9;
+    --accent: #67a4ff;
+    --critical: #ff6b6b;
+    --high: #ffb454;
+    --medium: #73d2a5;
+    --chip: #0d1730;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: radial-gradient(circle at top right, rgba(103,164,255,0.12), transparent 26%), var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 36px 20px 64px;
+  }
+  .hero {
+    padding: 28px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    border-radius: 22px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.22);
+  }
+  h1 {
+    margin: 0 0 10px;
+    font-size: 30px;
+    line-height: 1.2;
+  }
+  .lead {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.8;
+    max-width: 900px;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--chip);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 26px;
+  }
+  .summary-card {
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .summary-card strong {
+    display: block;
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+  .summary-card p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.7;
+    font-size: 14px;
+  }
+  .critical strong { color: var(--critical); }
+  .high strong { color: var(--high); }
+  .medium strong { color: var(--medium); }
+  .toc {
+    margin-top: 30px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .toc a {
+    color: var(--text);
+    text-decoration: none;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 12px 14px;
+    border-radius: 14px;
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .toc a:hover {
+    transform: translateY(-1px);
+    border-color: var(--accent);
+  }
+  .section {
+    margin-top: 34px;
+  }
+  .section-title {
+    margin: 0 0 14px;
+    font-size: 22px;
+  }
+  .overview {
+    padding: 22px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 20px;
+  }
+  .overview p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.9;
+  }
+  .issue {
+    margin-top: 18px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .issue-head {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: .03em;
+    border: 1px solid transparent;
+  }
+  .badge-critical {
+    color: var(--critical);
+    background: rgba(255,107,107,0.12);
+    border-color: rgba(255,107,107,0.25);
+  }
+  .badge-high {
+    color: var(--high);
+    background: rgba(255,180,84,0.12);
+    border-color: rgba(255,180,84,0.25);
+  }
+  .badge-medium {
+    color: var(--medium);
+    background: rgba(115,210,165,0.12);
+    border-color: rgba(115,210,165,0.25);
+  }
+  .issue-head h3 {
+    margin: 0;
+    font-size: 20px;
+  }
+  .issue-body {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 18px;
+  }
+  .card {
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel-soft);
+  }
+  .card h4 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    letter-spacing: .04em;
+    color: var(--accent);
+  }
+  .card p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.8;
+    font-size: 14px;
+  }
+  .list {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--muted);
+  }
+  .list li {
+    margin: 8px 0;
+    line-height: 1.7;
+  }
+  .file-list {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .file {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: var(--chip);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .footer-note {
+    margin-top: 34px;
+    padding: 18px 20px;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  @media (max-width: 920px) {
+    .summary-grid,
+    .issue-body {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 640px) {
+    .wrap {
+      padding: 20px 14px 48px;
+    }
+    h1 {
+      font-size: 24px;
+    }
+    .hero,
+    .overview,
+    .issue,
+    .summary-card {
+      border-radius: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>実装済みコンテンツ レビュー</h1>
+      <p class="lead">
+        この資料は、モックではなく現在実装されているセットアップ記録画面を対象に、
+        UI/UX とモータースポーツ利用時のビジネス観点で指摘事項を整理したものです。
+        主対象はタイヤ空気圧、ダンパー設定、セッション情報、走行履歴カードです。
+      </p>
+      <div class="meta">
+        <span class="pill">対象: 実装済みコンテンツ</span>
+        <span class="pill">主対象: CarSetup / BasicInfoTab / SetupCard</span>
+        <span class="pill">観点: UI/UX / 現場運用 / 継続利用 / 収益接続</span>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-card critical">
+          <strong>2件</strong>
+          <p>データ信頼性と誤操作に関わる項目です。現場での記録ツールとして信用を落とす可能性があります。</p>
+        </div>
+        <div class="summary-card high">
+          <strong>3件</strong>
+          <p>ピット運用や比較導線に直結する項目です。継続利用率と有料価値の体感に影響します。</p>
+        </div>
+        <div class="summary-card medium">
+          <strong>1件</strong>
+          <p>一覧の再利用性とデータ資産化の弱さです。プロダクトの差別化を弱めています。</p>
+        </div>
+      </div>
+      <div class="toc">
+        <a href="#issue-1">1. 日時文脈が保持されず信頼性が落ちる</a>
+        <a href="#issue-2">2. コピー操作が破壊的で戻せない</a>
+        <a href="#issue-3">3. ドライバー情報が実データ化されていない</a>
+        <a href="#issue-4">4. モバイル現場利用に対してレイアウトが重い</a>
+        <a href="#issue-5">5. 空気圧UIが判断支援まで届いていない</a>
+        <a href="#issue-6">6. 履歴カードでセット比較できない</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">総評</h2>
+      <div class="overview">
+        <p>
+          現状の実装は「入力できる」「保存できる」までは到達していますが、
+          モータースポーツ用途で重要な「あとで再現できる」「次の調整判断に使える」「チームやショップで共有しやすい」
+          という価値までは十分に設計されていません。
+          特に、セッション文脈の保持、誤操作耐性、履歴比較の見せ方が弱く、プロダクトの継続利用動機と課金価値を削っています。
+        </p>
+      </div>
+    </section>
+
+    <section id="issue-1" class="section issue">
+      <div class="issue-head">
+        <span class="badge badge-critical">Critical</span>
+        <h3>過去データを開いても、画面上は“今のセッション”に見える</h3>
+      </div>
+      <div class="issue-body">
+        <div class="card">
+          <h4>何が起きているか</h4>
+          <ul class="list">
+            <li>画面上部の日時表示が常に現在時刻ベースです。</li>
+            <li>保存時も `new Date()` をそのまま入れており、ユーザーがセッション日時を明示的に扱えません。</li>
+            <li>過去データの読み込み処理はあるのに、編集画面上の日時文脈が復元されません。</li>
+          </ul>
+          <div class="file-list">
+            <span class="file">CarSetup.tsx:663</span>
+            <span class="file">CarSetup.tsx:176-181</span>
+            <span class="file">CarSetup.tsx:302-377</span>
+          </div>
+        </div>
+        <div class="card">
+          <h4>なぜ問題か</h4>
+          <p>
+            サーキット走行データは日時とコンディションの紐づきが重要です。
+            編集画面で過去データを開いたときに“今日の走行”に見えると、後から見返した際の信頼性が落ちます。
+            これは単なる表示問題ではなく、履歴価値とデータ再現性を下げる問題です。
+          </p>
+          <h4 style="margin-top:14px;">改善方向</h4>
+          <ul class="list">
+            <li>セッション日時を state と保存モデルで明示管理する。</li>
+            <li>閲覧時は保存済み日時を表示し、新規作成時のみ現在時刻を初期値にする。</li>
+            <li>日時が固定なのか編集可能なのかをUIで明確にする。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="issue-2" class="section issue">
+      <div class="issue-head">
+        <span class="badge badge-critical">Critical</span>
+        <h3>「走行前→走行後にコピー」が破壊的操作なのに、確認もUndoもない</h3>
+      </div>
+      <div class="issue-body">
+        <div class="card">
+          <h4>何が起きているか</h4>
+          <ul class="list">
+            <li>1クリックで4輪すべての `after` を `before` で上書きします。</li>
+            <li>同時に差分も再計算され、実測後圧の情報が消えます。</li>
+            <li>確認ダイアログ、トーストUndo、操作履歴のいずれもありません。</li>
+          </ul>
+          <div class="file-list">
+            <span class="file">BasicInfoTab.tsx:90-105</span>
+            <span class="file">BasicInfoTab.tsx:93-100</span>
+          </div>
+        </div>
+        <div class="card">
+          <h4>なぜ問題か</h4>
+          <p>
+            ピットやパドックでは短時間で入力するため、誤タップは現実的に起こります。
+            しかもこの操作は一部の値ではなく4輪を一括で壊すため、事故時の影響が大きいです。
+            記録ツールで最も避けるべきのは、ユーザーが気づかないまま実測値を失うことです。
+          </p>
+          <h4 style="margin-top:14px;">改善方向</h4>
+          <ul class="list">
+            <li>初回は確認ダイアログを出す。</li>
+            <li>直後に「元に戻す」を付けたトーストを出す。</li>
+            <li>一括コピーではなく「空欄のときだけコピー」も選べるようにする。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="issue-3" class="section issue">
+      <div class="issue-head">
+        <span class="badge badge-high">High</span>
+        <h3>ドライバー情報がUI上は存在するが、実データとして扱えていない</h3>
+      </div>
+      <div class="issue-body">
+        <div class="card">
+          <h4>何が起きているか</h4>
+          <ul class="list">
+            <li>セッションバーにはドライバー名らしき入力がありますが、固定初期値に近い扱いです。</li>
+            <li>保存モデルに `driver` フィールドがありません。</li>
+            <li>履歴や比較で「誰のセットか」を辿れません。</li>
+          </ul>
+          <div class="file-list">
+            <span class="file">CarSetup.tsx:703-719</span>
+            <span class="file">src/types/setup.ts:94-113</span>
+            <span class="file">src/hooks/useSetupState.ts:73-85</span>
+          </div>
+        </div>
+        <div class="card">
+          <h4>なぜ問題か</h4>
+          <p>
+            個人利用なら見逃されることがありますが、ショップ運用やチーム共有では致命的です。
+            同じ車両でもドライバーが違えばフィードバックもセットの意味も変わります。
+            将来の共有機能や知見DB、データ販売にも接続しづらくなります。
+          </p>
+          <h4 style="margin-top:14px;">改善方向</h4>
+          <ul class="list">
+            <li>保存モデルに `driver` を追加する。</li>
+            <li>編集画面、履歴カード、フィルターで一貫して扱う。</li>
+            <li>チーム利用を想定するなら `driverId` と表示名を分ける。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="issue-4" class="section issue">
+      <div class="issue-head">
+        <span class="badge badge-high">High</span>
+        <h3>モバイル現場利用に対して、レイアウトが横並び前提で重い</h3>
+      </div>
+      <div class="issue-body">
+        <div class="card">
+          <h4>何が起きているか</h4>
+          <ul class="list">
+            <li>タイヤ空気圧とダンパー設定が固定2カラムです。</li>
+            <li>ダンパー設定カード内もさらに2カラム構成です。</li>
+            <li>環境データとタイヤ情報も狭い画面で2カラム前提です。</li>
+            <li>数値入力コンポーネントも横幅を取りやすく、縦の視線移動より横圧迫が強いです。</li>
+          </ul>
+          <div class="file-list">
+            <span class="file">BasicInfoTab.tsx:63</span>
+            <span class="file">BasicInfoTab.tsx:187</span>
+            <span class="file">CarSetup.tsx:803</span>
+            <span class="file">CarSetup.tsx:845</span>
+            <span class="file">StepNumber.tsx:67-115</span>
+          </div>
+        </div>
+        <div class="card">
+          <h4>なぜ問題か</h4>
+          <p>
+            実際の利用現場はデスクトップよりスマホが主になりやすく、片手操作や短時間確認が前提です。
+            横並びの情報密度が高いと、入力しづらいだけでなく、4輪の状態を一目で掴みづらくなります。
+            使いづらさは記録漏れと離脱に直結します。
+          </p>
+          <h4 style="margin-top:14px;">改善方向</h4>
+          <ul class="list">
+            <li>モバイルでは1カラム優先に切り替える。</li>
+            <li>タイヤ空気圧は4輪を縦に並べ、差分を右端または下段に整理する。</li>
+            <li>ダンパーは一覧入力より、前後単位またはFL/FR/RL/RRを切り替えて入力する設計も検討する。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="issue-5" class="section issue">
+      <div class="issue-head">
+        <span class="badge badge-high">High</span>
+        <h3>空気圧UIが「記録」止まりで、「次の判断」に繋がっていない</h3>
+      </div>
+      <div class="issue-body">
+        <div class="card">
+          <h4>何が起きているか</h4>
+          <ul class="list">
+            <li>見せ方の中心が `走行前 / 走行後 / 比較 / 差分` に留まっています。</li>
+            <li>差分の色分けは符号ベースで、目標圧との関係を示していません。</li>
+            <li>冷間目標、温間目標、次走行の調整案がUI上に存在しません。</li>
+          </ul>
+          <div class="file-list">
+            <span class="file">BasicInfoTab.tsx:81-88</span>
+            <span class="file">BasicInfoTab.tsx:155-164</span>
+            <span class="file">SPECIFICATION.md:91-102</span>
+          </div>
+        </div>
+        <div class="card">
+          <h4>なぜ問題か</h4>
+          <p>
+            モータースポーツユーザーは、数値の保存そのものではなく、
+            その数値から「次に何kPa動かすか」を知りたいはずです。
+            現状のままでは記録帳としては使えても、判断支援ツールとしての価値が薄く、
+            AI提案や有料化への接続も弱いままです。
+          </p>
+          <h4 style="margin-top:14px;">改善方向</h4>
+          <ul class="list">
+            <li>各輪に目標温間圧と目標との差を表示する。</li>
+            <li>次走行に向けた推奨調整量を自動表示する。</li>
+            <li>符号の色ではなく、目標レンジ内外で状態色を分ける。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="issue-6" class="section issue">
+      <div class="issue-head">
+        <span class="badge badge-medium">Medium</span>
+        <h3>履歴カードで“どのセットが速かったか”を比較しにくい</h3>
+      </div>
+      <div class="issue-body">
+        <div class="card">
+          <h4>何が起きているか</h4>
+          <ul class="list">
+            <li>履歴カードには日付、サーキット、ラップ、天候、タイヤ銘柄は出ています。</li>
+            <li>一方で、タイヤ圧やダンパー値などの中身は一覧上では見えません。</li>
+            <li>速いセットを一覧比較するには、毎回詳細画面に入る必要があります。</li>
+          </ul>
+          <div class="file-list">
+            <span class="file">SetupCard.tsx:64-154</span>
+            <span class="file">SetupHistory.tsx:297-300</span>
+          </div>
+        </div>
+        <div class="card">
+          <h4>なぜ問題か</h4>
+          <p>
+            このプロダクトの価値は、蓄積した記録を比較して再利用できることにあります。
+            一覧で差が見えないと、ユーザーは「残してもあとで使えない」と感じやすくなります。
+            これは継続率だけでなく、将来のデータ資産価値にも悪影響です。
+          </p>
+          <h4 style="margin-top:14px;">改善方向</h4>
+          <ul class="list">
+            <li>履歴カードに主要セット値のサマリーを出す。</li>
+            <li>少なくともタイヤ圧の代表値とセッション条件は一覧で比較できるようにする。</li>
+            <li>ベストラップとの差分や前回比も表示対象にすると価値が上がる。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">優先順位の提案</h2>
+      <div class="overview">
+        <p>
+          最初に直すべきなのは、1. 日時文脈の保持、2. コピー操作の安全化、3. ドライバー情報のデータ化です。
+          ここは記録ツールとしての信用に関わります。
+          その次に、4. モバイル前提の再設計と、5. 空気圧UIの判断支援化を進めると、
+          「ただ入力するだけのアプリ」から「次の走行に効くツール」へ一段上げられます。
+          最後に、6. 履歴カードの比較性を強化すると、蓄積データの価値がようやくユーザーに見える形になります。
+        </p>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      レビュー対象として確認した主な実装ファイルは `CarSetup.tsx`、
+      `src/components/setup/tabs/BasicInfoTab.tsx`、
+      `src/components/common/StepNumber.tsx`、
+      `src/components/setup/SetupCard.tsx`、
+      `src/components/setup/SetupHistory.tsx` です。
+      この資料は実装コードベースのレビューであり、ブラウザ実機での検証結果は含めていません。
+    </div>
+  </div>
+</body>
+</html>

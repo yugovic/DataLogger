@@ -11,6 +11,7 @@ import { SetupHistory } from './components/setup/SetupHistory';
 import { Dashboard } from './components/Dashboard';
 import { VehicleList } from './components/vehicle/VehicleList';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import TelemetryComparison from './components/demo/TelemetryComparison';
 
 const App: React.FC = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
@@ -80,6 +81,7 @@ const App: React.FC = () => {
                 </PrivateRoute>
               }
             />
+            <Route path="/demo/telemetry" element={<TelemetryComparison />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
           </ErrorBoundary>

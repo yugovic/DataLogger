@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Input, Slider, Collapse } from 'antd';
 import { CaretRightOutlined } from '@ant-design/icons';
+import { KnowledgeNote } from '../../../types/setup';
 
 const { TextArea } = Input;
 const { Panel } = Collapse;
@@ -9,9 +10,11 @@ const { Panel } = Collapse;
 interface DrivingTabProps {
   notes: string;
   setNotes: (value: string) => void;
+  knowledge: KnowledgeNote;
+  setKnowledge: (value: KnowledgeNote) => void;
 }
 
-export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
+export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes, knowledge, setKnowledge }) => {
   // スライダーの値を管理するステート
   const [cornerValues, setCornerValues] = useState({
     lowSpeed: { entry: 2, middle: 2, exit: 3 },
@@ -33,6 +36,12 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
     balance: 2,
     confidence: 3
   });
+  const handleKnowledgeChange = (field: keyof KnowledgeNote, value: string) => {
+    setKnowledge({
+      ...knowledge,
+      [field]: value
+    });
+  };
   // 簡潔なマーク表示
   const simpleMarks = {
     0: 'U/S++',
@@ -43,9 +52,9 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
   };
   
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 sm:p-6 space-y-4">
       {/* コーナリング特性 - 2列グリッド */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* 低速コーナー */}
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">低速コーナー</h4>
@@ -314,6 +323,45 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({ notes, setNotes }) => {
           rows={4}
           className="w-full text-sm"
         />
+      </div>
+
+      <div className="border-t dark:border-gray-700 pt-4">
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">知見メモ</h4>
+          <span className="text-xs text-gray-500 dark:text-gray-400">意図 / 結果 / 学び</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">意図</div>
+            <TextArea
+              value={knowledge.intention ?? ''}
+              onChange={(e) => handleKnowledgeChange('intention', e.target.value)}
+              placeholder="狙った変更点"
+              rows={3}
+              className="w-full text-sm"
+            />
+          </div>
+          <div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">結果</div>
+            <TextArea
+              value={knowledge.result ?? ''}
+              onChange={(e) => handleKnowledgeChange('result', e.target.value)}
+              placeholder="実際の挙動・タイム"
+              rows={3}
+              className="w-full text-sm"
+            />
+          </div>
+          <div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">学び</div>
+            <TextArea
+              value={knowledge.learning ?? ''}
+              onChange={(e) => handleKnowledgeChange('learning', e.target.value)}
+              placeholder="次回への示唆"
+              rows={3}
+              className="w-full text-sm"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
