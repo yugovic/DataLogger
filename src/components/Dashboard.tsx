@@ -211,22 +211,23 @@ export const Dashboard: React.FC = () => {
       if (!s.tireSettings) return;
       (['fl', 'fr', 'rl', 'rr'] as const).forEach(pos => {
         const t = s.tireSettings[pos];
-        if (t?.before > 0 || t?.after > 0) {
-          tirePressureAvg[pos].before += t.before || 0;
-          tirePressureAvg[pos].after += t.after || 0;
+        // null フィールドは集計から除外（0として混ぜない）
+        if (t?.before != null && t?.after != null) {
+          tirePressureAvg[pos].before += t.before;
+          tirePressureAvg[pos].after += t.after;
           tirePressureAvg[pos].count++;
         }
       });
     });
 
-    // Temperature trend
+    // Temperature trend (null フィールドを除外)
     const tempTrend = setups
-      .filter(s => s.weather?.airTemp > 0)
+      .filter(s => s.weather?.airTemp != null)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(s => ({
         date: s.date,
-        airTemp: s.weather.airTemp,
-        trackTemp: s.weather.trackTemp,
+        airTemp: s.weather.airTemp as number,
+        trackTemp: s.weather.trackTemp as number,
       }));
 
     // Knowledge notes (latest ones)
@@ -755,7 +756,7 @@ export const Dashboard: React.FC = () => {
                       className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="text-lg">{weatherIcon(s.weather?.condition)}</div>
+                        <div className="text-lg">{weatherIcon(s.weather?.condition ?? '')}</div>
                         <div>
                           <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
                             {s.circuit || '---'}

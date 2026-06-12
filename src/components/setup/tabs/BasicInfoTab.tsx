@@ -18,8 +18,8 @@ interface TirePressures {
 }
 
 interface DamperSetting {
-  bump: number;
-  rebound: number;
+  bump: number | null;
+  rebound: number | null;
 }
 
 interface DamperSettings {
@@ -44,8 +44,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   setDamperSettings
 }) => {
   const [tpMode, setTpMode] = useState<'before'|'after'|'compare'>('before');
-  const calculatePressureDiff = (before: string, after: string) => {
-    const diff = parseInt(after) - parseInt(before);
+  const calculatePressureDiff = (before: string, after: string): string => {
+    const b = parseInt(before, 10);
+    const a = parseInt(after, 10);
+    if (isNaN(b) || isNaN(a)) return '';
+    const diff = a - b;
     return diff >= 0 ? `+${diff}` : diff.toString();
   };
 
@@ -112,7 +115,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 <div className="flex-1 flex items-center justify-end">
                   <div style={{ display: tpMode === 'after' ? 'none' : 'inline-flex', opacity: tpMode === 'compare' ? 1 : 1 }}>
                     <StepNumber
-                      value={parseInt((tirePressures as any)[key].before || '0')}
+                      value={parseInt((tirePressures as any)[key].before, 10) || 0}
                       onChange={(n) => setTirePressures(prev => ({
                         ...prev,
                         [key]: {
@@ -133,7 +136,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 <div className="flex-1 flex items-center">
                   <div style={{ display: tpMode === 'before' ? 'none' : 'inline-flex', opacity: tpMode === 'compare' ? 1 : 1 }}>
                     <StepNumber
-                      value={parseInt((tirePressures as any)[key].after || '0')}
+                      value={parseInt((tirePressures as any)[key].after, 10) || 0}
                       onChange={(n) => setTirePressures(prev => ({
                         ...prev,
                         [key]: {
@@ -154,8 +157,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 <div className="w-16 text-right text-sm">
                   {tpMode === 'compare' && (
                     (() => {
-                      const b = parseInt((tirePressures as any)[key].before || '0');
-                      const a = parseInt((tirePressures as any)[key].after || '0');
+                      const b = parseInt((tirePressures as any)[key].before, 10);
+                      const a = parseInt((tirePressures as any)[key].after, 10);
+                      if (isNaN(b) || isNaN(a)) return <span className="text-gray-400">—</span>;
                       const d = a - b;
                       const s = d >= 0 ? `+${d}` : `${d}`;
                       return <span className={d >= 0 ? 'text-red-500' : 'text-blue-400'}>{s}</span>;
@@ -189,7 +193,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
-                  value={damperSettings.fl.bump.toString()}
+                  value={damperSettings.fl.bump != null ? damperSettings.fl.bump.toString() : ''}
                   onChange={(value) => {
                     const numValue = parseInt(value);
                     if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
@@ -206,7 +210,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
-                        const currentValue = damperSettings.fl.bump.toString();
+                        const currentValue = damperSettings.fl.bump != null ? damperSettings.fl.bump.toString() : '';
                         const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
                         if (selectedItem) {
                           selectedItem.scrollIntoView({ block: 'center' });
@@ -219,7 +223,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               <div className="text-gray-500">/</div>
               <div className="flex-1">
                 <AutoComplete
-                  value={damperSettings.fl.rebound.toString()}
+                  value={damperSettings.fl.rebound != null ? damperSettings.fl.rebound.toString() : ''}
                   onChange={(value) => {
                     const numValue = parseInt(value);
                     if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
@@ -236,7 +240,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
-                        const currentValue = damperSettings.fl.rebound.toString();
+                        const currentValue = damperSettings.fl.rebound != null ? damperSettings.fl.rebound.toString() : '';
                         const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
                         if (selectedItem) {
                           selectedItem.scrollIntoView({ block: 'center' });
@@ -253,7 +257,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
-                  value={damperSettings.fr.bump.toString()}
+                  value={damperSettings.fr.bump != null ? damperSettings.fr.bump.toString() : ''}
                   onChange={(value) => {
                     const numValue = parseInt(value);
                     if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
@@ -270,7 +274,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
-                        const currentValue = damperSettings.fr.bump.toString();
+                        const currentValue = damperSettings.fr.bump != null ? damperSettings.fr.bump.toString() : '';
                         const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
                         if (selectedItem) {
                           selectedItem.scrollIntoView({ block: 'center' });
@@ -283,7 +287,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               <div className="text-gray-500">/</div>
               <div className="flex-1">
                 <AutoComplete
-                  value={damperSettings.fr.rebound.toString()}
+                  value={damperSettings.fr.rebound != null ? damperSettings.fr.rebound.toString() : ''}
                   onChange={(value) => {
                     const numValue = parseInt(value);
                     if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
@@ -300,7 +304,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
-                        const currentValue = damperSettings.fr.rebound.toString();
+                        const currentValue = damperSettings.fr.rebound != null ? damperSettings.fr.rebound.toString() : '';
                         const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
                         if (selectedItem) {
                           selectedItem.scrollIntoView({ block: 'center' });
@@ -317,7 +321,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
-                  value={damperSettings.rl.bump.toString()}
+                  value={damperSettings.rl.bump != null ? damperSettings.rl.bump.toString() : ''}
                   onChange={(value) => {
                     const numValue = parseInt(value);
                     if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
@@ -334,7 +338,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
-                        const currentValue = damperSettings.rl.bump.toString();
+                        const currentValue = damperSettings.rl.bump != null ? damperSettings.rl.bump.toString() : '';
                         const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
                         if (selectedItem) {
                           selectedItem.scrollIntoView({ block: 'center' });
@@ -347,7 +351,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               <div className="text-gray-500">/</div>
               <div className="flex-1">
                 <AutoComplete
-                  value={damperSettings.rl.rebound.toString()}
+                  value={damperSettings.rl.rebound != null ? damperSettings.rl.rebound.toString() : ''}
                   onChange={(value) => {
                     const numValue = parseInt(value);
                     if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
@@ -364,7 +368,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
-                        const currentValue = damperSettings.rl.rebound.toString();
+                        const currentValue = damperSettings.rl.rebound != null ? damperSettings.rl.rebound.toString() : '';
                         const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
                         if (selectedItem) {
                           selectedItem.scrollIntoView({ block: 'center' });
@@ -381,7 +385,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <AutoComplete
-                  value={damperSettings.rr.bump.toString()}
+                  value={damperSettings.rr.bump != null ? damperSettings.rr.bump.toString() : ''}
                   onChange={(value) => {
                     const numValue = parseInt(value);
                     if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
@@ -398,7 +402,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
-                        const currentValue = damperSettings.rr.bump.toString();
+                        const currentValue = damperSettings.rr.bump != null ? damperSettings.rr.bump.toString() : '';
                         const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
                         if (selectedItem) {
                           selectedItem.scrollIntoView({ block: 'center' });
@@ -411,7 +415,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               <div className="text-gray-500">/</div>
               <div className="flex-1">
                 <AutoComplete
-                  value={damperSettings.rr.rebound.toString()}
+                  value={damperSettings.rr.rebound != null ? damperSettings.rr.rebound.toString() : ''}
                   onChange={(value) => {
                     const numValue = parseInt(value);
                     if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
@@ -428,7 +432,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   onOpenChange={(open) => {
                     if (open) {
                       setTimeout(() => {
-                        const currentValue = damperSettings.rr.rebound.toString();
+                        const currentValue = damperSettings.rr.rebound != null ? damperSettings.rr.rebound.toString() : '';
                         const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
                         if (selectedItem) {
                           selectedItem.scrollIntoView({ block: 'center' });

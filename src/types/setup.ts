@@ -1,9 +1,12 @@
 // セットアップデータの型定義
+// 原則: 未入力は null。0 や '' への変換・デモ値での充填を禁止する
+
+export type Maybe<T> = T | null;
 
 export interface TirePressure {
-  before: number;
-  after: number;
-  diff?: number;
+  before: Maybe<number>;
+  after: Maybe<number>;
+  diff?: Maybe<number>; // 導出値: before/after どちらかが null なら null
 }
 
 export interface TireSettings {
@@ -16,11 +19,11 @@ export interface TireSettings {
 export type WeatherType = '晴れ' | '曇り' | 'ウェット' | 'フルウェット';
 
 export interface WeatherCondition {
-  condition: WeatherType;
-  airTemp: number;
-  trackTemp: number;
-  humidity: number;
-  pressure: number;
+  condition: Maybe<WeatherType>;
+  airTemp: Maybe<number>;
+  trackTemp: Maybe<number>;
+  humidity: Maybe<number>;
+  pressure: Maybe<number>;
 }
 
 export interface TireInfo {
@@ -29,43 +32,43 @@ export interface TireInfo {
 }
 
 export interface SessionInfo {
-  distance: number;
-  fuel: number;
+  distance: Maybe<number>;
+  fuel: Maybe<number>;
 }
 
 export interface SuspensionSettings {
   frontDamper: {
-    compression: number;
-    rebound: number;
+    compression: Maybe<number>;
+    rebound: Maybe<number>;
   };
   rearDamper: {
-    compression: number;
-    rebound: number;
+    compression: Maybe<number>;
+    rebound: Maybe<number>;
   };
   springRate: {
-    front: number;
-    rear: number;
+    front: Maybe<number>;
+    rear: Maybe<number>;
   };
   rideHeight: {
-    front: number;
-    rear: number;
+    front: Maybe<number>;
+    rear: Maybe<number>;
   };
   antiRollBar: {
-    front: number;
-    rear: number;
+    front: Maybe<number>;
+    rear: Maybe<number>;
   };
 }
 
 export interface AlignmentSettings {
   camber: {
-    front: number;
-    rear: number;
+    front: Maybe<number>;
+    rear: Maybe<number>;
   };
   toe: {
-    front: number;
-    rear: number;
+    front: Maybe<number>;
+    rear: Maybe<number>;
   };
-  caster: number;
+  caster: Maybe<number>;
 }
 
 export type LapType = 'IN' | 'NORMAL' | 'OUT';
@@ -80,8 +83,8 @@ export interface LapTime {
 }
 
 export interface LapTimeData {
-  bestLap?: string;
-  totalLaps?: number;
+  bestLap?: Maybe<string>;
+  totalLaps?: Maybe<number>;
   laps?: LapTime[];
 }
 
@@ -94,9 +97,10 @@ export interface KnowledgeNote {
 export interface CarSetup {
   id?: string;
   userId: string;
+  driver: Maybe<string>;     // ドライバー名（新規追加: WP1指摘#3）
   carModel: string;
   circuit: string;
-  date: Date;
+  date: Date;                // セッション日時。保存値を表示し、新規時のみ現在日時を初期値
   sessionType: 'practice' | 'qualifying' | 'race';
   weather: WeatherCondition;
   tireSettings: TireSettings;
@@ -156,7 +160,7 @@ export interface VehicleSetupConfig {
     springRateChangeable: boolean; // スプリングレート変更可否
     antiRollBarAdjustable: boolean; // スタビライザー調整可否
   };
-  
+
   // アライメント設定
   alignment: {
     camberAdjustable: boolean; // キャンバー調整可否
@@ -168,7 +172,7 @@ export interface VehicleSetupConfig {
     casterAdjustable: boolean; // キャスター調整可否
     casterRange?: { min: number; max: number };
   };
-  
+
   // タイヤ設定
   tire: {
     frontSize: string[]; // フロント対応サイズ
@@ -180,20 +184,20 @@ export interface VehicleSetupConfig {
       rearMax: number;
     };
   };
-  
+
   // ブレーキ設定
   brake: {
     padTypes: string[]; // 対応パッドタイプ
     rotorTypes?: string[]; // 対応ロータータイプ
   };
-  
+
   // エンジン設定
   engine?: {
     ecuTunable: boolean; // ECUチューニング可否
     boostAdjustable?: boolean; // ブースト調整可否
     boostRange?: { min: number; max: number };
   };
-  
+
   // その他のカスタム設定
   customSettings?: Record<string, any>;
 }

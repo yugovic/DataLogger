@@ -16,57 +16,57 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
   // 詳細表示の状態
   const [showDetails, setShowDetails] = useState(false);
   
-  // サスペンション設定の状態（初期値）
+  // サスペンション設定の状態（空値スタート — デモ初期値禁止）
   const [suspensionData, setSuspensionData] = useState({
     fl: {
-      camber: '-2.5',
-      caster: '7.0',
-      toe: '1.0',
-      springRate: '8.0',
-      helperSpringRate: '2.5',
-      helperSpringLength: '50',
-      bumpStopperRate: '3.0',
-      bumpStopperLength: '40'
+      camber: '',
+      caster: '',
+      toe: '',
+      springRate: '',
+      helperSpringRate: '',
+      helperSpringLength: '',
+      bumpStopperRate: '',
+      bumpStopperLength: ''
     },
     fr: {
-      camber: '-2.5',
-      caster: '7.0',
-      toe: '1.0',
-      springRate: '8.0',
-      helperSpringRate: '2.5',
-      helperSpringLength: '50',
-      bumpStopperRate: '3.0',
-      bumpStopperLength: '40'
+      camber: '',
+      caster: '',
+      toe: '',
+      springRate: '',
+      helperSpringRate: '',
+      helperSpringLength: '',
+      bumpStopperRate: '',
+      bumpStopperLength: ''
     },
     rl: {
-      camber: '-2.0',
-      caster: '6.5',
-      toe: '2.0',
-      springRate: '7.0',
-      helperSpringRate: '2.0',
-      helperSpringLength: '50',
-      bumpStopperRate: '2.8',
-      bumpStopperLength: '40'
+      camber: '',
+      caster: '',
+      toe: '',
+      springRate: '',
+      helperSpringRate: '',
+      helperSpringLength: '',
+      bumpStopperRate: '',
+      bumpStopperLength: ''
     },
     rr: {
-      camber: '-2.0',
-      caster: '6.5',
-      toe: '2.0',
-      springRate: '7.0',
-      helperSpringRate: '2.0',
-      helperSpringLength: '50',
-      bumpStopperRate: '2.8',
-      bumpStopperLength: '40'
+      camber: '',
+      caster: '',
+      toe: '',
+      springRate: '',
+      helperSpringRate: '',
+      helperSpringLength: '',
+      bumpStopperRate: '',
+      bumpStopperLength: ''
     }
   });
 
-  // 追加: 概要セクションで操作する数値を状態管理
-  const [rideHeightF, setRideHeightF] = useState<number>(120);
-  const [rideHeightR, setRideHeightR] = useState<number>(125);
-  const [brakeBiasF, setBrakeBiasF] = useState<number>(60);
-  const [brakeBiasR, setBrakeBiasR] = useState<number>(40);
-  const [padKmF, setPadKmF] = useState<number>(500);
-  const [padKmR, setPadKmR] = useState<number>(500);
+  // 概要セクションの数値（0 は「未入力」を兼ねるため StepNumber の初期値は 0 で OK）
+  const [rideHeightF, setRideHeightF] = useState<number>(0);
+  const [rideHeightR, setRideHeightR] = useState<number>(0);
+  const [brakeBiasF, setBrakeBiasF] = useState<number>(0);
+  const [brakeBiasR, setBrakeBiasR] = useState<number>(0);
+  const [padKmF, setPadKmF] = useState<number>(0);
+  const [padKmR, setPadKmR] = useState<number>(0);
 
   // 数値選択肢の生成
   const generateOptions = (start: number, end: number, step: number = 0.1) => {
@@ -363,10 +363,8 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
           <div className="flex items-center">
             <span className="text-gray-600 dark:text-gray-400 mr-2">ARB F:</span>
             <AutoComplete
-              defaultValue="22"
               onChange={(value) => {
                 validateInteger(value);
-                // ここでARB Fの値を更新する処理を追加
               }}
               onOpenChange={scrollToView}
               size="small"
@@ -378,10 +376,8 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
           <div className="flex items-center">
             <span className="text-gray-600 dark:text-gray-400 mr-2">ARB R:</span>
             <AutoComplete
-              defaultValue="20"
               onChange={(value) => {
                 validateInteger(value);
-                // ここでARB Rの値を更新する処理を追加
               }}
               onOpenChange={scrollToView}
               size="small"
@@ -465,11 +461,11 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <span className="text-gray-600 dark:text-gray-400">F パッド:</span>
-                <AutoComplete defaultValue="Type-R" size="small" className="w-24" options={[{value:'Type-R'},{value:'Type-S'},{value:'Type-N'}]} />
+                <AutoComplete size="small" className="w-24" options={[{value:'Type-R'},{value:'Type-S'},{value:'Type-N'}]} />
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-gray-600 dark:text-gray-400">R パッド:</span>
-                <AutoComplete defaultValue="Type-R" size="small" className="w-24" options={[{value:'Type-R'},{value:'Type-S'},{value:'Type-N'}]} />
+                <AutoComplete size="small" className="w-24" options={[{value:'Type-R'},{value:'Type-S'},{value:'Type-N'}]} />
               </div>
             </div>
           )}

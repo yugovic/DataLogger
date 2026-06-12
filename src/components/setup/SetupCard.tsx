@@ -123,13 +123,13 @@ export const SetupCard: React.FC<SetupCardProps> = ({ setup }) => {
         {/* コンディション情報 */}
         <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-md">
           <div className="flex items-center gap-3">
-            <span className="text-lg">{getWeatherIcon(setup.weather.condition)}</span>
+            <span className="text-lg">{getWeatherIcon(setup.weather.condition ?? '')}</span>
             <span className="text-sm text-gray-700 dark:text-gray-300">
-              {setup.weather.airTemp}°C / {setup.weather.trackTemp}°C
+              {setup.weather.airTemp != null ? `${setup.weather.airTemp}°C` : '—'} / {setup.weather.trackTemp != null ? `${setup.weather.trackTemp}°C` : '—'}
             </span>
           </div>
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            {setup.tireInfo.brand} {setup.tireInfo.compound}
+            {setup.tireInfo.brand || '—'} {setup.tireInfo.compound || ''}
           </span>
         </div>
 

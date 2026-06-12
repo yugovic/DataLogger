@@ -16,29 +16,51 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { CarSetup } from '../types/setup';
+import { carSetupSchema } from '../schemas/setupSchema';
+import logger from '../utils/logger';
 
 const COLLECTION_NAME = 'setups';
 
+/**
+ * 保存ペイロードから undefined を再帰的に除去し null に統一する。
+ * Firestore は undefined を保存できないため必須。
+ */
+function sanitizeForFirestore(obj: unknown): unknown {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj instanceof Date || obj instanceof Timestamp) return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    result[k] = sanitizeForFirestore(v);
+  }
+  return result;
+}
+
 // セットアップデータの保存
 export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+  // zodスキーマによる保存前バリデーション
+  const parsed = carSetupSchema.safeParse(setup);
+  if (!parsed.success) {
+    const msg = parsed.error.issues.map(i => i.message).join(' / ');
+    throw new Error(`入力値エラー: ${msg}`);
+  }
+
   try {
-    console.log('Saving setup with userId:', setup.userId);
     const docRef = doc(collection(db, COLLECTION_NAME));
-    const setupData = {
+    const setupData = sanitizeForFirestore({
       ...setup,
       date: setup.date instanceof Date ? Timestamp.fromDate(setup.date) : setup.date,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    };
-    
-    console.log('Setup data to save:', setupData);
+    });
+
+    logger.log('Saving setup with userId:', setup.userId);
     await setDoc(docRef, setupData);
-    console.log('Setup saved with ID:', docRef.id);
+    logger.log('Setup saved with ID:', docRef.id);
     return docRef.id;
   } catch (error: any) {
-    console.error('セットアップの保存に失敗しました:', error);
-    console.error('Error code:', error?.code);
-    console.error('Error message:', error?.message);
+    logger.error('セットアップの保存に失敗しました:', error);
     throw error;
   }
 };
@@ -48,20 +70,20 @@ export const getSetup = async (setupId: string): Promise<CarSetup | null> => {
   try {
     const docRef = doc(db, COLLECTION_NAME, setupId);
     const docSnap = await getDoc(docRef);
-    
+
     if (docSnap.exists()) {
       const data = docSnap.data();
       return {
         ...data,
         id: docSnap.id,
-        date: data.date.toDate(),
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date()
+        date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
       } as CarSetup;
     }
     return null;
   } catch (error) {
-    console.error('セットアップの取得に失敗しました:', error);
+    logger.error('セットアップの取得に失敗しました:', error);
     throw error;
   }
 };
@@ -69,30 +91,27 @@ export const getSetup = async (setupId: string): Promise<CarSetup | null> => {
 // ユーザーのセットアップ一覧取得
 export const getUserSetups = async (userId: string, limitCount: number = 20): Promise<CarSetup[]> => {
   try {
-    console.log('Fetching setups for userId:', userId);
     const q = query(
       collection(db, COLLECTION_NAME),
       where('userId', '==', userId),
       orderBy('date', 'desc'),
       limit(limitCount)
     );
-    
+
     const querySnapshot = await getDocs(q);
-    console.log('Found', querySnapshot.size, 'setups');
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
+    logger.log('Found', querySnapshot.size, 'setups');
+    return querySnapshot.docs.map(d => {
+      const data = d.data();
       return {
         ...data,
-        id: doc.id,
+        id: d.id,
         date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
         updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
       } as CarSetup;
     });
   } catch (error: any) {
-    console.error('セットアップ一覧の取得に失敗しました:', error);
-    console.error('Error code:', error?.code);
-    console.error('Error message:', error?.message);
+    logger.error('セットアップ一覧の取得に失敗しました:', error);
     throw error;
   }
 };
@@ -106,40 +125,47 @@ export const getSetupsByCarModel = async (userId: string, carModel: string): Pro
       where('carModel', '==', carModel),
       orderBy('date', 'desc')
     );
-    
+
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
+    return querySnapshot.docs.map(d => {
+      const data = d.data();
       return {
         ...data,
-        id: doc.id,
-        date: data.date.toDate(),
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date()
+        id: d.id,
+        date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
       } as CarSetup;
     });
   } catch (error) {
-    console.error('車種別セットアップの取得に失敗しました:', error);
+    logger.error('車種別セットアップの取得に失敗しました:', error);
     throw error;
   }
 };
 
 // セットアップデータの更新
 export const updateSetup = async (setupId: string, updates: Partial<CarSetup>): Promise<void> => {
+  // 更新時も部分バリデーション（circuit/carModelが含まれる場合は必須チェック）
+  if (updates.circuit !== undefined && !updates.circuit) {
+    throw new Error('サーキット名を入力してください');
+  }
+  if (updates.carModel !== undefined && !updates.carModel) {
+    throw new Error('車種を入力してください');
+  }
+
   try {
     const docRef = doc(db, COLLECTION_NAME, setupId);
-    const updateData = {
+    const updateData = sanitizeForFirestore({
       ...updates,
-      updatedAt: serverTimestamp()
-    };
-    
-    if (updates.date) {
-      updateData.date = updates.date instanceof Date ? Timestamp.fromDate(updates.date) as any : updates.date;
-    }
-    
-    await updateDoc(docRef, updateData);
+      updatedAt: serverTimestamp(),
+      ...(updates.date ? {
+        date: updates.date instanceof Date ? Timestamp.fromDate(updates.date) : updates.date
+      } : {})
+    });
+
+    await updateDoc(docRef, updateData as any);
   } catch (error) {
-    console.error('セットアップの更新に失敗しました:', error);
+    logger.error('セットアップの更新に失敗しました:', error);
     throw error;
   }
 };
@@ -149,7 +175,7 @@ export const deleteSetup = async (setupId: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, COLLECTION_NAME, setupId));
   } catch (error) {
-    console.error('セットアップの削除に失敗しました:', error);
+    logger.error('セットアップの削除に失敗しました:', error);
     throw error;
   }
 };

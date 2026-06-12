@@ -7,18 +7,25 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { saveSetup, getUserSetups, getSetup, updateSetup } from './src/services/setupService';
 import { CarSetup as CarSetupType, KnowledgeNote, LapTime, WeatherType } from './src/types/setup';
+import { toNumberOrNull, toIntOrNull, calcPressureDiff } from './src/lib/units';
 import { checkFirestoreConnection } from './src/utils/initFirestore';
 import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
 import { SuspensionTab } from './src/components/setup/tabs/SuspensionTab';
 import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
 import { Header } from './src/components/common/Header';
+import logger from './src/utils/logger';
 interface DropdownState {
 isOpen: boolean;
 position: { top: number; left: number };
 currentInput: string;
 options: { value: string; label: string }[];
 }
+// datetime-local入力用: ローカル時刻で YYYY-MM-DDTHH:mm に整形（toISOStringはUTCになるため使用不可）
+const toLocalDatetimeInput = (d: Date): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 const App: React.FC = () => {
 const { currentUser } = useAuth();
 const { id: setupId } = useParams<{ id: string }>();
@@ -33,7 +40,7 @@ useEffect(() => {
   if (currentUser) {
     checkFirestoreConnection(currentUser.uid).then(success => {
       if (!success) {
-        console.error('Firestore connection check failed');
+        logger.error('Firestore connection check failed');
       }
     });
   }
@@ -48,12 +55,16 @@ position: { top: 0, left: 0 },
 currentInput: '',
 options: []
 });
-// 状态管理
-const [weatherCondition, setWeatherCondition] = useState('晴れ');
+// 状態管理 — 全入力は空値スタート（デモ初期値禁止）
+const [weatherCondition, setWeatherCondition] = useState<WeatherType | ''>('');
 const [bestLap, setBestLap] = useState('');
 const [totalLaps, setTotalLaps] = useState('');
 const [showLapTimeModal, setShowLapTimeModal] = useState(false);
 const [detailedLaps, setDetailedLaps] = useState<LapTime[]>([]);
+// セッション日時: 新規は現在日時、既存データ読込時は保存済み日時を復元
+const [sessionDate, setSessionDate] = useState<Date>(new Date());
+// ドライバー名: state → 保存 → 読込 → 表示の一貫配線
+const [driver, setDriver] = useState<string>('');
 const dropdownRef = useRef<HTMLDivElement>(null);
 const handleDropdownClick = (e: React.MouseEvent, inputValue: string, options: { value: string; label: string }[]) => {
 e.stopPropagation();
@@ -70,14 +81,17 @@ options: options
 });
 };
 const [tirePressures, setTirePressures] = useState({
-fl: { before: "190", after: "215", diff: "+25" },
-fr: { before: "190", after: "218", diff: "+28" },
-rl: { before: "185", after: "210", diff: "+25" },
-rr: { before: "185", after: "213", diff: "+28" }
+fl: { before: "", after: "", diff: "" },
+fr: { before: "", after: "", diff: "" },
+rl: { before: "", after: "", diff: "" },
+rr: { before: "", after: "", diff: "" }
 });
-const calculatePressureDiff = (before: string, after: string) => {
-const diff = parseInt(after) - parseInt(before);
-return diff >= 0 ? `+${diff}` : diff.toString();
+const calculatePressureDiff = (before: string, after: string): string => {
+  const b = parseInt(before, 10);
+  const a = parseInt(after, 10);
+  if (isNaN(b) || isNaN(a)) return '';
+  const diff = a - b;
+  return diff >= 0 ? `+${diff}` : diff.toString();
 };
 const handleOptionSelect = (value: string) => {
 const [position, timing] = dropdownState.currentInput.split('-');
@@ -108,33 +122,34 @@ return () => {
 document.removeEventListener('mousedown', handleClickOutside);
 };
 }, []);
-const [airTemp, setAirTemp] = useState('24');
-const [trackTemp, setTrackTemp] = useState('33');
-const [humidity, setHumidity] = useState('75');
-const [pressure, setPressure] = useState('1008');
-const [tireBrand, setTireBrand] = useState('ADVAN');
-const [tireCompound, setTireCompound] = useState('A050');
-const [distance, setDistance] = useState('120');
-const [fuel, setFuel] = useState('30');
+// 環境データ — 全て空値スタート
+const [airTemp, setAirTemp] = useState('');
+const [trackTemp, setTrackTemp] = useState('');
+const [humidity, setHumidity] = useState('');
+const [pressure, setPressure] = useState('');
+const [tireBrand, setTireBrand] = useState('');
+const [tireCompound, setTireCompound] = useState('');
+const [distance, setDistance] = useState('');
+const [fuel, setFuel] = useState('');
 
-// サスペンション用状態
-const [frontDamperCompression, setFrontDamperCompression] = useState(10);
-const [frontDamperRebound, setFrontDamperRebound] = useState(10);
-const [rearDamperCompression, setRearDamperCompression] = useState(10);
-const [rearDamperRebound, setRearDamperRebound] = useState(10);
-const [frontSpringRate, setFrontSpringRate] = useState('8.0');
-const [rearSpringRate, setRearSpringRate] = useState('6.0');
-const [frontRideHeight, setFrontRideHeight] = useState('120');
-const [rearRideHeight, setRearRideHeight] = useState('125');
-const [frontStabilizer, setFrontStabilizer] = useState('22');
-const [rearStabilizer, setRearStabilizer] = useState('20');
+// サスペンション用状態 — 全て空値スタート
+const [frontDamperCompression, setFrontDamperCompression] = useState<number | null>(null);
+const [frontDamperRebound, setFrontDamperRebound] = useState<number | null>(null);
+const [rearDamperCompression, setRearDamperCompression] = useState<number | null>(null);
+const [rearDamperRebound, setRearDamperRebound] = useState<number | null>(null);
+const [frontSpringRate, setFrontSpringRate] = useState('');
+const [rearSpringRate, setRearSpringRate] = useState('');
+const [frontRideHeight, setFrontRideHeight] = useState('');
+const [rearRideHeight, setRearRideHeight] = useState('');
+const [frontStabilizer, setFrontStabilizer] = useState('');
+const [rearStabilizer, setRearStabilizer] = useState('');
 
-// アライメント用状態
-const [frontCamber, setFrontCamber] = useState('-2.5');
-const [rearCamber, setRearCamber] = useState('-1.5');
-const [frontToe, setFrontToe] = useState('0');
-const [rearToe, setRearToe] = useState('2');
-const [caster, setCaster] = useState('5.5');
+// アライメント用状態 — 全て空値スタート
+const [frontCamber, setFrontCamber] = useState('');
+const [rearCamber, setRearCamber] = useState('');
+const [frontToe, setFrontToe] = useState('');
+const [rearToe, setRearToe] = useState('');
+const [caster, setCaster] = useState('');
 
 // ドライビング用状態
 const [notes, setNotes] = useState('');
@@ -144,17 +159,17 @@ const [knowledge, setKnowledge] = useState<KnowledgeNote>({
   learning: ''
 });
 
-// セッション情報用状態
-const [circuit, setCircuit] = useState('鈴鹿サーキット');
-const [carModel, setCarModel] = useState('Honda S2000');
+// セッション情報用状態 — 空値スタート
+const [circuit, setCircuit] = useState('');
+const [carModel, setCarModel] = useState('');
 const [sessionType, setSessionType] = useState<'practice' | 'qualifying' | 'race'>('practice');
 
-// ダンパー設定の状態管理
+// ダンパー設定の状態管理 — 空値スタート
 const [damperSettings, setDamperSettings] = useState({
-  fl: { bump: 8, rebound: 10 },
-  fr: { bump: 8, rebound: 10 },
-  rl: { bump: 7, rebound: 9 },
-  rr: { bump: 7, rebound: 9 }
+  fl: { bump: null as number | null, rebound: null as number | null },
+  fr: { bump: null as number | null, rebound: null as number | null },
+  rl: { bump: null as number | null, rebound: null as number | null },
+  rr: { bump: null as number | null, rebound: null as number | null }
 });
 
 // 保存処理
@@ -173,53 +188,45 @@ const handleSave = async () => {
     };
     const hasKnowledge = Object.values(trimmedKnowledge).some((value) => value.length > 0);
     // フォームデータを収集
+    // タイヤ空気圧: diff は導出値（before/after どちらかが null なら null）
+    const buildTirePressure = (tp: { before: string; after: string }) => {
+      const before = toNumberOrNull(tp.before);
+      const after = toNumberOrNull(tp.after);
+      return { before, after, diff: calcPressureDiff(before, after) };
+    };
+
     const setupData: Omit<CarSetupType, 'id' | 'createdAt' | 'updatedAt'> = {
       userId: currentUser.uid,
+      driver: driver.trim() || null,
       carModel: carModel,
       circuit: circuit,
-      date: new Date(),
+      date: sessionDate,  // 保存済み日時を保持（new Date() 直書き禁止）
       sessionType: sessionType,
       weather: {
-        condition: weatherCondition as WeatherType,
-        airTemp: parseFloat(airTemp) || 0,
-        trackTemp: parseFloat(trackTemp) || 0,
-        humidity: parseFloat(humidity) || 0,
-        pressure: parseFloat(pressure) || 0
+        condition: (weatherCondition as WeatherType) || null,
+        airTemp: toNumberOrNull(airTemp),
+        trackTemp: toNumberOrNull(trackTemp),
+        humidity: toNumberOrNull(humidity),
+        pressure: toNumberOrNull(pressure)
       },
       tireSettings: {
-        fl: {
-          before: parseFloat(tirePressures.fl.before) || 0,
-          after: parseFloat(tirePressures.fl.after) || 0,
-          diff: parseFloat(tirePressures.fl.diff) || 0
-        },
-        fr: {
-          before: parseFloat(tirePressures.fr.before) || 0,
-          after: parseFloat(tirePressures.fr.after) || 0,
-          diff: parseFloat(tirePressures.fr.diff) || 0
-        },
-        rl: {
-          before: parseFloat(tirePressures.rl.before) || 0,
-          after: parseFloat(tirePressures.rl.after) || 0,
-          diff: parseFloat(tirePressures.rl.diff) || 0
-        },
-        rr: {
-          before: parseFloat(tirePressures.rr.before) || 0,
-          after: parseFloat(tirePressures.rr.after) || 0,
-          diff: parseFloat(tirePressures.rr.diff) || 0
-        }
+        fl: buildTirePressure(tirePressures.fl),
+        fr: buildTirePressure(tirePressures.fr),
+        rl: buildTirePressure(tirePressures.rl),
+        rr: buildTirePressure(tirePressures.rr),
       },
       tireInfo: {
         brand: tireBrand,
         compound: tireCompound
       },
       sessionInfo: {
-        distance: parseFloat(distance) || 0,
-        fuel: parseFloat(fuel) || 0
+        distance: toNumberOrNull(distance),
+        fuel: toNumberOrNull(fuel)
       },
       // ラップタイムデータを保存
       lapTimeData: {
-        bestLap: bestLap || undefined,
-        totalLaps: parseInt(totalLaps || '0') || 0,
+        bestLap: bestLap || null,
+        totalLaps: toIntOrNull(totalLaps),
         laps: detailedLaps || []
       },
       suspensionSettings: {
@@ -232,28 +239,28 @@ const handleSave = async () => {
           rebound: rearDamperRebound
         },
         springRate: {
-          front: parseFloat(frontSpringRate) || 0,
-          rear: parseFloat(rearSpringRate) || 0
+          front: toNumberOrNull(frontSpringRate),
+          rear: toNumberOrNull(rearSpringRate)
         },
         rideHeight: {
-          front: parseFloat(frontRideHeight) || 0,
-          rear: parseFloat(rearRideHeight) || 0
+          front: toNumberOrNull(frontRideHeight),
+          rear: toNumberOrNull(rearRideHeight)
         },
         antiRollBar: {
-          front: parseFloat(frontStabilizer) || 0,
-          rear: parseFloat(rearStabilizer) || 0
+          front: toNumberOrNull(frontStabilizer),
+          rear: toNumberOrNull(rearStabilizer)
         }
       },
       alignmentSettings: {
         camber: {
-          front: parseFloat(frontCamber) || 0,
-          rear: parseFloat(rearCamber) || 0
+          front: toNumberOrNull(frontCamber),
+          rear: toNumberOrNull(rearCamber)
         },
         toe: {
-          front: parseFloat(frontToe) || 0,
-          rear: parseFloat(rearToe) || 0
+          front: toNumberOrNull(frontToe),
+          rear: toNumberOrNull(rearToe)
         },
-        caster: parseFloat(caster) || 0
+        caster: toNumberOrNull(caster)
       },
       knowledge: hasKnowledge ? trimmedKnowledge : undefined,
       notes: notes
@@ -264,15 +271,15 @@ const handleSave = async () => {
       // 編集モードから保存する場合は更新
       await updateSetup(setupId, setupData);
       message.success('セットアップデータを更新しました');
-      console.log('Updated setup with ID:', setupId);
+      logger.log('Updated setup with ID:', setupId);
     } else {
       // 新規作成
       const newSetupId = await saveSetup(setupData);
       message.success('セットアップデータを保存しました');
-      console.log('Saved setup with ID:', newSetupId);
+      logger.log('Saved setup with ID:', newSetupId);
     }
   } catch (error: any) {
-    console.error('Save error:', error);
+    logger.error('Save error:', error);
     const errorMessage = error?.code === 'permission-denied' 
       ? 'アクセス権限がありません。再度ログインしてください' 
       : `保存に失敗しました: ${error?.message || 'エラーが発生しました'}`;
@@ -300,67 +307,77 @@ const handleLoadPrevious = async () => {
     }
 
     const previousData = previousSetups[0];
-    
-    // 基本情報
-    setWeatherCondition(previousData.weather.condition);
-    setAirTemp(previousData.weather.airTemp.toString());
-    setTrackTemp(previousData.weather.trackTemp.toString());
-    setHumidity(previousData.weather.humidity.toString());
-    setPressure(previousData.weather.pressure.toString());
-    
+
+    // 前回読込: セッション日時は今（新規セッションとして開始）、前回の値を引き継ぎ
+    setSessionDate(new Date());
+
+    // ドライバー名も引き継ぎ
+    setDriver(previousData.driver ?? '');
+
+    // 基本情報（null は空文字に変換）
+    setWeatherCondition(previousData.weather.condition ?? '');
+    setAirTemp(previousData.weather.airTemp != null ? previousData.weather.airTemp.toString() : '');
+    setTrackTemp(previousData.weather.trackTemp != null ? previousData.weather.trackTemp.toString() : '');
+    setHumidity(previousData.weather.humidity != null ? previousData.weather.humidity.toString() : '');
+    setPressure(previousData.weather.pressure != null ? previousData.weather.pressure.toString() : '');
+
     // タイヤ情報
     setTireBrand(previousData.tireInfo.brand);
     setTireCompound(previousData.tireInfo.compound);
-    setDistance(previousData.sessionInfo.distance.toString());
-    setFuel(previousData.sessionInfo.fuel.toString());
-    
-    // タイヤ圧設定
+    setDistance(previousData.sessionInfo.distance != null ? previousData.sessionInfo.distance.toString() : '');
+    setFuel(previousData.sessionInfo.fuel != null ? previousData.sessionInfo.fuel.toString() : '');
+
+    // タイヤ圧設定（null は空文字に変換）
+    const fmtDiff = (diff: number | null | undefined): string => {
+      if (diff == null) return '';
+      return diff >= 0 ? `+${diff}` : diff.toString();
+    };
     setTirePressures({
-      fl: { 
-        before: previousData.tireSettings.fl.before.toString(), 
-        after: previousData.tireSettings.fl.after.toString(), 
-        diff: (previousData.tireSettings.fl.diff || 0) >= 0 ? `+${previousData.tireSettings.fl.diff || 0}` : (previousData.tireSettings.fl.diff || 0).toString()
+      fl: {
+        before: previousData.tireSettings.fl.before != null ? previousData.tireSettings.fl.before.toString() : '',
+        after: previousData.tireSettings.fl.after != null ? previousData.tireSettings.fl.after.toString() : '',
+        diff: fmtDiff(previousData.tireSettings.fl.diff)
       },
-      fr: { 
-        before: previousData.tireSettings.fr.before.toString(), 
-        after: previousData.tireSettings.fr.after.toString(), 
-        diff: (previousData.tireSettings.fr.diff || 0) >= 0 ? `+${previousData.tireSettings.fr.diff || 0}` : (previousData.tireSettings.fr.diff || 0).toString()
+      fr: {
+        before: previousData.tireSettings.fr.before != null ? previousData.tireSettings.fr.before.toString() : '',
+        after: previousData.tireSettings.fr.after != null ? previousData.tireSettings.fr.after.toString() : '',
+        diff: fmtDiff(previousData.tireSettings.fr.diff)
       },
-      rl: { 
-        before: previousData.tireSettings.rl.before.toString(), 
-        after: previousData.tireSettings.rl.after.toString(), 
-        diff: (previousData.tireSettings.rl.diff || 0) >= 0 ? `+${previousData.tireSettings.rl.diff || 0}` : (previousData.tireSettings.rl.diff || 0).toString()
+      rl: {
+        before: previousData.tireSettings.rl.before != null ? previousData.tireSettings.rl.before.toString() : '',
+        after: previousData.tireSettings.rl.after != null ? previousData.tireSettings.rl.after.toString() : '',
+        diff: fmtDiff(previousData.tireSettings.rl.diff)
       },
-      rr: { 
-        before: previousData.tireSettings.rr.before.toString(), 
-        after: previousData.tireSettings.rr.after.toString(), 
-        diff: (previousData.tireSettings.rr.diff || 0) >= 0 ? `+${previousData.tireSettings.rr.diff || 0}` : (previousData.tireSettings.rr.diff || 0).toString()
+      rr: {
+        before: previousData.tireSettings.rr.before != null ? previousData.tireSettings.rr.before.toString() : '',
+        after: previousData.tireSettings.rr.after != null ? previousData.tireSettings.rr.after.toString() : '',
+        diff: fmtDiff(previousData.tireSettings.rr.diff)
       }
     });
-    
-    // サスペンション設定
+
+    // サスペンション設定（null はそのまま）
     if (previousData.suspensionSettings) {
-      setFrontDamperCompression(previousData.suspensionSettings.frontDamper.compression);
-      setFrontDamperRebound(previousData.suspensionSettings.frontDamper.rebound);
-      setRearDamperCompression(previousData.suspensionSettings.rearDamper.compression);
-      setRearDamperRebound(previousData.suspensionSettings.rearDamper.rebound);
-      setFrontSpringRate(previousData.suspensionSettings.springRate.front.toString());
-      setRearSpringRate(previousData.suspensionSettings.springRate.rear.toString());
-      setFrontRideHeight(previousData.suspensionSettings.rideHeight.front.toString());
-      setRearRideHeight(previousData.suspensionSettings.rideHeight.rear.toString());
-      setFrontStabilizer(previousData.suspensionSettings.antiRollBar.front.toString());
-      setRearStabilizer(previousData.suspensionSettings.antiRollBar.rear.toString());
+      setFrontDamperCompression(previousData.suspensionSettings.frontDamper.compression ?? null);
+      setFrontDamperRebound(previousData.suspensionSettings.frontDamper.rebound ?? null);
+      setRearDamperCompression(previousData.suspensionSettings.rearDamper.compression ?? null);
+      setRearDamperRebound(previousData.suspensionSettings.rearDamper.rebound ?? null);
+      setFrontSpringRate(previousData.suspensionSettings.springRate.front != null ? previousData.suspensionSettings.springRate.front.toString() : '');
+      setRearSpringRate(previousData.suspensionSettings.springRate.rear != null ? previousData.suspensionSettings.springRate.rear.toString() : '');
+      setFrontRideHeight(previousData.suspensionSettings.rideHeight.front != null ? previousData.suspensionSettings.rideHeight.front.toString() : '');
+      setRearRideHeight(previousData.suspensionSettings.rideHeight.rear != null ? previousData.suspensionSettings.rideHeight.rear.toString() : '');
+      setFrontStabilizer(previousData.suspensionSettings.antiRollBar.front != null ? previousData.suspensionSettings.antiRollBar.front.toString() : '');
+      setRearStabilizer(previousData.suspensionSettings.antiRollBar.rear != null ? previousData.suspensionSettings.antiRollBar.rear.toString() : '');
     }
-    
-    // アライメント設定
+
+    // アライメント設定（null は空文字に変換）
     if (previousData.alignmentSettings) {
-      setFrontCamber(previousData.alignmentSettings.camber.front.toString());
-      setRearCamber(previousData.alignmentSettings.camber.rear.toString());
-      setFrontToe(previousData.alignmentSettings.toe.front.toString());
-      setRearToe(previousData.alignmentSettings.toe.rear.toString());
-      setCaster(previousData.alignmentSettings.caster.toString());
+      setFrontCamber(previousData.alignmentSettings.camber.front != null ? previousData.alignmentSettings.camber.front.toString() : '');
+      setRearCamber(previousData.alignmentSettings.camber.rear != null ? previousData.alignmentSettings.camber.rear.toString() : '');
+      setFrontToe(previousData.alignmentSettings.toe.front != null ? previousData.alignmentSettings.toe.front.toString() : '');
+      setRearToe(previousData.alignmentSettings.toe.rear != null ? previousData.alignmentSettings.toe.rear.toString() : '');
+      setCaster(previousData.alignmentSettings.caster != null ? previousData.alignmentSettings.caster.toString() : '');
     }
-    
+
     // ドライビングノート
     if (previousData.notes) {
       setNotes(previousData.notes);
@@ -370,23 +387,23 @@ const handleLoadPrevious = async () => {
       result: previousData.knowledge?.result ?? '',
       learning: previousData.knowledge?.learning ?? ''
     });
-    
+
     // セッション情報
     setCarModel(previousData.carModel);
     setCircuit(previousData.circuit);
     setSessionType(previousData.sessionType);
-    
-    // ダンパー設定
+
+    // ダンパー設定（null はそのまま）
     setDamperSettings({
-      fl: { bump: previousData.suspensionSettings?.frontDamper.compression || 8, rebound: previousData.suspensionSettings?.frontDamper.rebound || 10 },
-      fr: { bump: previousData.suspensionSettings?.frontDamper.compression || 8, rebound: previousData.suspensionSettings?.frontDamper.rebound || 10 },
-      rl: { bump: previousData.suspensionSettings?.rearDamper.compression || 7, rebound: previousData.suspensionSettings?.rearDamper.rebound || 9 },
-      rr: { bump: previousData.suspensionSettings?.rearDamper.compression || 7, rebound: previousData.suspensionSettings?.rearDamper.rebound || 9 }
+      fl: { bump: previousData.suspensionSettings?.frontDamper.compression ?? null, rebound: previousData.suspensionSettings?.frontDamper.rebound ?? null },
+      fr: { bump: previousData.suspensionSettings?.frontDamper.compression ?? null, rebound: previousData.suspensionSettings?.frontDamper.rebound ?? null },
+      rl: { bump: previousData.suspensionSettings?.rearDamper.compression ?? null, rebound: previousData.suspensionSettings?.rearDamper.rebound ?? null },
+      rr: { bump: previousData.suspensionSettings?.rearDamper.compression ?? null, rebound: previousData.suspensionSettings?.rearDamper.rebound ?? null }
     });
-    
+
     message.success(`前回のセットアップデータを読み込みました（${previousData.date.toLocaleDateString('ja-JP')}）`);
   } catch (error: any) {
-    console.error('Load previous data error:', error);
+    logger.error('Load previous data error:', error);
     const errorMessage = error?.code === 'permission-denied' 
       ? 'アクセス権限がありません。再度ログインしてください' 
       : `前回のデータ読み込みに失敗しました: ${error?.message || 'エラーが発生しました'}`;
@@ -415,66 +432,76 @@ useEffect(() => {
         return;
       }
 
-      // 基本情報の設定
-      setWeatherCondition(setupData.weather.condition);
-      setAirTemp(setupData.weather.airTemp.toString());
-      setTrackTemp(setupData.weather.trackTemp.toString());
-      setHumidity(setupData.weather.humidity.toString());
-      setPressure(setupData.weather.pressure.toString());
-      
+      // セッション日時を保存済み値から復元（Critical指摘#1）
+      setSessionDate(setupData.date instanceof Date ? setupData.date : new Date(setupData.date));
+
+      // ドライバー名を復元
+      setDriver(setupData.driver ?? '');
+
+      // 基本情報の設定（null は空文字に変換して表示）
+      setWeatherCondition(setupData.weather.condition ?? '');
+      setAirTemp(setupData.weather.airTemp != null ? setupData.weather.airTemp.toString() : '');
+      setTrackTemp(setupData.weather.trackTemp != null ? setupData.weather.trackTemp.toString() : '');
+      setHumidity(setupData.weather.humidity != null ? setupData.weather.humidity.toString() : '');
+      setPressure(setupData.weather.pressure != null ? setupData.weather.pressure.toString() : '');
+
       // タイヤ情報
       setTireBrand(setupData.tireInfo.brand);
       setTireCompound(setupData.tireInfo.compound);
-      setDistance(setupData.sessionInfo.distance.toString());
-      setFuel(setupData.sessionInfo.fuel.toString());
-      
-      // タイヤ圧設定
+      setDistance(setupData.sessionInfo.distance != null ? setupData.sessionInfo.distance.toString() : '');
+      setFuel(setupData.sessionInfo.fuel != null ? setupData.sessionInfo.fuel.toString() : '');
+
+      // タイヤ圧設定（null は空文字に変換）
+      const formatDiff = (diff: number | null | undefined): string => {
+        if (diff == null) return '';
+        return diff >= 0 ? `+${diff}` : diff.toString();
+      };
       setTirePressures({
-        fl: { 
-          before: setupData.tireSettings.fl.before.toString(), 
-          after: setupData.tireSettings.fl.after.toString(), 
-          diff: (setupData.tireSettings.fl.diff || 0) >= 0 ? `+${setupData.tireSettings.fl.diff || 0}` : (setupData.tireSettings.fl.diff || 0).toString()
+        fl: {
+          before: setupData.tireSettings.fl.before != null ? setupData.tireSettings.fl.before.toString() : '',
+          after: setupData.tireSettings.fl.after != null ? setupData.tireSettings.fl.after.toString() : '',
+          diff: formatDiff(setupData.tireSettings.fl.diff)
         },
-        fr: { 
-          before: setupData.tireSettings.fr.before.toString(), 
-          after: setupData.tireSettings.fr.after.toString(), 
-          diff: (setupData.tireSettings.fr.diff || 0) >= 0 ? `+${setupData.tireSettings.fr.diff || 0}` : (setupData.tireSettings.fr.diff || 0).toString()
+        fr: {
+          before: setupData.tireSettings.fr.before != null ? setupData.tireSettings.fr.before.toString() : '',
+          after: setupData.tireSettings.fr.after != null ? setupData.tireSettings.fr.after.toString() : '',
+          diff: formatDiff(setupData.tireSettings.fr.diff)
         },
-        rl: { 
-          before: setupData.tireSettings.rl.before.toString(), 
-          after: setupData.tireSettings.rl.after.toString(), 
-          diff: (setupData.tireSettings.rl.diff || 0) >= 0 ? `+${setupData.tireSettings.rl.diff || 0}` : (setupData.tireSettings.rl.diff || 0).toString()
+        rl: {
+          before: setupData.tireSettings.rl.before != null ? setupData.tireSettings.rl.before.toString() : '',
+          after: setupData.tireSettings.rl.after != null ? setupData.tireSettings.rl.after.toString() : '',
+          diff: formatDiff(setupData.tireSettings.rl.diff)
         },
-        rr: { 
-          before: setupData.tireSettings.rr.before.toString(), 
-          after: setupData.tireSettings.rr.after.toString(), 
-          diff: (setupData.tireSettings.rr.diff || 0) >= 0 ? `+${setupData.tireSettings.rr.diff || 0}` : (setupData.tireSettings.rr.diff || 0).toString()
+        rr: {
+          before: setupData.tireSettings.rr.before != null ? setupData.tireSettings.rr.before.toString() : '',
+          after: setupData.tireSettings.rr.after != null ? setupData.tireSettings.rr.after.toString() : '',
+          diff: formatDiff(setupData.tireSettings.rr.diff)
         }
       });
-      
-      // サスペンション設定
+
+      // サスペンション設定（null は null のまま保持）
       if (setupData.suspensionSettings) {
-        setFrontDamperCompression(setupData.suspensionSettings.frontDamper.compression);
-        setFrontDamperRebound(setupData.suspensionSettings.frontDamper.rebound);
-        setRearDamperCompression(setupData.suspensionSettings.rearDamper.compression);
-        setRearDamperRebound(setupData.suspensionSettings.rearDamper.rebound);
-        setFrontSpringRate(setupData.suspensionSettings.springRate.front.toString());
-        setRearSpringRate(setupData.suspensionSettings.springRate.rear.toString());
-        setFrontRideHeight(setupData.suspensionSettings.rideHeight.front.toString());
-        setRearRideHeight(setupData.suspensionSettings.rideHeight.rear.toString());
-        setFrontStabilizer(setupData.suspensionSettings.antiRollBar.front.toString());
-        setRearStabilizer(setupData.suspensionSettings.antiRollBar.rear.toString());
+        setFrontDamperCompression(setupData.suspensionSettings.frontDamper.compression ?? null);
+        setFrontDamperRebound(setupData.suspensionSettings.frontDamper.rebound ?? null);
+        setRearDamperCompression(setupData.suspensionSettings.rearDamper.compression ?? null);
+        setRearDamperRebound(setupData.suspensionSettings.rearDamper.rebound ?? null);
+        setFrontSpringRate(setupData.suspensionSettings.springRate.front != null ? setupData.suspensionSettings.springRate.front.toString() : '');
+        setRearSpringRate(setupData.suspensionSettings.springRate.rear != null ? setupData.suspensionSettings.springRate.rear.toString() : '');
+        setFrontRideHeight(setupData.suspensionSettings.rideHeight.front != null ? setupData.suspensionSettings.rideHeight.front.toString() : '');
+        setRearRideHeight(setupData.suspensionSettings.rideHeight.rear != null ? setupData.suspensionSettings.rideHeight.rear.toString() : '');
+        setFrontStabilizer(setupData.suspensionSettings.antiRollBar.front != null ? setupData.suspensionSettings.antiRollBar.front.toString() : '');
+        setRearStabilizer(setupData.suspensionSettings.antiRollBar.rear != null ? setupData.suspensionSettings.antiRollBar.rear.toString() : '');
       }
-      
-      // アライメント設定
+
+      // アライメント設定（null は空文字に変換）
       if (setupData.alignmentSettings) {
-        setFrontCamber(setupData.alignmentSettings.camber.front.toString());
-        setRearCamber(setupData.alignmentSettings.camber.rear.toString());
-        setFrontToe(setupData.alignmentSettings.toe.front.toString());
-        setRearToe(setupData.alignmentSettings.toe.rear.toString());
-        setCaster(setupData.alignmentSettings.caster.toString());
+        setFrontCamber(setupData.alignmentSettings.camber.front != null ? setupData.alignmentSettings.camber.front.toString() : '');
+        setRearCamber(setupData.alignmentSettings.camber.rear != null ? setupData.alignmentSettings.camber.rear.toString() : '');
+        setFrontToe(setupData.alignmentSettings.toe.front != null ? setupData.alignmentSettings.toe.front.toString() : '');
+        setRearToe(setupData.alignmentSettings.toe.rear != null ? setupData.alignmentSettings.toe.rear.toString() : '');
+        setCaster(setupData.alignmentSettings.caster != null ? setupData.alignmentSettings.caster.toString() : '');
       }
-      
+
       // ドライビングノート
       if (setupData.notes) {
         setNotes(setupData.notes);
@@ -492,25 +519,25 @@ useEffect(() => {
 
       // ラップタイムデータ
       if (setupData.lapTimeData) {
-        setBestLap(setupData.lapTimeData.bestLap || '');
-        setTotalLaps((setupData.lapTimeData.totalLaps || 0).toString());
+        setBestLap(setupData.lapTimeData.bestLap ?? '');
+        setTotalLaps(setupData.lapTimeData.totalLaps != null ? setupData.lapTimeData.totalLaps.toString() : '');
         setDetailedLaps(setupData.lapTimeData.laps || []);
       } else {
         setBestLap('');
         setTotalLaps('');
         setDetailedLaps([]);
       }
-      
-      // ダンパー設定
+
+      // ダンパー設定（null はそのまま）
       setDamperSettings({
-        fl: { bump: setupData.suspensionSettings?.frontDamper.compression || 8, rebound: setupData.suspensionSettings?.frontDamper.rebound || 10 },
-        fr: { bump: setupData.suspensionSettings?.frontDamper.compression || 8, rebound: setupData.suspensionSettings?.frontDamper.rebound || 10 },
-        rl: { bump: setupData.suspensionSettings?.rearDamper.compression || 7, rebound: setupData.suspensionSettings?.rearDamper.rebound || 9 },
-        rr: { bump: setupData.suspensionSettings?.rearDamper.compression || 7, rebound: setupData.suspensionSettings?.rearDamper.rebound || 9 }
+        fl: { bump: setupData.suspensionSettings?.frontDamper.compression ?? null, rebound: setupData.suspensionSettings?.frontDamper.rebound ?? null },
+        fr: { bump: setupData.suspensionSettings?.frontDamper.compression ?? null, rebound: setupData.suspensionSettings?.frontDamper.rebound ?? null },
+        rl: { bump: setupData.suspensionSettings?.rearDamper.compression ?? null, rebound: setupData.suspensionSettings?.rearDamper.rebound ?? null },
+        rr: { bump: setupData.suspensionSettings?.rearDamper.compression ?? null, rebound: setupData.suspensionSettings?.rearDamper.rebound ?? null }
       });
-      
+
     } catch (error: any) {
-      console.error('Error loading setup:', error);
+      logger.error('Error loading setup:', error);
       const errorMessage = error?.code === 'permission-denied' 
         ? 'アクセス権限がありません。再度ログインしてください' 
         : `セットアップデータの読み込みに失敗しました: ${error?.message || 'エラーが発生しました'}`;
@@ -537,66 +564,77 @@ useEffect(() => {
         return;
       }
 
-      // 基本情報の設定（新規作成モードなのでIDはセットしない）
-      setWeatherCondition(setupData.weather.condition);
-      setAirTemp(setupData.weather.airTemp.toString());
-      setTrackTemp(setupData.weather.trackTemp.toString());
-      setHumidity(setupData.weather.humidity.toString());
-      setPressure(setupData.weather.pressure.toString());
-      
+      // 基本情報の設定（新規作成モードなのでIDはセットしない。コピー先の日時は現在日時）
+      // セッション日時は「今」（コピーは新規セッションとして記録）
+      setSessionDate(new Date());
+
+      // ドライバー名もコピー
+      setDriver(setupData.driver ?? '');
+
+      // 基本情報（null は空文字に変換）
+      setWeatherCondition(setupData.weather.condition ?? '');
+      setAirTemp(setupData.weather.airTemp != null ? setupData.weather.airTemp.toString() : '');
+      setTrackTemp(setupData.weather.trackTemp != null ? setupData.weather.trackTemp.toString() : '');
+      setHumidity(setupData.weather.humidity != null ? setupData.weather.humidity.toString() : '');
+      setPressure(setupData.weather.pressure != null ? setupData.weather.pressure.toString() : '');
+
       // タイヤ情報
       setTireBrand(setupData.tireInfo.brand);
       setTireCompound(setupData.tireInfo.compound);
-      setDistance(setupData.sessionInfo.distance.toString());
-      setFuel(setupData.sessionInfo.fuel.toString());
-      
-      // タイヤ圧設定
+      setDistance(setupData.sessionInfo.distance != null ? setupData.sessionInfo.distance.toString() : '');
+      setFuel(setupData.sessionInfo.fuel != null ? setupData.sessionInfo.fuel.toString() : '');
+
+      // タイヤ圧設定（null は空文字に変換）
+      const formatDiffCopy = (diff: number | null | undefined): string => {
+        if (diff == null) return '';
+        return diff >= 0 ? `+${diff}` : diff.toString();
+      };
       setTirePressures({
-        fl: { 
-          before: setupData.tireSettings.fl.before.toString(), 
-          after: setupData.tireSettings.fl.after.toString(), 
-          diff: (setupData.tireSettings.fl.diff || 0) >= 0 ? `+${setupData.tireSettings.fl.diff || 0}` : (setupData.tireSettings.fl.diff || 0).toString()
+        fl: {
+          before: setupData.tireSettings.fl.before != null ? setupData.tireSettings.fl.before.toString() : '',
+          after: setupData.tireSettings.fl.after != null ? setupData.tireSettings.fl.after.toString() : '',
+          diff: formatDiffCopy(setupData.tireSettings.fl.diff)
         },
-        fr: { 
-          before: setupData.tireSettings.fr.before.toString(), 
-          after: setupData.tireSettings.fr.after.toString(), 
-          diff: (setupData.tireSettings.fr.diff || 0) >= 0 ? `+${setupData.tireSettings.fr.diff || 0}` : (setupData.tireSettings.fr.diff || 0).toString()
+        fr: {
+          before: setupData.tireSettings.fr.before != null ? setupData.tireSettings.fr.before.toString() : '',
+          after: setupData.tireSettings.fr.after != null ? setupData.tireSettings.fr.after.toString() : '',
+          diff: formatDiffCopy(setupData.tireSettings.fr.diff)
         },
-        rl: { 
-          before: setupData.tireSettings.rl.before.toString(), 
-          after: setupData.tireSettings.rl.after.toString(), 
-          diff: (setupData.tireSettings.rl.diff || 0) >= 0 ? `+${setupData.tireSettings.rl.diff || 0}` : (setupData.tireSettings.rl.diff || 0).toString()
+        rl: {
+          before: setupData.tireSettings.rl.before != null ? setupData.tireSettings.rl.before.toString() : '',
+          after: setupData.tireSettings.rl.after != null ? setupData.tireSettings.rl.after.toString() : '',
+          diff: formatDiffCopy(setupData.tireSettings.rl.diff)
         },
-        rr: { 
-          before: setupData.tireSettings.rr.before.toString(), 
-          after: setupData.tireSettings.rr.after.toString(), 
-          diff: (setupData.tireSettings.rr.diff || 0) >= 0 ? `+${setupData.tireSettings.rr.diff || 0}` : (setupData.tireSettings.rr.diff || 0).toString()
+        rr: {
+          before: setupData.tireSettings.rr.before != null ? setupData.tireSettings.rr.before.toString() : '',
+          after: setupData.tireSettings.rr.after != null ? setupData.tireSettings.rr.after.toString() : '',
+          diff: formatDiffCopy(setupData.tireSettings.rr.diff)
         }
       });
-      
-      // サスペンション設定
+
+      // サスペンション設定（null はそのまま）
       if (setupData.suspensionSettings) {
-        setFrontDamperCompression(setupData.suspensionSettings.frontDamper.compression);
-        setFrontDamperRebound(setupData.suspensionSettings.frontDamper.rebound);
-        setRearDamperCompression(setupData.suspensionSettings.rearDamper.compression);
-        setRearDamperRebound(setupData.suspensionSettings.rearDamper.rebound);
-        setFrontSpringRate(setupData.suspensionSettings.springRate.front.toString());
-        setRearSpringRate(setupData.suspensionSettings.springRate.rear.toString());
-        setFrontRideHeight(setupData.suspensionSettings.rideHeight.front.toString());
-        setRearRideHeight(setupData.suspensionSettings.rideHeight.rear.toString());
-        setFrontStabilizer(setupData.suspensionSettings.antiRollBar.front.toString());
-        setRearStabilizer(setupData.suspensionSettings.antiRollBar.rear.toString());
+        setFrontDamperCompression(setupData.suspensionSettings.frontDamper.compression ?? null);
+        setFrontDamperRebound(setupData.suspensionSettings.frontDamper.rebound ?? null);
+        setRearDamperCompression(setupData.suspensionSettings.rearDamper.compression ?? null);
+        setRearDamperRebound(setupData.suspensionSettings.rearDamper.rebound ?? null);
+        setFrontSpringRate(setupData.suspensionSettings.springRate.front != null ? setupData.suspensionSettings.springRate.front.toString() : '');
+        setRearSpringRate(setupData.suspensionSettings.springRate.rear != null ? setupData.suspensionSettings.springRate.rear.toString() : '');
+        setFrontRideHeight(setupData.suspensionSettings.rideHeight.front != null ? setupData.suspensionSettings.rideHeight.front.toString() : '');
+        setRearRideHeight(setupData.suspensionSettings.rideHeight.rear != null ? setupData.suspensionSettings.rideHeight.rear.toString() : '');
+        setFrontStabilizer(setupData.suspensionSettings.antiRollBar.front != null ? setupData.suspensionSettings.antiRollBar.front.toString() : '');
+        setRearStabilizer(setupData.suspensionSettings.antiRollBar.rear != null ? setupData.suspensionSettings.antiRollBar.rear.toString() : '');
       }
-      
-      // アライメント設定
+
+      // アライメント設定（null は空文字に変換）
       if (setupData.alignmentSettings) {
-        setFrontCamber(setupData.alignmentSettings.camber.front.toString());
-        setRearCamber(setupData.alignmentSettings.camber.rear.toString());
-        setFrontToe(setupData.alignmentSettings.toe.front.toString());
-        setRearToe(setupData.alignmentSettings.toe.rear.toString());
-        setCaster(setupData.alignmentSettings.caster.toString());
+        setFrontCamber(setupData.alignmentSettings.camber.front != null ? setupData.alignmentSettings.camber.front.toString() : '');
+        setRearCamber(setupData.alignmentSettings.camber.rear != null ? setupData.alignmentSettings.camber.rear.toString() : '');
+        setFrontToe(setupData.alignmentSettings.toe.front != null ? setupData.alignmentSettings.toe.front.toString() : '');
+        setRearToe(setupData.alignmentSettings.toe.rear != null ? setupData.alignmentSettings.toe.rear.toString() : '');
+        setCaster(setupData.alignmentSettings.caster != null ? setupData.alignmentSettings.caster.toString() : '');
       }
-      
+
       // ドライビングノート
       if (setupData.notes) {
         setNotes(setupData.notes);
@@ -623,17 +661,17 @@ useEffect(() => {
         setDetailedLaps([]);
       }
       
-      // ダンパー設定
+      // ダンパー設定（null はそのまま）
       setDamperSettings({
-        fl: { bump: setupData.suspensionSettings?.frontDamper.compression || 8, rebound: setupData.suspensionSettings?.frontDamper.rebound || 10 },
-        fr: { bump: setupData.suspensionSettings?.frontDamper.compression || 8, rebound: setupData.suspensionSettings?.frontDamper.rebound || 10 },
-        rl: { bump: setupData.suspensionSettings?.rearDamper.compression || 7, rebound: setupData.suspensionSettings?.rearDamper.rebound || 9 },
-        rr: { bump: setupData.suspensionSettings?.rearDamper.compression || 7, rebound: setupData.suspensionSettings?.rearDamper.rebound || 9 }
+        fl: { bump: setupData.suspensionSettings?.frontDamper.compression ?? null, rebound: setupData.suspensionSettings?.frontDamper.rebound ?? null },
+        fr: { bump: setupData.suspensionSettings?.frontDamper.compression ?? null, rebound: setupData.suspensionSettings?.frontDamper.rebound ?? null },
+        rl: { bump: setupData.suspensionSettings?.rearDamper.compression ?? null, rebound: setupData.suspensionSettings?.rearDamper.rebound ?? null },
+        rr: { bump: setupData.suspensionSettings?.rearDamper.compression ?? null, rebound: setupData.suspensionSettings?.rearDamper.rebound ?? null }
       });
-      
+
       message.success('セットアップデータをコピーしました');
     } catch (error: any) {
-      console.error('Error loading copy data:', error);
+      logger.error('Error loading copy data:', error);
       const errorMessage = error?.code === 'permission-denied' 
         ? 'アクセス権限がありません。再度ログインしてください' 
         : `データのコピーに失敗しました: ${error?.message || 'エラーが発生しました'}`;
@@ -660,7 +698,18 @@ return (
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 mb-6">
 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-<div className="text-sm sm:text-base text-gray-800 dark:text-gray-200 font-medium">{new Date().toLocaleDateString('ja-JP')} {new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</div>
+<div className="text-sm sm:text-base text-gray-800 dark:text-gray-200 font-medium">
+  {isViewMode ? (
+    <span>{sessionDate.toLocaleDateString('ja-JP')} {sessionDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
+  ) : (
+    <input
+      type="datetime-local"
+      value={toLocalDatetimeInput(sessionDate)}
+      onChange={(e) => setSessionDate(e.target.value ? new Date(e.target.value) : new Date())}
+      className="bg-transparent border-0 border-b border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 text-sm focus:outline-none focus:border-blue-400"
+    />
+  )}
+</div>
 <div className="flex items-center">
 <i className="fas fa-map-marker-alt text-gray-500 dark:text-gray-400 mr-2"></i>
 <AutoComplete
@@ -700,22 +749,14 @@ variant="borderless"
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 />
 <AutoComplete
-defaultValue="鈴木健太"
+value={driver}
+onChange={setDriver}
+placeholder="ドライバー名"
 className="w-28 sm:w-32"
 disabled={isViewMode}
-options={[{ value: '鈴木健太' }]}
+options={driver ? [{ value: driver }] : []}
 variant="borderless"
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
-onOpenChange={(open) => {
-  if (open) {
-    setTimeout(() => {
-      const selectedItem = document.querySelector('.ant-select-item[title="鈴木健太"]');
-      if (selectedItem) {
-        selectedItem.scrollIntoView({ block: 'center' });
-      }
-    }, 10);
-  }
-}}
 />
 <AutoComplete
 value={sessionType === 'practice' ? '練習走行' : sessionType === 'qualifying' ? '予選' : 'レース'}
@@ -898,7 +939,7 @@ onOpenChange={(open) => {
 <div className="w-full">
   <StepNumber
     value={parseFloat(distance) || 0}
-    onChange={(n) => setDistance(String(n))}
+    onChange={(n) => setDistance(n === 0 && distance === '' ? '' : String(n))}
     min={0}
     max={10000}
     step={1}
@@ -912,7 +953,7 @@ onOpenChange={(open) => {
 <div className="w-full">
   <StepNumber
     value={parseFloat(fuel) || 0}
-    onChange={(n) => setFuel(String(n))}
+    onChange={(n) => setFuel(n === 0 && fuel === '' ? '' : String(n))}
     min={0}
     max={200}
     step={1}
