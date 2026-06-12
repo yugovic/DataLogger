@@ -42,3 +42,6 @@ Thumbs.db
 .firebase/
 .firebaserc
 firebase-debug.log
+
+# kanbots (ローカルエージェント作業領域)
+.kanbots/
