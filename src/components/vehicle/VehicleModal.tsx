@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Switch, Button, Tabs, message, Divider, Upload } from 'antd';
-import { UploadOutlined, CarOutlined, PlusOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Vehicle, VehicleSetupConfig } from '../../types/vehicle';
+import { CarOutlined, PlusOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Vehicle } from '../../types/vehicle';
 import { addVehicle, updateVehicle, generateDefaultSetupConfig } from '../../services/vehicleService';
 import { useAuth } from '../../contexts/AuthContext';
 import type { UploadFile } from 'antd/es/upload/interface';

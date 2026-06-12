@@ -365,7 +365,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
             <AutoComplete
               defaultValue="22"
               onChange={(value) => {
-                const validated = validateInteger(value);
+                validateInteger(value);
                 // ここでARB Fの値を更新する処理を追加
               }}
               onOpenChange={scrollToView}
@@ -380,7 +380,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
             <AutoComplete
               defaultValue="20"
               onChange={(value) => {
-                const validated = validateInteger(value);
+                validateInteger(value);
                 // ここでARB Rの値を更新する処理を追加
               }}
               onOpenChange={scrollToView}

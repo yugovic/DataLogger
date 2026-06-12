@@ -41,8 +41,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   tirePressures,
   setTirePressures,
   damperSettings,
-  setDamperSettings,
-  handleDropdownClick
+  setDamperSettings
 }) => {
   const [tpMode, setTpMode] = useState<'before'|'after'|'compare'>('before');
   const calculatePressureDiff = (before: string, after: string) => {

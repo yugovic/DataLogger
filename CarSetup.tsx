@@ -6,7 +6,7 @@ import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { saveSetup, getUserSetups, getSetup, updateSetup } from './src/services/setupService';
-import { CarSetup as CarSetupType, KnowledgeNote, LapTime } from './src/types/setup';
+import { CarSetup as CarSetupType, KnowledgeNote, LapTime, WeatherType } from './src/types/setup';
 import { checkFirestoreConnection } from './src/utils/initFirestore';
 import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
 import { SuspensionTab } from './src/components/setup/tabs/SuspensionTab';
@@ -26,7 +26,7 @@ const location = useLocation();
 const searchParams = new URLSearchParams(location.search);
 const copyId = searchParams.get('copy');
 const [isViewMode, setIsViewMode] = useState(false);
-const [loadingSetup, setLoadingSetup] = useState(false);
+const [, setLoadingSetup] = useState(false);
 
 // Firestore接続確認
 useEffect(() => {
@@ -180,7 +180,7 @@ const handleSave = async () => {
       date: new Date(),
       sessionType: sessionType,
       weather: {
-        condition: weatherCondition,
+        condition: weatherCondition as WeatherType,
         airTemp: parseFloat(airTemp) || 0,
         trackTemp: parseFloat(trackTemp) || 0,
         humidity: parseFloat(humidity) || 0,

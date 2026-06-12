@@ -35,7 +35,7 @@ export const initializeFirestoreCollections = async () => {
     console.log('Initializing Firestore collections...');
     
     // コレクションへの参照を作成（これだけではコレクションは作成されない）
-    const setupsRef = collection(db, 'setups');
+    collection(db, 'setups');
     console.log('Setups collection reference created');
     
     return true;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Tag, Tooltip } from 'antd';
-import { CalendarOutlined, CarOutlined, CloudOutlined, EnvironmentOutlined, EditOutlined, CopyOutlined } from '@ant-design/icons';
+import { CalendarOutlined, CarOutlined, EnvironmentOutlined, EditOutlined, CopyOutlined } from '@ant-design/icons';
 import { CarSetup } from '../../types/setup';
 
 interface SetupCardProps {
