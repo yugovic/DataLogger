@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
       await logout();
       message.success('ログアウトしました');
       navigate('/auth');
-    } catch (error) {
+    } catch (_error) {
       message.error('ログアウトに失敗しました');
     }
   };

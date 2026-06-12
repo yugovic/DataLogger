@@ -4,9 +4,8 @@ import { AutoComplete, Checkbox, Button } from 'antd';
 import { StepNumber } from '../../common/StepNumber';
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
-interface SuspensionTabProps {
-  // この props は一旦シンプルにしておき、後で必要に応じて追加
-}
+// この props は一旦シンプルにしておき、後で必要に応じて追加
+type SuspensionTabProps = Record<string, never>;
 
 export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
   // 左右対称設定の状態

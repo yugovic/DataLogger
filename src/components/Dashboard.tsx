@@ -130,7 +130,7 @@ export const Dashboard: React.FC = () => {
       try {
         const data = await getUserSetups(currentUser.uid, 100);
         setSetups(data);
-      } catch (e) {
+      } catch (_e) {
         message.error('データの読み込みに失敗しました');
       } finally {
         setLoading(false);

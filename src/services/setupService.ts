@@ -18,6 +18,7 @@ import { db } from '../lib/firebase';
 import { CarSetup } from '../types/setup';
 import { carSetupSchema } from '../schemas/setupSchema';
 import logger from '../utils/logger';
+import { trackEvent } from '../lib/analytics';
 
 const COLLECTION_NAME = 'setups';
 
@@ -58,6 +59,8 @@ export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'upda
     logger.log('Saving setup with userId:', setup.userId);
     await setDoc(docRef, setupData);
     logger.log('Setup saved with ID:', docRef.id);
+    // 保存成功時に計測イベントを発火（個人情報を渡さない）
+    trackEvent('setup_saved', { circuit: setup.circuit, car_model: setup.carModel });
     return docRef.id;
   } catch (error: any) {
     logger.error('セットアップの保存に失敗しました:', error);
@@ -164,6 +167,8 @@ export const updateSetup = async (setupId: string, updates: Partial<CarSetup>): 
     });
 
     await updateDoc(docRef, updateData as any);
+    // 更新成功時に計測イベントを発火
+    trackEvent('setup_updated', { circuit: updates.circuit, car_model: updates.carModel });
   } catch (error) {
     logger.error('セットアップの更新に失敗しました:', error);
     throw error;
@@ -174,6 +179,8 @@ export const updateSetup = async (setupId: string, updates: Partial<CarSetup>): 
 export const deleteSetup = async (setupId: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, COLLECTION_NAME, setupId));
+    // 削除成功時に計測イベントを発火
+    trackEvent('setup_deleted', {});
   } catch (error) {
     logger.error('セットアップの削除に失敗しました:', error);
     throw error;
