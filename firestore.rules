@@ -1,31 +1,77 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // セットアップ（トップレベル）: 自分のデータのみアクセス可
-    match /setups/{setupId} {
-      // 作成時はリクエストデータのuserIdが自分であること
-      allow create: if request.auth != null &&
-        request.resource.data.userId == request.auth.uid;
-      // 既存ドキュメントはオーナーのみ読み書き可
-      allow read, update, delete: if request.auth != null &&
-        resource.data.userId == request.auth.uid;
+
+    // ── 共有相互性（Give-to-Get）の判定ヘルパー ──────────────────────────
+    // 事業要件: 「自分のデータを共有した人だけが、他人の共有データを閲覧できる」
+    // 相互性を UI の建前ではなく **このルールで強制** する（BUSINESS_PLAN Phase 0c）。
+    //
+    // sharingActive は users/{uid} プロフィールに保持し、共有中セットアップが
+    // 1件以上あれば true（profileService.recomputeSharingActive が更新）。
+    // get() による参照はルール権限で実行されるため、プロフィールの read を
+    // 他人に開放する必要はない（下の users ルールで read は本人のみに限定する）。
+    function requesterSharingActive() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sharingActive == true;
     }
-    
+
+    // visibility は 'private' | 'shared' のいずれかに限定する。
+    // 不正値（例: 'public'）の混入を create/update 時に防ぎ、共有判定を堅牢に保つ。
+    // 旧データ互換: フィールド欠落（未設定）は private 扱いとして許容する。
+    function validVisibility(data) {
+      return !('visibility' in data.keys())
+        || data.visibility == 'private'
+        || data.visibility == 'shared';
+    }
+
+    // セットアップ（トップレベル）
+    match /setups/{setupId} {
+      // 作成時: リクエストデータの userId が自分で、visibility が正当値であること
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        validVisibility(request.resource.data);
+
+      // 更新時: オーナーのみ、かつ userId を改変せず、visibility が正当値であること
+      allow update: if request.auth != null &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid &&
+        validVisibility(request.resource.data);
+
+      // 削除: オーナーのみ
+      allow delete: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+
+      // 読み取り: オーナーは常に可。
+      // 他人のドキュメントは「visibility == 'shared'」かつ
+      // 「リクエストユーザーが sharingActive == true（＝自分も共有している）」場合のみ可。
+      // これにより未共有ユーザーは他人の shared データを一切読めない（相互性の強制）。
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.visibility == 'shared' && requesterSharingActive())
+      );
+    }
+
     // テスト用コレクション
     match /test/{document=**} {
       allow read, write: if request.auth != null;
     }
-    
-    // ユーザードキュメント
+
+    // ユーザードキュメント（プロフィール）
+    // write は本人のみ（sharingActive を他人が書き換えられないことが相互性の前提）。
+    // read も本人のみで足りる: 他人の sharingActive を参照する箇所は上の get() が
+    // ルール権限で評価するため、公開 read は不要（最小権限の原則）。
+    // 画面表示用に本人の read が必要なので本人 read は許可する。
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      
+
+      // ユーザー配下のレガシー setups サブコレクション（現行どおり本人のみ）
       match /setups/{setupId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
-    
-    // 車両データ
+
+    // 車両データ（現行どおりオーナーのみ）
     match /vehicles/{vehicleId} {
       allow read: if request.auth != null &&
         request.auth.uid == resource.data.userId;

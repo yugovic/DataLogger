@@ -15,10 +15,11 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { CarSetup } from '../types/setup';
+import { CarSetup, SetupVisibility } from '../types/setup';
 import { carSetupSchema } from '../schemas/setupSchema';
 import logger from '../utils/logger';
 import { trackEvent } from '../lib/analytics';
+import { recomputeSharingActive } from './profileService';
 
 const COLLECTION_NAME = 'setups';
 
@@ -178,4 +179,125 @@ export const deleteSetup = async (setupId: string): Promise<void> => {
     logger.error('セットアップの削除に失敗しました:', error);
     throw error;
   }
+};
+
+// ─── Give-to-Get 共有（WP6） ──────────────────────────────────
+
+/**
+ * セットアップの公開設定（private⇄shared）を切り替える。
+ *
+ * 重要: anonymized=true で共有する場合、表示で隠すだけでは
+ * Firestore 上の生データから driver が読めてしまう。よって **データ層で
+ * driver を null に書き換える**（個人情報の物理的除去 / BUSINESS_PLAN 法務リスク対策）。
+ * 呼び出し側はダイアログで「匿名共有ではドライバー名が削除される」旨の同意を取ること。
+ *
+ * 更新後は必ず recomputeSharingActive を実行し、users/{uid}.sharingActive を
+ * 実際の共有件数に同期させる（相互性ルールの前提）。
+ *
+ * @param setupId 対象セットアップ ID
+ * @param visibility 切替後の公開設定
+ * @param anonymized 共有時に匿名化するか（private 化時は無視）
+ * @param ownerId 呼び出しユーザー（=オーナー）の uid。sharingActive 再計算に使う
+ * @param meta 計測用のメタ情報（個人情報は渡さない）
+ */
+export const setSetupVisibility = async (
+  setupId: string,
+  visibility: SetupVisibility,
+  anonymized: boolean,
+  ownerId: string,
+  meta?: { circuit?: string; carModel?: string },
+): Promise<void> => {
+  try {
+    const docRef = doc(db, COLLECTION_NAME, setupId);
+    const updates: Record<string, unknown> = {
+      visibility,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (visibility === 'shared') {
+      updates.anonymized = anonymized;
+      // 匿名共有: driver を物理的に除去（表示で隠すだけでは生データが読める）
+      if (anonymized) {
+        updates.driver = null;
+      }
+    } else {
+      // private 化時は匿名フラグを下ろす（driver は復元しない＝既に消えているため）
+      updates.anonymized = false;
+    }
+
+    // updateDoc の型は FieldValue を要求するため、既存 updateSetup と同様にキャスト
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await updateDoc(docRef, updates as any);
+
+    // 共有件数に応じて sharingActive を再計算（相互性ルールの前提を同期）
+    await recomputeSharingActive(ownerId);
+
+    // 計測: 共有開始時のみ setup_shared を発火（個人情報は渡さない）
+    if (visibility === 'shared') {
+      trackEvent('setup_shared', { circuit: meta?.circuit, car_model: meta?.carModel });
+    }
+  } catch (error) {
+    logger.error('公開設定の更新に失敗しました:', error);
+    throw error;
+  }
+};
+
+/** 共有ブラウズの絞り込み条件 */
+export interface SharedSetupsFilter {
+  circuit?: string | null;
+  carModel?: string | null;
+}
+
+/**
+ * 共有中（visibility==='shared'）のセットアップ一覧を取得する。
+ *
+ * circuit / carModel の等値フィルタはサーバー側で適用し（firestore.indexes.json
+ * に visibility+circuit+date / visibility+carModel+date / 両方+date の複合
+ * インデックスを定義済み）、常に date 降順でソートする。
+ * 旧データ（visibility 欠落）は Firestore の等値マッチ対象外なので自然に除外される。
+ *
+ * 自分のドキュメントは where userId != が使えないためクライアント側で除外する。
+ *
+ * @param excludeUserId 除外する自分の uid
+ * @param filter circuit / carModel の絞り込み（省略時は全件）
+ * @param limitCount 取得上限
+ */
+export const getSharedSetups = async (
+  excludeUserId: string,
+  filter: SharedSetupsFilter = {},
+  limitCount: number = 60,
+): Promise<CarSetup[]> => {
+  try {
+    const constraints = [where('visibility', '==', 'shared')] as ReturnType<typeof where>[];
+    if (filter.circuit) constraints.push(where('circuit', '==', filter.circuit));
+    if (filter.carModel) constraints.push(where('carModel', '==', filter.carModel));
+
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      ...constraints,
+      orderBy('date', 'desc'),
+      // 自分の分を除外しても limit を満たせるよう少し多めに取る
+      limit(limitCount + 20),
+    );
+
+    const snapshot = await getDocs(q);
+    const all = snapshot.docs.map((d) => fromFirestoreDoc(d.id, d.data()));
+    // 自分のドキュメントはクライアント側で除外
+    return all.filter((s) => s.userId !== excludeUserId).slice(0, limitCount);
+  } catch (error) {
+    logger.error('共有セットアップ一覧の取得に失敗しました:', error);
+    throw error;
+  }
+};
+
+/**
+ * 共有セットアップを1件取得する（読み取り専用の詳細表示用）。
+ * 取得後に visibility==='shared' でないものは null を返す（自分のデータは
+ * 通常の getSetup を使うこと）。ルール上、他人の private は read 自体が拒否される。
+ */
+export const getSharedSetup = async (setupId: string): Promise<CarSetup | null> => {
+  const setup = await getSetup(setupId);
+  if (!setup) return null;
+  if (setup.visibility !== 'shared') return null;
+  return setup;
 };

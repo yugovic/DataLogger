@@ -3,6 +3,9 @@ import { Card, Tag, Tooltip, Checkbox } from 'antd';
 import { CalendarOutlined, CarOutlined, EnvironmentOutlined, EditOutlined, CopyOutlined, SwapOutlined, UserOutlined, DashboardOutlined } from '@ant-design/icons';
 import { CarSetup } from '../../types/setup';
 import { pressureSummary } from '../../lib/setupFields';
+import { ShareToggle } from '../share/ShareToggle';
+import { SharedBadge, AnonymizedBadge, LoggerEvidenceBadge } from '../share/ShareBadges';
+import { isShared, hasLoggerEvidence } from '../share/shareUtils';
 
 interface SetupCardProps {
   setup: CarSetup;
@@ -16,6 +19,10 @@ interface SetupCardProps {
   onCompareWithPrevious?: (id: string) => void;
   /** 「前回と比較」を表示できるか（直前データが存在するか） */
   hasPrevious?: boolean;
+  /** 共有切替を有効にするか（自分のデータの履歴では true）。true で共有トグルを表示 */
+  shareable?: boolean;
+  /** 共有状態が変わったときに親へ通知（一覧のローカル更新用） */
+  onVisibilityChanged?: (id: string, next: { visibility: 'private' | 'shared'; anonymized: boolean }) => void;
 }
 
 export const SetupCard: React.FC<SetupCardProps> = ({
@@ -25,6 +32,8 @@ export const SetupCard: React.FC<SetupCardProps> = ({
   onToggleSelect,
   onCompareWithPrevious,
   hasPrevious = false,
+  shareable = false,
+  onVisibilityChanged,
 }) => {
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('ja-JP', {
@@ -102,10 +111,21 @@ export const SetupCard: React.FC<SetupCardProps> = ({
                 <CalendarOutlined className="mr-2" />
                 <span className="text-sm dark:text-gray-300">{formatDate(setup.date)}</span>
               </div>
-              <Tag color={sessionType.color}>{sessionType.label}</Tag>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Tag color={sessionType.color} className="!mr-0">{sessionType.label}</Tag>
+                {isShared(setup) && <SharedBadge />}
+                {isShared(setup) && setup.anonymized && <AnonymizedBadge />}
+                {hasLoggerEvidence(setup) && <LoggerEvidenceBadge />}
+              </div>
             </div>
           </div>
           <div className="flex gap-1">
+            {shareable && setup.id && (
+              <ShareToggle
+                setup={setup}
+                onChanged={(next) => onVisibilityChanged?.(setup.id as string, next)}
+              />
+            )}
             {hasPrevious && setup.id && (
               <Tooltip title="前回と比較">
                 <button

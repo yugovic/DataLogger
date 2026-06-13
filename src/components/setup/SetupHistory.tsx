@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Empty, Spin, message, Select, DatePicker, Button } from 'antd';
-import { LoadingOutlined, FilterOutlined, CloseOutlined, SwapOutlined, DownloadOutlined } from '@ant-design/icons';
+import { LoadingOutlined, FilterOutlined, CloseOutlined, SwapOutlined, DownloadOutlined, TeamOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserSetups } from '../../services/setupService';
 import { CarSetup } from '../../types/setup';
@@ -219,6 +219,26 @@ export const SetupHistory: React.FC = () => {
     });
   };
 
+  // 共有状態の変更を一覧のローカル状態へ反映（再フェッチ不要）。
+  // 匿名共有時は driver がデータ層で除去されるため表示からも消す。
+  const handleVisibilityChanged = (
+    id: string,
+    next: { visibility: 'private' | 'shared'; anonymized: boolean },
+  ) => {
+    setSetups((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              visibility: next.visibility,
+              anonymized: next.anonymized,
+              driver: next.anonymized ? null : s.driver,
+            }
+          : s,
+      ),
+    );
+  };
+
   // CSVエクスポート（現在のフィルタ結果を出力）
   const handleExportCsv = () => {
     if (filteredSetups.length === 0) {
@@ -269,6 +289,9 @@ export const SetupHistory: React.FC = () => {
             </Button>
             <Button icon={<DownloadOutlined />} onClick={handleExportCsv}>
               CSVエクスポート
+            </Button>
+            <Button icon={<TeamOutlined />} onClick={() => navigate('/shared')}>
+              みんなの共有データ
             </Button>
           </div>
         </div>
@@ -410,6 +433,8 @@ export const SetupHistory: React.FC = () => {
                   onToggleSelect={toggleSelect}
                   onCompareWithPrevious={handleCompareWithPrevious}
                   hasPrevious={setup.id ? previousIdByCurrent.has(setup.id) : false}
+                  shareable={!compareMode}
+                  onVisibilityChanged={handleVisibilityChanged}
                 />
               ))}
             </div>
