@@ -1,9 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Modal, Switch, Checkbox, message } from 'antd';
 import { SettingOutlined, PlusOutlined, BellOutlined, LogoutOutlined, SunOutlined, MoonOutlined, DashboardOutlined, HistoryOutlined, CarOutlined, ToolOutlined, UserOutlined, NotificationOutlined, DatabaseOutlined, ExportOutlined, QuestionCircleOutlined, MenuOutlined, CloseOutlined } from '@ant-design/icons';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { logout } from '../../services/authService';
+import { getUserVehicles, updateVehicle, addVehicle, generateDefaultSetupConfig } from '../../services/vehicleService';
+import { Vehicle } from '../../types/vehicle';
+
+const EMPTY_VEHICLE_FORM = {
+  make: '',
+  model: '',
+  year: '',
+  engineType: '',
+  drivetrain: '',
+  transmission: '',
+  notes: ''
+};
 
 interface HeaderProps {
   settingsModal: boolean;
@@ -21,6 +34,100 @@ export const Header: React.FC<HeaderProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useTheme();
+  const { currentUser } = useAuth();
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [vehicleForm, setVehicleForm] = useState(EMPTY_VEHICLE_FORM);
+  const [vehicleSaving, setVehicleSaving] = useState(false);
+
+  const applyVehicle = useCallback((vehicle: Vehicle | null) => {
+    setVehicleForm({
+      make: vehicle?.make ?? '',
+      model: vehicle?.model ?? '',
+      year: vehicle?.year != null ? String(vehicle.year) : '',
+      engineType: vehicle?.engineType ?? '',
+      drivetrain: vehicle?.drivetrain ?? '',
+      transmission: vehicle?.transmission ?? '',
+      notes: vehicle?.notes ?? ''
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!settingsModal || currentSettingView !== 'vehicle' || !currentUser) return;
+    let cancelled = false;
+    getUserVehicles(currentUser.uid)
+      .then((list) => {
+        if (cancelled) return;
+        setVehicles(list);
+        const first = list[0] ?? null;
+        setSelectedVehicleId(first?.id ?? '');
+        applyVehicle(first);
+      })
+      .catch(() => {
+        if (!cancelled) message.error('車両情報の取得に失敗しました');
+      });
+    return () => { cancelled = true; };
+  }, [settingsModal, currentSettingView, currentUser, applyVehicle]);
+
+  const handleVehicleSelect = (vehicleId: string) => {
+    setSelectedVehicleId(vehicleId);
+    applyVehicle(vehicles.find((v) => v.id === vehicleId) ?? null);
+  };
+
+  const setVehicleField = (field: keyof typeof EMPTY_VEHICLE_FORM, value: string) => {
+    setVehicleForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleVehicleSave = async () => {
+    if (!currentUser) return;
+    if (!vehicleForm.make.trim() || !vehicleForm.model.trim()) {
+      message.error('メーカーとモデルを入力してください');
+      return;
+    }
+    const yearText = vehicleForm.year.trim();
+    const year = yearText === '' ? undefined : Number(yearText);
+    if (year !== undefined && !Number.isInteger(year)) {
+      message.error('年式は整数で入力してください');
+      return;
+    }
+    if (!selectedVehicleId && year === undefined) {
+      message.error('新規登録には年式の入力が必要です');
+      return;
+    }
+    setVehicleSaving(true);
+    try {
+      const fields = {
+        make: vehicleForm.make.trim(),
+        model: vehicleForm.model.trim(),
+        year,
+        engineType: vehicleForm.engineType.trim(),
+        drivetrain: vehicleForm.drivetrain.trim(),
+        transmission: vehicleForm.transmission.trim(),
+        notes: vehicleForm.notes.trim()
+      };
+      if (selectedVehicleId) {
+        await updateVehicle(selectedVehicleId, fields);
+        message.success('車両情報を更新しました');
+      } else {
+        const newId = await addVehicle({
+          ...fields,
+          year: year as number,
+          userId: currentUser.uid,
+          isActive: true,
+          setupConfig: generateDefaultSetupConfig()
+        });
+        setSelectedVehicleId(newId);
+        message.success('車両を登録しました');
+      }
+      const list = await getUserVehicles(currentUser.uid);
+      setVehicles(list);
+    } catch (_error) {
+      message.error('車両情報の保存に失敗しました');
+    } finally {
+      setVehicleSaving(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -85,6 +192,22 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <CarOutlined className="mr-2" />
           車両管理
+        </button>
+        <button
+          aria-label="テレメトリ分析"
+          onClick={() => navigate('/telemetry')}
+          className={`flex items-center px-3 py-2 ${isActive('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+        >
+          <DatabaseOutlined className="mr-2" />
+          テレメトリ
+        </button>
+        <button
+          aria-label="みんなの共有データ"
+          onClick={() => navigate('/shared')}
+          className={`flex items-center px-3 py-2 ${isActive('/shared') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+        >
+          <ExportOutlined className="mr-2" />
+          共有データ
         </button>
       </div>
       <div className="hidden md:flex items-center space-x-4">
@@ -179,12 +302,30 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="p-4">
                   <h3 className="text-lg font-medium mb-6">車両設定</h3>
                   <div className="space-y-6">
+                    {vehicles.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">編集する車両</label>
+                        <select
+                          value={selectedVehicleId}
+                          onChange={(e) => handleVehicleSelect(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                        >
+                          {vehicles.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.make} {v.model}{v.year ? ` (${v.year})` : ''}
+                            </option>
+                          ))}
+                          <option value="">＋ 新規車両として登録</option>
+                        </select>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">メーカー</label>
                         <input
                           type="text"
-                          defaultValue="honda"
+                          value={vehicleForm.make}
+                          onChange={(e) => setVehicleField('make', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
@@ -192,7 +333,8 @@ export const Header: React.FC<HeaderProps> = ({
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">モデル</label>
                         <input
                           type="text"
-                          defaultValue="s2000"
+                          value={vehicleForm.model}
+                          onChange={(e) => setVehicleField('model', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
@@ -202,7 +344,8 @@ export const Header: React.FC<HeaderProps> = ({
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">年式</label>
                         <input
                           type="text"
-                          defaultValue="2005"
+                          value={vehicleForm.year}
+                          onChange={(e) => setVehicleField('year', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
@@ -210,7 +353,8 @@ export const Header: React.FC<HeaderProps> = ({
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">エンジン型式</label>
                         <input
                           type="text"
-                          defaultValue="f20c"
+                          value={vehicleForm.engineType}
+                          onChange={(e) => setVehicleField('engineType', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
@@ -220,7 +364,8 @@ export const Header: React.FC<HeaderProps> = ({
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">駆動方式</label>
                         <input
                           type="text"
-                          defaultValue="fr"
+                          value={vehicleForm.drivetrain}
+                          onChange={(e) => setVehicleField('drivetrain', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
@@ -228,7 +373,8 @@ export const Header: React.FC<HeaderProps> = ({
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">トランスミッション</label>
                         <input
                           type="text"
-                          defaultValue="6mt"
+                          value={vehicleForm.transmission}
+                          onChange={(e) => setVehicleField('transmission', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
@@ -237,13 +383,19 @@ export const Header: React.FC<HeaderProps> = ({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">備考</label>
                       <textarea
                         rows={4}
+                        value={vehicleForm.notes}
+                        onChange={(e) => setVehicleField('notes', e.target.value)}
                         placeholder="車両に関する特記事項があれば入力してください"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <div className="flex justify-end">
-                      <button className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors whitespace-nowrap">
-                        保存
+                      <button
+                        onClick={handleVehicleSave}
+                        disabled={vehicleSaving}
+                        className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {vehicleSaving ? '保存中…' : '保存'}
                       </button>
                     </div>
                   </div>
@@ -365,6 +517,20 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <CarOutlined className="mr-3" />
               車両管理
+            </button>
+            <button
+              onClick={() => { navigate('/telemetry'); setMobileMenuOpen(false); }}
+              className={`flex items-center px-4 py-3 ${isActive('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+            >
+              <DatabaseOutlined className="mr-3" />
+              テレメトリ
+            </button>
+            <button
+              onClick={() => { navigate('/shared'); setMobileMenuOpen(false); }}
+              className={`flex items-center px-4 py-3 ${isActive('/shared') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+            >
+              <ExportOutlined className="mr-3" />
+              共有データ
             </button>
           </nav>
           <div className="flex items-center justify-around border-t border-gray-200 dark:border-gray-700 p-3">
