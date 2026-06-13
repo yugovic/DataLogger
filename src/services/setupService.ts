@@ -44,7 +44,34 @@ export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'upda
   // zodスキーマによる保存前バリデーション
   const parsed = carSetupSchema.safeParse(setup);
   if (!parsed.success) {
-    const msg = parsed.error.issues.map(i => i.message).join(' / ');
+    // フィールドパスと日本語メッセージを組み合わせて分かりやすいエラー文を生成
+    const fieldLabels: Record<string, string> = {
+      carModel: '車種',
+      circuit: 'サーキット',
+      userId: 'ユーザーID',
+      date: '日時',
+      'tireSettings.fl.before': 'FL 走行前空気圧',
+      'tireSettings.fl.after': 'FL 走行後空気圧',
+      'tireSettings.fr.before': 'FR 走行前空気圧',
+      'tireSettings.fr.after': 'FR 走行後空気圧',
+      'tireSettings.rl.before': 'RL 走行前空気圧',
+      'tireSettings.rl.after': 'RL 走行後空気圧',
+      'tireSettings.rr.before': 'RR 走行前空気圧',
+      'tireSettings.rr.after': 'RR 走行後空気圧',
+      'targetPressures.front': '目標温間圧 フロント',
+      'targetPressures.rear': '目標温間圧 リア',
+      'weather.airTemp': '気温',
+      'weather.trackTemp': '路面温度',
+      'weather.humidity': '湿度',
+      'weather.pressure': '気圧',
+      'sessionInfo.distance': '走行距離',
+      'sessionInfo.fuel': '燃料量',
+    };
+    const msg = parsed.error.issues.map(i => {
+      const path = i.path.join('.');
+      const label = fieldLabels[path] ?? path;
+      return `${label}: ${i.message}`;
+    }).join(' / ');
     throw new Error(`入力値エラー: ${msg}`);
   }
 

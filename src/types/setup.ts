@@ -16,6 +16,12 @@ export interface TireSettings {
   rr: TirePressure;
 }
 
+/** 目標温間圧（走行開始から数周後の温まりきった状態）。前軸・後軸ごとに設定する。単位 kPa。省略可 = 旧データ互換。 */
+export interface TargetPressures {
+  front: Maybe<number>; // フロント目標温間圧 (kPa)
+  rear: Maybe<number>;  // リア目標温間圧 (kPa)
+}
+
 export type WeatherType = '晴れ' | '曇り' | 'ウェット' | 'フルウェット';
 
 export interface WeatherCondition {
@@ -126,6 +132,7 @@ export interface CarSetup {
   sessionInfo: SessionInfo;
   suspensionSettings?: SuspensionSettings;
   alignmentSettings?: AlignmentSettings;
+  targetPressures?: TargetPressures; // 目標温間圧（省略可 = 旧データ互換）
   notes?: string;
   knowledge?: KnowledgeNote;
   lapTimeData?: LapTimeData;

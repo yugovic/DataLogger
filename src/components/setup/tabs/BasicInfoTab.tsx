@@ -1,8 +1,9 @@
 // 基本情報タブコンポーネント
 import React, { useState } from 'react';
-import { AutoComplete, Segmented, Modal, message, Dropdown } from 'antd';
+import { AutoComplete, Segmented, Modal, message, Dropdown, Input, Tooltip } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import { StepNumber } from '../../common/StepNumber';
+import { calcPressureAdvice, formatAdjust, getWheelTarget, PressureStatus } from '../../../lib/pressureAdvice';
 // 余計なボタンは削除し、シンプルなUIに戻す
 
 interface TirePressure {
@@ -30,11 +31,18 @@ interface DamperSettings {
   rr: DamperSetting;
 }
 
+interface TargetPressures {
+  front: string; // kPa、空文字 = 未設定
+  rear: string;
+}
+
 interface BasicInfoTabProps {
   tirePressures: TirePressures;
   setTirePressures: React.Dispatch<React.SetStateAction<TirePressures>>;
   damperSettings: DamperSettings;
   setDamperSettings: React.Dispatch<React.SetStateAction<DamperSettings>>;
+  targetPressures: TargetPressures;
+  setTargetPressures: React.Dispatch<React.SetStateAction<TargetPressures>>;
   handleDropdownClick?: (e: React.MouseEvent, inputValue: string, options: { value: string; label: string }[]) => void;
 }
 
@@ -42,7 +50,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   tirePressures,
   setTirePressures,
   damperSettings,
-  setDamperSettings
+  setDamperSettings,
+  targetPressures,
+  setTargetPressures,
 }) => {
   const [tpMode, setTpMode] = useState<'before'|'after'|'compare'>('before');
   const [modal, modalContextHolder] = Modal.useModal();
@@ -53,6 +63,14 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     if (isNaN(b) || isNaN(a)) return '';
     const diff = a - b;
     return diff >= 0 ? `+${diff}` : diff.toString();
+  };
+
+  /** 状態色クラス（符号の色ではなくレンジ内外の色） */
+  const statusClass: Record<PressureStatus, string> = {
+    green: 'text-green-600 dark:text-green-400',
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    red: 'text-red-600 dark:text-red-400',
+    none: 'text-gray-400 dark:text-gray-500',
   };
 
   const wheels: Array<{ key: 'fl'|'fr'|'rl'|'rr'; label: string }> = [
@@ -183,67 +201,161 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
 
           <div className="space-y-3">
-            {wheels.map(({key,label}) => (
-              <div key={key} className="flex items-center justify-between gap-2 py-2 border-b border-blue-200/40 last:border-b-0">
-                <div className="w-10 text-center font-semibold">{label}</div>
-                {/* before */}
-                <div className="flex-1 flex items-center justify-end">
-                  <div style={{ display: tpMode === 'after' ? 'none' : 'inline-flex', opacity: tpMode === 'compare' ? 1 : 1 }}>
-                    <StepNumber
-                      value={parseInt((tirePressures as any)[key].before, 10) || 0}
-                      onChange={(n) => setTirePressures(prev => ({
-                        ...prev,
-                        [key]: {
-                          ...(prev as any)[key],
-                          before: String(n),
-                          diff: calculatePressureDiff(String(n), (prev as any)[key].after)
-                        }
-                      }))}
-                      min={50}
-                      max={400}
-                      step={5}
-                      unit="kPa"
-                      size="small"
-                    />
+            {wheels.map(({key,label}) => {
+              const tp = tirePressures[key];
+              const targetNum = getWheelTarget(
+                key,
+                targetPressures.front !== '' ? parseFloat(targetPressures.front) : null,
+                targetPressures.rear !== '' ? parseFloat(targetPressures.rear) : null,
+              );
+              const parsedAfter = tp.after !== '' ? parseInt(tp.after, 10) : null;
+              const afterNum = parsedAfter !== null && !isNaN(parsedAfter) ? parsedAfter : null;
+              const advice = calcPressureAdvice(afterNum, targetNum);
+
+              return (
+                <div key={key} className="flex items-center justify-between gap-2 py-2 border-b border-blue-200/40 last:border-b-0">
+                  <div className="w-10 text-center font-semibold dark:text-gray-200">{label}</div>
+                  {/* before */}
+                  <div className="flex-1 flex items-center justify-end">
+                    <div style={{ display: tpMode === 'after' ? 'none' : 'inline-flex' }}>
+                      <StepNumber
+                        value={parseInt(tp.before, 10) || 0}
+                        onChange={(n) => setTirePressures(prev => ({
+                          ...prev,
+                          [key]: {
+                            ...prev[key],
+                            before: String(n),
+                            diff: calculatePressureDiff(String(n), prev[key].after)
+                          }
+                        }))}
+                        min={50}
+                        max={400}
+                        step={5}
+                        unit="kPa"
+                        size="small"
+                      />
+                    </div>
                   </div>
-                </div>
-                {/* after (muted or hidden when before mode) */}
-                <div className="flex-1 flex items-center">
-                  <div style={{ display: tpMode === 'before' ? 'none' : 'inline-flex', opacity: tpMode === 'compare' ? 1 : 1 }}>
-                    <StepNumber
-                      value={parseInt((tirePressures as any)[key].after, 10) || 0}
-                      onChange={(n) => setTirePressures(prev => ({
-                        ...prev,
-                        [key]: {
-                          ...(prev as any)[key],
-                          after: String(n),
-                          diff: calculatePressureDiff((prev as any)[key].before, String(n))
-                        }
-                      }))}
-                      min={50}
-                      max={400}
-                      step={5}
-                      unit="kPa"
-                      size="small"
-                    />
+                  {/* after */}
+                  <div className="flex-1 flex items-center">
+                    <div style={{ display: tpMode === 'before' ? 'none' : 'inline-flex' }}>
+                      <StepNumber
+                        value={parseInt(tp.after, 10) || 0}
+                        onChange={(n) => setTirePressures(prev => ({
+                          ...prev,
+                          [key]: {
+                            ...prev[key],
+                            after: String(n),
+                            diff: calculatePressureDiff(prev[key].before, String(n))
+                          }
+                        }))}
+                        min={50}
+                        max={400}
+                        step={5}
+                        unit="kPa"
+                        size="small"
+                      />
+                    </div>
                   </div>
+                  {/* delta（走行前後差） */}
+                  <div className="w-14 text-right text-sm">
+                    {tpMode === 'compare' && (
+                      (() => {
+                        const b = parseInt(tp.before, 10);
+                        const a = parseInt(tp.after, 10);
+                        if (isNaN(b) || isNaN(a)) return <span className="text-gray-400">—</span>;
+                        const d = a - b;
+                        const s = d >= 0 ? `+${d}` : `${d}`;
+                        return <span className={d >= 0 ? 'text-red-500' : 'text-blue-400'}>{s}</span>;
+                      })()
+                    )}
+                  </div>
+                  {/* 目標対比（温間実測 − 目標）: 常に表示 */}
+                  <Tooltip
+                    title={advice.adjustBy !== null ? `次走行推奨: ${formatAdjust(advice.adjustBy)}` : '目標温間圧または走行後の実測を入力すると表示されます'}
+                  >
+                    <div className={`w-14 text-right text-sm font-mono ${statusClass[advice.status]}`}>
+                      {advice.diff !== null
+                        ? (advice.diff >= 0 ? `+${advice.diff}` : `${advice.diff}`)
+                        : '—'}
+                    </div>
+                  </Tooltip>
                 </div>
-                {/* delta */}
-                <div className="w-16 text-right text-sm">
-                  {tpMode === 'compare' && (
-                    (() => {
-                      const b = parseInt((tirePressures as any)[key].before, 10);
-                      const a = parseInt((tirePressures as any)[key].after, 10);
-                      if (isNaN(b) || isNaN(a)) return <span className="text-gray-400">—</span>;
-                      const d = a - b;
-                      const s = d >= 0 ? `+${d}` : `${d}`;
-                      return <span className={d >= 0 ? 'text-red-500' : 'text-blue-400'}>{s}</span>;
-                    })()
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+
+          {/* 目標温間圧入力 */}
+          <div className="mt-4 pt-3 border-t border-blue-200/40">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
+              <i className="fas fa-bullseye text-blue-400"></i>
+              目標温間圧 (kPa)
+              <Tooltip title="走行開始から数周後の温まりきった状態での目標空気圧。前後軸で設定します。設定すると各輪の過不足が色で表示されます（緑: ±5以内 / 黄: ±15以内 / 赤: それ超）。">
+                <i className="fas fa-info-circle text-gray-400 cursor-help ml-1"></i>
+              </Tooltip>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">フロント (kPa)</label>
+                <Input
+                  value={targetPressures.front}
+                  onChange={(e) => setTargetPressures(prev => ({ ...prev, front: e.target.value }))}
+                  placeholder="例: 200"
+                  size="small"
+                  type="number"
+                  min={0}
+                  max={500}
+                  className="text-center"
+                  suffix={<span className="text-xs text-gray-400">kPa</span>}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">リア (kPa)</label>
+                <Input
+                  value={targetPressures.rear}
+                  onChange={(e) => setTargetPressures(prev => ({ ...prev, rear: e.target.value }))}
+                  placeholder="例: 190"
+                  size="small"
+                  type="number"
+                  min={0}
+                  max={500}
+                  className="text-center"
+                  suffix={<span className="text-xs text-gray-400">kPa</span>}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 次走行推奨サマリー（目標が設定済みの場合のみ表示） */}
+          {(targetPressures.front !== '' || targetPressures.rear !== '') && (
+            <div className="mt-3 pt-3 border-t border-blue-200/40">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
+                <i className="fas fa-arrow-right text-blue-400"></i>
+                次走行の冷間圧調整推奨
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                {wheels.map(({ key, label }) => {
+                  const tp2 = tirePressures[key];
+                  const targetNum = getWheelTarget(
+                    key,
+                    targetPressures.front !== '' ? parseFloat(targetPressures.front) : null,
+                    targetPressures.rear !== '' ? parseFloat(targetPressures.rear) : null,
+                  );
+                  const parsedAfter2 = tp2.after !== '' ? parseInt(tp2.after, 10) : null;
+                  const afterNum2 = parsedAfter2 !== null && !isNaN(parsedAfter2) ? parsedAfter2 : null;
+                  const advice = calcPressureAdvice(afterNum2, targetNum);
+                  return (
+                    <div key={key} className="flex items-center justify-between text-xs py-0.5">
+                      <span className="font-medium dark:text-gray-300">{label}:</span>
+                      <span className={statusClass[advice.status]}>
+                        {formatAdjust(advice.adjustBy)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
         </div>
         

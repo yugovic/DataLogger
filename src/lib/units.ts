@@ -1,11 +1,11 @@
 // 単位定数 — UIラベルに必ず併記すること
 export const UNITS = {
-  pressure: 'kPa',       // タイヤ空気圧
-  rideHeight: 'mm',      // 車高
+  pressure: 'kPa',       // タイヤ空気圧・ブースト圧
+  rideHeight: 'mm',      // 車高・スプリッター高さ
   springRate: 'kgf/mm',  // バネレート
-  angle: 'deg',          // アライメント角度 (キャンバー/トー/キャスター)
+  angle: 'deg',          // アライメント角度 (キャンバー/トー/キャスター)・ウイング角度
   temperature: '℃',      // 気温・路面温度
-  humidity: '%',         // 湿度
+  humidity: '%',         // 湿度・ラジエター開度・冷却系開度
   atmosphericPressure: 'hPa', // 気圧
   distance: 'km',        // 走行距離
   fuel: 'L',             // 燃料量

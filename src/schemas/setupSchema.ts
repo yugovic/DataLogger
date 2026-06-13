@@ -71,6 +71,11 @@ const alignmentSettingsSchema = z.object({
   caster: nullableNum(-10, 20),  // deg
 }).optional();
 
+const targetPressuresSchema = z.object({
+  front: nullableNum(0, 500), // kPa
+  rear: nullableNum(0, 500),  // kPa
+}).optional();
+
 const lapEvidenceSchema = z.object({
   fileName: z.string().min(1),
   format: z.enum(['aim-csv', 'digispice-dtb', 'nmea']),
@@ -106,6 +111,7 @@ export const carSetupSchema = z.object({
   sessionType: z.enum(['practice', 'qualifying', 'race']),
   weather: weatherConditionSchema,
   tireSettings: tireSettingsSchema,
+  targetPressures: targetPressuresSchema,
   tireInfo: z.object({
     brand: z.string(),
     compound: z.string(),
