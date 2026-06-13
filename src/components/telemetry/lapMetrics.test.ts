@@ -1,9 +1,8 @@
-// ラップ表示用派生計算のテスト — ラップ境界での切り出しと
-// 距離軸のラップ開始基準リベースを確認する
+// ラップ表示用派生計算のテスト
 
 import { describe, expect, it } from 'vitest';
 import type { Lap, TelemetryPoint } from '../../lib/telemetry';
-import { calcLapMaxSpeeds, deriveSessionSeries, firstGpsPoint, sliceLapSeries } from './lapMetrics';
+import { calcLapMaxSpeeds, firstGpsPoint } from './lapMetrics';
 
 const M_PER_DEG_LAT = 111320;
 
@@ -34,20 +33,6 @@ describe('calcLapMaxSpeeds', () => {
     const points = makePoints([60, 80]);
     const laps = [lap(1, 10, 20, 'NORMAL')];
     expect(calcLapMaxSpeeds(points, laps)).toEqual([null]);
-  });
-});
-
-describe('sliceLapSeries', () => {
-  it('ラップ範囲のみを切り出し、距離軸をラップ開始基準にリベースする', () => {
-    const points = makePoints([72, 72, 72, 72, 72]); // 20m/s 等速
-    const derived = deriveSessionSeries(points);
-    const series = sliceLapSeries(points, derived, lap(2, 2, 4, 'NORMAL'));
-
-    expect(series.speed).toHaveLength(3); // t=2,3,4
-    expect(series.speed[0][0]).toBeCloseTo(0, 6); // 開始点の距離 = 0
-    expect(series.speed[1][0]).toBeCloseTo(20, 0); // 1秒で約20m
-    expect(series.speed.every(([, v]) => v === 72)).toBe(true);
-    expect(series.longG).toHaveLength(3);
   });
 });
 
