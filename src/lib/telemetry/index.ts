@@ -33,3 +33,34 @@ export {
   type EstimateLineOptions,
 } from './detectLaps';
 export { haversineMeters, bearingDeg } from './geo';
+export {
+  interpolateAt,
+  buildDistanceGrid,
+  resampleOnGrid,
+  type DistanceSeries,
+} from './resample';
+export {
+  channelAvailability,
+  calcLatG,
+  buildLapProfile,
+  deriveCompareSeries,
+  deltaT,
+  computeLapMetrics,
+  computeSegmentDeltas,
+  readoutAt,
+  positionAt,
+  type ChannelKey,
+  type ChannelAvailability,
+  type LapProfile,
+  type DeltaTPoint,
+  type DeltaTResult,
+  type LapMetrics,
+  type SegmentDelta,
+  type CursorReadout,
+} from './compare';
+export {
+  buildCoachingReadout,
+  type Annotation,
+  type AnnotationKind,
+  type CoachingReadout,
+} from './annotations';

@@ -1,61 +1,24 @@
-// テレメトリ分析ページ（/telemetry, WP5）
+// テレメトリ分析ページ（/telemetry, WP5 → 比較コックピット段階A）
 //
 // 旧 /demo/telemetry（ハードコードモック）の実データ版。ロガーファイルを
-// その場で読み込み、同一セッション内のラップ2本を重ねて比較する。
+// その場で読み込み、同一セッション内のラップ2本（A=ベスト/B=ターゲット）を
+// リッチに比較する（デルタT・チャンネル切替・同期カーソル・コースマップ・
+// 指標デルタ・コーチ読み解き・区間比較）。
 // 生テレメトリはクライアント内処理のみ（サーバー保存はベータ範囲外 —
 // 証憑として永続化するのはラップタイム+メタデータだけ）。
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import * as echarts from 'echarts';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LineChartOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Header } from '../common/Header';
-import { useTheme } from '../../contexts/ThemeContext';
-import { formatLapDelta, formatLapSeconds } from './evidence';
-import {
-  calcLapMaxSpeeds,
-  deriveSessionSeries,
-  firstGpsPoint,
-  projectLapPath,
-  projectLine,
-  sliceLapSeries,
-} from './lapMetrics';
+import { calcLapMaxSpeeds, firstGpsPoint } from './lapMetrics';
 import { LapList } from './LapList';
 import type { LapSlot } from './LapList';
 import { DropZone, ImportErrorPanel, ImportProgress, SessionSummaryPanel } from './ImportPanels';
 import { useTelemetryImport } from './useTelemetryImport';
-
-// ─── ECharts hook（Dashboard.tsx と同じ初期化パターン） ──────
-
-const useChart = (option: echarts.EChartsOption | null, darkMode: boolean) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<echarts.ECharts | null>(null);
-
-  useEffect(() => {
-    if (!ref.current || !option) return;
-    if (chartRef.current) {
-      chartRef.current.dispose();
-    }
-    const chart = echarts.init(ref.current, darkMode ? 'dark' : undefined);
-    chart.setOption(option);
-    chartRef.current = chart;
-
-    const handleResize = () => chart.resize();
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      chart.dispose();
-      chartRef.current = null;
-    };
-  }, [option, darkMode]);
-
-  return ref;
-};
-
-// ラップA/Bの系列色（A=基準: 青 / B=比較: アンバー。LapList のスロット色と一致）
-const SLOT_COLORS: Record<LapSlot, string> = { A: '#3b82f6', B: '#f59e0b' };
+import { ComparisonCockpit, type CockpitSlot } from './ComparisonCockpit';
+import { buildLapProfile, channelAvailability, deriveCompareSeries } from '../../lib/telemetry';
 
 export const TelemetryAnalysis: React.FC = () => {
-  const { darkMode } = useTheme();
   const [settingsModal, setSettingsModal] = useState(false);
   const [currentSettingView, setCurrentSettingView] = useState('account');
 
@@ -101,8 +64,8 @@ export const TelemetryAnalysis: React.FC = () => {
 
   // ─── 派生データ（セッション単位で1回だけ計算） ───────────
 
-  const derived = useMemo(
-    () => (result ? deriveSessionSeries(result.session.points) : null),
+  const compareSeries = useMemo(
+    () => (result ? deriveCompareSeries(result.session.points) : null),
     [result],
   );
 
@@ -111,177 +74,43 @@ export const TelemetryAnalysis: React.FC = () => {
     [result],
   );
 
-  const slots = useMemo(() => {
-    if (!result || !derived) return [];
-    return (['A', 'B'] as const).flatMap((slot) => {
+  const availability = useMemo(
+    () => (result ? channelAvailability(result.session.points) : null),
+    [result],
+  );
+
+  // 軌跡投影の基準点: コントロールライン中点（あれば）か最初のGPS点
+  const origin = useMemo(() => {
+    if (!result) return null;
+    if (result.line !== null) {
+      return {
+        lat: (result.line[0].lat + result.line[1].lat) / 2,
+        lon: (result.line[0].lon + result.line[1].lon) / 2,
+      };
+    }
+    return firstGpsPoint(result.session.points);
+  }, [result]);
+
+  // 選択中の2スロット（A=基準, B=比較）の距離プロファイル
+  const cockpitSlots = useMemo<[CockpitSlot, CockpitSlot] | null>(() => {
+    if (!result || !compareSeries) return null;
+    const built = (['A', 'B'] as const).flatMap((slot) => {
       const index = selection[slot];
       if (index === undefined) return [];
       const lap = result.detection.laps[index];
       if (!lap) return [];
-      return [{ slot, lap, series: sliceLapSeries(result.session.points, derived, lap) }];
+      const profile = buildLapProfile(
+        result.session.points,
+        compareSeries.distance,
+        compareSeries.longG,
+        compareSeries.latG,
+        lap,
+      );
+      return [{ slot, lap, profile } as CockpitSlot];
     });
-  }, [result, derived, selection]);
-
-  const lapDelta = useMemo(() => {
-    if (slots.length !== 2) return null;
-    return slots[1].lap.timeSeconds - slots[0].lap.timeSeconds;
-  }, [slots]);
-
-  // ─── チャートオプション ──────────────────────────────────
-
-  const axisCommon = useMemo(
-    () => ({
-      axisLabelColor: darkMode ? '#9ca3af' : '#6b7280',
-      splitLineColor: darkMode ? 'rgba(156,163,175,0.15)' : 'rgba(107,114,128,0.15)',
-    }),
-    [darkMode],
-  );
-
-  const buildXyChart = useMemo(() => {
-    return (
-      data: { name: string; color: string; points: [number, number][] }[],
-      yName: string,
-      yFormatter: (v: number) => string,
-    ): echarts.EChartsOption | null => {
-      if (data.length === 0) return null;
-      return {
-        backgroundColor: 'transparent',
-        animation: false,
-        tooltip: {
-          trigger: 'axis',
-          valueFormatter: (v) => (typeof v === 'number' ? yFormatter(v) : '-'),
-        },
-        legend: {
-          bottom: 0,
-          textStyle: { color: axisCommon.axisLabelColor, fontSize: 11 },
-        },
-        grid: { left: 52, right: 16, top: 16, bottom: 52 },
-        xAxis: {
-          type: 'value',
-          name: '距離 (m)',
-          nameLocation: 'middle',
-          nameGap: 26,
-          nameTextStyle: { color: axisCommon.axisLabelColor, fontSize: 11 },
-          axisLabel: { color: axisCommon.axisLabelColor, fontSize: 10 },
-          splitLine: { lineStyle: { color: axisCommon.splitLineColor } },
-          max: 'dataMax',
-        },
-        yAxis: {
-          type: 'value',
-          name: yName,
-          nameTextStyle: { color: axisCommon.axisLabelColor, fontSize: 11 },
-          axisLabel: { color: axisCommon.axisLabelColor, fontSize: 10 },
-          splitLine: { lineStyle: { color: axisCommon.splitLineColor } },
-        },
-        series: data.map((d) => ({
-          name: d.name,
-          type: 'line' as const,
-          data: d.points,
-          showSymbol: false,
-          lineStyle: { width: 1.6, color: d.color },
-          itemStyle: { color: d.color },
-        })),
-      };
-    };
-  }, [axisCommon]);
-
-  const slotSeriesName = (slot: LapSlot, lapNumber: number) => `${slot}: LAP ${lapNumber}`;
-
-  const speedOption = useMemo(
-    () =>
-      buildXyChart(
-        slots.map((s) => ({
-          name: slotSeriesName(s.slot, s.lap.lapNumber),
-          color: SLOT_COLORS[s.slot],
-          points: s.series.speed,
-        })),
-        '速度 (km/h)',
-        (v) => `${v.toFixed(1)} km/h`,
-      ),
-    [slots, buildXyChart],
-  );
-
-  const longGOption = useMemo(
-    () =>
-      buildXyChart(
-        slots.map((s) => ({
-          name: slotSeriesName(s.slot, s.lap.lapNumber),
-          color: SLOT_COLORS[s.slot],
-          points: s.series.longG,
-        })),
-        '前後G (G)',
-        (v) => `${v.toFixed(2)} G`,
-      ),
-    [slots, buildXyChart],
-  );
-
-  // 走行ライン（局所平面投影、縦横等スケール）
-  const pathOption = useMemo<echarts.EChartsOption | null>(() => {
-    if (!result || slots.length === 0) return null;
-    const origin =
-      result.line !== null
-        ? { lat: (result.line[0].lat + result.line[1].lat) / 2, lon: (result.line[0].lon + result.line[1].lon) / 2 }
-        : firstGpsPoint(result.session.points);
-    if (!origin) return null;
-
-    const paths = slots.map((s) => ({
-      slot: s.slot,
-      lapNumber: s.lap.lapNumber,
-      points: projectLapPath(result.session.points, s.lap, origin),
-    }));
-    const allPoints = paths.flatMap((p) => p.points);
-    if (allPoints.length === 0) return null;
-
-    // 縦横等スケール: 正方形コンテナ + 同一スパンの min/max
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const [x, y] of allPoints) {
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    const half = (Math.max(maxX - minX, maxY - minY) / 2) * 1.08 || 1;
-
-    const series: echarts.SeriesOption[] = paths.map((p) => ({
-      name: slotSeriesName(p.slot, p.lapNumber),
-      type: 'line' as const,
-      data: p.points,
-      showSymbol: false,
-      lineStyle: { width: 1.4, color: SLOT_COLORS[p.slot], opacity: 0.9 },
-      itemStyle: { color: SLOT_COLORS[p.slot] },
-    }));
-
-    if (result.line) {
-      series.push({
-        name: result.lineSource === 'estimated' ? '基準線（自動推定）' : 'コントロールライン',
-        type: 'line' as const,
-        data: projectLine(result.line, origin),
-        showSymbol: false,
-        lineStyle: { width: 3, color: '#ef4444' },
-        itemStyle: { color: '#ef4444' },
-      });
-    }
-
-    return {
-      backgroundColor: 'transparent',
-      animation: false,
-      tooltip: { show: false },
-      legend: {
-        bottom: 0,
-        textStyle: { color: axisCommon.axisLabelColor, fontSize: 11 },
-      },
-      grid: { left: 8, right: 8, top: 8, bottom: 32 },
-      xAxis: { type: 'value', show: false, min: cx - half, max: cx + half },
-      yAxis: { type: 'value', show: false, min: cy - half, max: cy + half },
-      series,
-    };
-  }, [result, slots, axisCommon]);
-
-  const speedRef = useChart(speedOption, darkMode);
-  const longGRef = useChart(longGOption, darkMode);
-  const pathRef = useChart(pathOption, darkMode);
+    if (built.length !== 2) return null;
+    return [built[0], built[1]];
+  }, [result, compareSeries, selection]);
 
   // ─── Render ──────────────────────────────────────────────
 
@@ -355,7 +184,7 @@ export const TelemetryAnalysis: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-4">
                 {/* ラップ選択 */}
                 <div className={`${cardClass} p-4 self-start`}>
                   <div className="flex items-center justify-between mb-3">
@@ -371,70 +200,28 @@ export const TelemetryAnalysis: React.FC = () => {
                   />
                 </div>
 
-                {/* 比較ビュー */}
-                <div className="space-y-4 min-w-0">
-                  {/* ラップタイム差 */}
-                  {slots.length > 0 && (
-                    <div className={`${cardClass} p-4`}>
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                        {slots.map((s) => (
-                          <div key={s.slot} className="flex items-center gap-2">
-                            <span
-                              className="w-6 h-6 rounded-full text-[11px] font-bold text-white flex items-center justify-center"
-                              style={{ backgroundColor: SLOT_COLORS[s.slot] }}
-                            >
-                              {s.slot}
-                            </span>
-                            <span className="text-xs text-gray-400">LAP {s.lap.lapNumber}</span>
-                            <span className="font-mono tabular-nums text-lg font-semibold text-gray-800 dark:text-gray-100">
-                              {formatLapSeconds(s.lap.timeSeconds)}
-                            </span>
-                          </div>
-                        ))}
-                        {lapDelta !== null && (
-                          <div className="flex items-center gap-2 sm:ml-auto">
-                            <span className="text-xs text-gray-400">Δ B−A</span>
-                            <span
-                              className={`font-mono tabular-nums text-lg font-bold ${
-                                lapDelta <= 0
-                                  ? 'text-emerald-500'
-                                  : 'text-red-500'
-                              }`}
-                            >
-                              {formatLapDelta(lapDelta)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 速度 vs 距離 */}
-                  {speedOption && (
-                    <div className={`${cardClass} p-4`}>
-                      <span className={headingClass}>速度 vs 距離</span>
-                      <div ref={speedRef} className="w-full h-64 sm:h-72 mt-2" />
-                    </div>
-                  )}
-
-                  {/* 前後G vs 距離 */}
-                  {longGOption && (
-                    <div className={`${cardClass} p-4`}>
-                      <span className={headingClass}>前後G vs 距離</span>
-                      <div ref={longGRef} className="w-full h-48 sm:h-56 mt-2" />
-                    </div>
-                  )}
-
-                  {/* 走行ライン */}
-                  {pathOption && (
-                    <div className={`${cardClass} p-4`}>
-                      <span className={headingClass}>走行ライン</span>
-                      <div className="w-full max-w-md mx-auto aspect-square mt-2">
-                        <div ref={pathRef} className="w-full h-full" />
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {/* 比較コックピット */}
+                {cockpitSlots && availability && origin ? (
+                  <ComparisonCockpit
+                    points={result.session.points}
+                    sessionDistance={compareSeries!.distance}
+                    slots={cockpitSlots}
+                    availability={availability}
+                    line={result.line}
+                    lineSource={result.lineSource}
+                    origin={origin}
+                    trackName={result.track?.name ?? null}
+                  />
+                ) : (
+                  <div className={`${cardClass} px-4 py-10 text-center self-start`}>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      比較する2本のラップを選択してください
+                    </p>
+                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                      左の一覧から A（基準）と B（比較）をタップで選びます
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
