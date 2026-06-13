@@ -1174,11 +1174,20 @@ onOpenChange={(open) => {
 </div>
 {/* ロガー証憑バッジ（manual 時は表示なし） */}
 {lapSource === 'logger' && lapEvidence && (
-  <div className="mb-4">
+  <div className="mb-4 space-y-2">
     <EvidenceBadge
       evidence={lapEvidence}
       onDetach={!isViewMode ? handleDetachEvidence : undefined}
     />
+    {setupId && (
+      <Link
+        to={`/telemetry?setup=${setupId}`}
+        className="inline-flex items-center gap-1.5 text-sm text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 whitespace-nowrap"
+      >
+        <i className="fas fa-chart-line"></i>
+        このセッションのテレメトリを分析
+      </Link>
+    )}
   </div>
 )}
 <div className="mb-4">

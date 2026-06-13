@@ -8,7 +8,8 @@
 // 証憑として永続化するのはラップタイム+メタデータだけ）。
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { LineChartOutlined, ReloadOutlined } from '@ant-design/icons';
+import { useSearchParams, Link } from 'react-router-dom';
+import { LineChartOutlined, ReloadOutlined, CarOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { Header } from '../common/Header';
 import { calcLapMaxSpeeds, firstGpsPoint } from './lapMetrics';
 import { LapList } from './LapList';
@@ -17,6 +18,9 @@ import { DropZone, ImportErrorPanel, ImportProgress, SessionSummaryPanel } from 
 import { useTelemetryImport } from './useTelemetryImport';
 import { ComparisonCockpit, type CockpitSlot } from './ComparisonCockpit';
 import { buildLapProfile, channelAvailability, deriveCompareSeries } from '../../lib/telemetry';
+import { getSetup } from '../../services/setupService';
+import type { CarSetup } from '../../types/setup';
+import logger from '../../utils/logger';
 
 export const TelemetryAnalysis: React.FC = () => {
   const [settingsModal, setSettingsModal] = useState(false);
@@ -25,6 +29,23 @@ export const TelemetryAnalysis: React.FC = () => {
   const { phase, result, error, busy, importFile, reset } = useTelemetryImport();
   const [pendingFileName, setPendingFileName] = useState<string | undefined>(undefined);
   const [selection, setSelection] = useState<Partial<Record<LapSlot, number>>>({});
+
+  // セットアップ記録から ?setup=<id> 付きで来た場合、そのセットを文脈として表示する
+  // （生テレメトリは未永続化のため、同じロガーファイルを再取込してもらう導線）
+  const [searchParams] = useSearchParams();
+  const contextSetupId = searchParams.get('setup');
+  const [contextSetup, setContextSetup] = useState<CarSetup | null>(null);
+  useEffect(() => {
+    if (!contextSetupId) {
+      setContextSetup(null);
+      return;
+    }
+    let active = true;
+    getSetup(contextSetupId)
+      .then((s) => { if (active) setContextSetup(s); })
+      .catch((e) => logger.error('文脈セットの取得に失敗:', e));
+    return () => { active = false; };
+  }, [contextSetupId]);
 
   // 取込結果が変わったら選択を初期化: A=ベスト、B=2番手の計測周
   useEffect(() => {
@@ -139,6 +160,33 @@ export const TelemetryAnalysis: React.FC = () => {
             ロガーファイルからラップを検出し、2本を重ねて比較します（処理はすべて端末内）
           </p>
         </div>
+
+        {/* セット文脈ストリップ: 記録から来た場合に「どのセッションか」を併記（§4.6 セット文脈） */}
+        {contextSetup && (
+          <div className="mb-5 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
+              <span className="font-medium text-blue-700 dark:text-blue-300">このセッションのセットアップ</span>
+              <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
+                <CarOutlined className="text-gray-400" />{contextSetup.carModel || '車種未設定'}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
+                <EnvironmentOutlined className="text-gray-400" />{contextSetup.circuit || 'サーキット未設定'}
+              </span>
+              <span className="text-gray-500 dark:text-gray-400">
+                {contextSetup.date instanceof Date ? contextSetup.date.toLocaleDateString('ja-JP') : ''}
+              </span>
+              <Link to={`/setup/${contextSetup.id}`} className="ml-auto text-blue-500 dark:text-blue-400 hover:underline whitespace-nowrap">
+                記録を開く
+              </Link>
+            </div>
+            {contextSetup.lapTimeData?.evidence?.fileName && phase !== 'done' && (
+              <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                前回取り込んだロガー: <span className="font-mono">{contextSetup.lapTimeData.evidence.fileName}</span>
+                {' '}— 同じファイルを下で読み込むと、このセットの走りを分析できます（生データは端末内処理のため再選択が必要です）
+              </p>
+            )}
+          </div>
+        )}
 
         {(phase === 'idle' || busy) && (
           <div className="max-w-2xl mx-auto space-y-4">
