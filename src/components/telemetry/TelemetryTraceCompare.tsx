@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Empty, Spin, message } from 'antd';
+import { Empty, Select, Spin, Tag, message } from 'antd';
 import { ArrowLeftOutlined, LoadingOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Header } from '../common/Header';
 import { PersistedTraceComparison } from './PersistedTraceComparison';
 import type { TelemetryTrace } from '../../types/telemetryTrace';
-import { findBestComparableTrace, getTelemetryTrace } from '../../services/telemetryTraceService';
+import {
+  getComparableTraceCandidates,
+  getTelemetryTrace,
+  type ComparableTraceCandidate,
+} from '../../services/telemetryTraceService';
 import logger from '../../utils/logger';
 import { DropZone, ImportErrorPanel, ImportProgress, SessionSummaryPanel } from './ImportPanels';
 import { LapList } from './LapList';
@@ -31,6 +35,9 @@ export const TelemetryTraceCompare: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [candidateNotice, setCandidateNotice] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<ComparableTraceCandidate[]>([]);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(bTraceId);
+  const [candidateLabel, setCandidateLabel] = useState<string | null>(null);
   const uploadB = useTelemetryImport();
   const [pendingUploadName, setPendingUploadName] = useState<string | undefined>(undefined);
   const [uploadLapIndex, setUploadLapIndex] = useState<number | null>(null);
@@ -45,13 +52,17 @@ export const TelemetryTraceCompare: React.FC = () => {
       setLoading(true);
       setLoadError(null);
       setCandidateNotice(null);
+      setCandidates([]);
+      setCandidateLabel(null);
       try {
         const a = await getTelemetryTrace(aTraceId);
         if (!a) {
           setLoadError('比較元のテレメトリトレースが見つかりません');
           return;
         }
-        const b = bTraceId ? await getTelemetryTrace(bTraceId) : await findBestComparableTrace(a);
+        const nextCandidates = await getComparableTraceCandidates(a);
+        setCandidates(nextCandidates);
+        const b = bTraceId ? await getTelemetryTrace(bTraceId) : nextCandidates[0]?.trace ?? null;
         if (!b) {
           setTraceA(a);
           setTraceB(null);
@@ -64,6 +75,8 @@ export const TelemetryTraceCompare: React.FC = () => {
         }
         setTraceA(a);
         setTraceB(b);
+        setSelectedCandidateId(b.id ?? null);
+        setCandidateLabel(nextCandidates.find((candidate) => candidate.trace.id === b.id)?.label ?? (bTraceId ? '指定ラップ' : null));
       } catch (error) {
         logger.error('保存済みテレメトリ比較の読み込みに失敗しました:', error);
         setLoadError('保存済みテレメトリ比較の読み込みに失敗しました');
@@ -74,6 +87,28 @@ export const TelemetryTraceCompare: React.FC = () => {
     };
     load();
   }, [aTraceId, bTraceId]);
+
+  const handleCandidateChange = async (traceId: string) => {
+    setSelectedCandidateId(traceId);
+    const candidate = candidates.find((item) => item.trace.id === traceId);
+    if (candidate) {
+      setTraceB(candidate.trace);
+      setCandidateLabel(candidate.label);
+      return;
+    }
+    try {
+      const nextTrace = await getTelemetryTrace(traceId);
+      if (!nextTrace) {
+        message.error('比較対象のトレースが見つかりません');
+        return;
+      }
+      setTraceB(nextTrace);
+      setCandidateLabel('指定ラップ');
+    } catch (error) {
+      logger.error('比較対象の切り替えに失敗しました:', error);
+      message.error('比較対象の切り替えに失敗しました');
+    }
+  };
 
   useEffect(() => {
     setUploadLapIndex(defaultComparableLapIndex(uploadB.result));
@@ -112,11 +147,18 @@ export const TelemetryTraceCompare: React.FC = () => {
           戻る
         </button>
 
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">保存済みテレメトリ比較</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            取り込んで保存した比較用トレースを、過去の自分のベストや指定ラップと重ねます。
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">保存済みテレメトリ比較</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              取り込んで保存した比較用トレースを、過去の自分のベストや指定ラップと重ねます。
+            </p>
+          </div>
+          {candidateLabel && !uploadedTraceB && (
+            <Tag color="blue" className="w-fit">
+              比較対象: {candidateLabel}
+            </Tag>
+          )}
         </div>
 
         {loading ? (
@@ -135,6 +177,32 @@ export const TelemetryTraceCompare: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
+            {candidates.length > 0 && (
+              <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                      保存済みB候補
+                    </h3>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      自己ベスト、前回、条件が近いログを自動候補にします。下でファイルをアップロードした場合はアップロードBを優先します。
+                    </p>
+                  </div>
+                  <Select
+                    value={selectedCandidateId ?? undefined}
+                    onChange={handleCandidateChange}
+                    className="w-full sm:w-96 sm:ml-auto"
+                    options={candidates
+                      .filter((candidate) => candidate.trace.id)
+                      .map((candidate) => ({
+                        value: candidate.trace.id as string,
+                        label: `${candidate.label} - ${candidate.description}`,
+                      }))}
+                  />
+                </div>
+              </section>
+            )}
+
             <UploadComparisonTarget
               controller={uploadB}
               pendingFileName={pendingUploadName}

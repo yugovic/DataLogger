@@ -14,6 +14,8 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { TelemetryAnalysis } from './components/telemetry/TelemetryAnalysis';
 import { TelemetryFileCompare } from './components/telemetry/TelemetryFileCompare';
 import { TelemetryTraceCompare } from './components/telemetry/TelemetryTraceCompare';
+import { TelemetryDebrief } from './components/telemetry/TelemetryDebrief';
+import { TelemetryTraceList } from './components/telemetry/TelemetryTraceList';
 import { SetupCompare } from './components/compare/SetupCompare';
 import { SharedBrowse } from './components/share/SharedBrowse';
 import { SharedSetupDetail } from './components/share/SharedSetupDetail';
@@ -115,6 +117,22 @@ const App: React.FC = () => {
               element={
                 <PrivateRoute>
                   <TelemetryTraceCompare />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/telemetry/debrief"
+              element={
+                <PrivateRoute>
+                  <TelemetryDebrief />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/telemetry/traces"
+              element={
+                <PrivateRoute>
+                  <TelemetryTraceList />
                 </PrivateRoute>
               }
             />

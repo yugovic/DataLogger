@@ -1245,13 +1245,22 @@ onOpenChange={(open) => {
       </Link>
     )}
     {telemetryRefs.primaryTraceId && (
-      <Link
-        to={`/telemetry/compare?aTrace=${telemetryRefs.primaryTraceId}`}
-        className="ml-4 inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 whitespace-nowrap"
-      >
-        <i className="fas fa-chart-area"></i>
-        自己ベストと比較
-      </Link>
+      <>
+        <Link
+          to={`/telemetry/debrief?trace=${telemetryRefs.primaryTraceId}`}
+          className="ml-4 inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 whitespace-nowrap"
+        >
+          <i className="fas fa-clipboard-check"></i>
+          デブリーフを見る
+        </Link>
+        <Link
+          to={`/telemetry/compare?aTrace=${telemetryRefs.primaryTraceId}`}
+          className="ml-4 inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 whitespace-nowrap"
+        >
+          <i className="fas fa-chart-area"></i>
+          自己ベストと比較
+        </Link>
+      </>
     )}
   </div>
 )}

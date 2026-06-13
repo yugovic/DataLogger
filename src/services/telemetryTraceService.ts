@@ -106,6 +106,17 @@ export interface UserTelemetryTraceFilter {
   excludeTraceId?: string | null;
 }
 
+export type ComparableTraceKind = 'self_best' | 'previous' | 'condition_match';
+
+export interface ComparableTraceCandidate {
+  trace: TelemetryTrace;
+  kind: ComparableTraceKind;
+  label: string;
+  description: string;
+  score: number;
+  deltaSeconds: number;
+}
+
 export async function getUserTelemetryTraces(
   ownerId: string,
   filter: UserTelemetryTraceFilter = {},
@@ -141,6 +152,111 @@ export async function findBestComparableTrace(current: TelemetryTrace): Promise<
   return valid.reduce((best, next) => (
     next.lap.timeSeconds < best.lap.timeSeconds ? next : best
   ));
+}
+
+function sameComparableBucket(a: TelemetryTrace, b: TelemetryTrace): boolean {
+  if (a.carModel !== b.carModel) return false;
+  if (a.trackId && b.trackId) return a.trackId === b.trackId;
+  return a.circuit === b.circuit;
+}
+
+function conditionScore(current: TelemetryTrace, candidate: TelemetryTrace): number {
+  let score = 0;
+  const airA = current.conditions.weather.airTemp;
+  const airB = candidate.conditions.weather.airTemp;
+  if (airA != null && airB != null) score += Math.abs(airA - airB);
+  else score += 8;
+
+  const trackA = current.conditions.weather.trackTemp;
+  const trackB = candidate.conditions.weather.trackTemp;
+  if (trackA != null && trackB != null) score += Math.abs(trackA - trackB) * 0.7;
+  else score += 8;
+
+  const fuelA = current.conditions.fuel;
+  const fuelB = candidate.conditions.fuel;
+  if (fuelA != null && fuelB != null) score += Math.abs(fuelA - fuelB) * 0.15;
+  else score += 3;
+
+  if (current.conditions.tireInfo.brand !== candidate.conditions.tireInfo.brand) score += 8;
+  if (current.conditions.tireInfo.compound !== candidate.conditions.tireInfo.compound) score += 6;
+  return score;
+}
+
+function formatDeltaSeconds(seconds: number): string {
+  return `${seconds >= 0 ? '+' : '-'}${Math.abs(seconds).toFixed(3)}s`;
+}
+
+function buildCandidate(
+  current: TelemetryTrace,
+  trace: TelemetryTrace,
+  kind: ComparableTraceKind,
+  score: number,
+): ComparableTraceCandidate {
+  const deltaSeconds = current.lap.timeSeconds - trace.lap.timeSeconds;
+  const label = kind === 'self_best'
+    ? '自己ベスト'
+    : kind === 'previous'
+      ? '前回セッション'
+      : '条件が近いログ';
+  const description = kind === 'condition_match'
+    ? `${trace.sessionDate.toLocaleDateString('ja-JP')} / 条件差スコア ${score.toFixed(1)} / 今回比 ${formatDeltaSeconds(deltaSeconds)}`
+    : `${trace.sessionDate.toLocaleDateString('ja-JP')} / 今回比 ${formatDeltaSeconds(deltaSeconds)}`;
+
+  return { trace, kind, label, description, score, deltaSeconds };
+}
+
+/**
+ * 現在のトレースに対する比較候補を、ユーザーが迷わない順で返す。
+ *
+ * 優先順:
+ * 1. 同じ車種×コースの自己ベスト
+ * 2. 同じ車種×コースの直近の過去セッション
+ * 3. タイヤ・気温・路温・燃料が近いログ
+ */
+export async function getComparableTraceCandidates(current: TelemetryTrace): Promise<ComparableTraceCandidate[]> {
+  const candidates = await getUserTelemetryTraces(current.ownerId, {
+    carModel: current.carModel,
+    trackId: current.trackId,
+    circuit: current.trackId ? null : current.circuit,
+    excludeTraceId: current.id,
+  });
+  const valid = candidates.filter((t) => (
+    t.id &&
+    t.lap.valid &&
+    t.lap.type === 'NORMAL' &&
+    sameComparableBucket(current, t)
+  ));
+  if (valid.length === 0) return [];
+
+  const byId = new Map<string, ComparableTraceCandidate>();
+  const add = (candidate: ComparableTraceCandidate) => {
+    const id = candidate.trace.id;
+    if (!id || byId.has(id)) return;
+    byId.set(id, candidate);
+  };
+
+  const selfBest = valid.reduce((best, next) => (
+    next.lap.timeSeconds < best.lap.timeSeconds ? next : best
+  ));
+  add(buildCandidate(current, selfBest, 'self_best', 0));
+
+  const previous = valid
+    .filter((t) => t.sessionDate.getTime() < current.sessionDate.getTime())
+    .sort((a, b) => b.sessionDate.getTime() - a.sessionDate.getTime())[0];
+  if (previous) add(buildCandidate(current, previous, 'previous', 1));
+
+  const conditionMatch = [...valid]
+    .sort((a, b) => conditionScore(current, a) - conditionScore(current, b))[0];
+  if (conditionMatch) {
+    add(buildCandidate(current, conditionMatch, 'condition_match', conditionScore(current, conditionMatch)));
+  }
+
+  return Array.from(byId.values());
+}
+
+export async function selectDefaultComparableTrace(current: TelemetryTrace): Promise<ComparableTraceCandidate | null> {
+  const candidates = await getComparableTraceCandidates(current);
+  return candidates[0] ?? null;
 }
 
 export async function updateTelemetryTrace(

@@ -9,7 +9,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { LineChartOutlined, ReloadOutlined, CarOutlined, EnvironmentOutlined, SwapOutlined } from '@ant-design/icons';
+import { AreaChartOutlined, LineChartOutlined, ReloadOutlined, CarOutlined, EnvironmentOutlined, SwapOutlined } from '@ant-design/icons';
 import { Header } from '../common/Header';
 import { calcLapMaxSpeeds, firstGpsPoint } from './lapMetrics';
 import { LapList } from './LapList';
@@ -161,13 +161,22 @@ export const TelemetryAnalysis: React.FC = () => {
               ロガーファイルからラップを検出し、同一ファイル内の2本を重ねて比較します（処理はすべて端末内）
             </p>
           </div>
-          <Link
-            to="/telemetry/files"
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            <SwapOutlined />
-            前回/今回ファイルを比較
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/telemetry/traces"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              <AreaChartOutlined />
+              保存済みトレース
+            </Link>
+            <Link
+              to="/telemetry/files"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              <SwapOutlined />
+              前回/今回ファイルを比較
+            </Link>
+          </div>
         </div>
 
         {/* セット文脈ストリップ: 記録から来た場合に「どのセッションか」を併記（§4.6 セット文脈） */}

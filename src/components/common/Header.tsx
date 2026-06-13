@@ -143,6 +143,10 @@ export const Header: React.FC<HeaderProps> = ({
     return location.pathname === path;
   };
 
+  const isActiveSection = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -196,7 +200,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           aria-label="テレメトリ分析"
           onClick={() => navigate('/telemetry')}
-          className={`flex items-center px-3 py-2 ${isActive('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`flex items-center px-3 py-2 ${isActiveSection('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
         >
           <DatabaseOutlined className="mr-2" />
           テレメトリ
@@ -520,7 +524,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <button
               onClick={() => { navigate('/telemetry'); setMobileMenuOpen(false); }}
-              className={`flex items-center px-4 py-3 ${isActive('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+              className={`flex items-center px-4 py-3 ${isActiveSection('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
             >
               <DatabaseOutlined className="mr-3" />
               テレメトリ
