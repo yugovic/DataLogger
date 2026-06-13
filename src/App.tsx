@@ -12,6 +12,7 @@ import { Dashboard } from './components/Dashboard';
 import { VehicleList } from './components/vehicle/VehicleList';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import TelemetryComparison from './components/demo/TelemetryComparison';
+import { SetupCompare } from './components/compare/SetupCompare';
 
 const App: React.FC = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
@@ -78,6 +79,14 @@ const App: React.FC = () => {
               element={
                 <PrivateRoute>
                   <CarSetup />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/compare"
+              element={
+                <PrivateRoute>
+                  <SetupCompare />
                 </PrivateRoute>
               }
             />

@@ -1,6 +1,7 @@
 // 基本情報タブコンポーネント
 import React, { useState } from 'react';
-import { AutoComplete, Segmented } from 'antd';
+import { AutoComplete, Segmented, Modal, message, Dropdown } from 'antd';
+import { DownOutlined } from '@ant-design/icons';
 import { StepNumber } from '../../common/StepNumber';
 // 余計なボタンは削除し、シンプルなUIに戻す
 
@@ -44,6 +45,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   setDamperSettings
 }) => {
   const [tpMode, setTpMode] = useState<'before'|'after'|'compare'>('before');
+  const [modal, modalContextHolder] = Modal.useModal();
+  const [messageApi, messageContextHolder] = message.useMessage();
   const calculatePressureDiff = (before: string, after: string): string => {
     const b = parseInt(before, 10);
     const a = parseInt(after, 10);
@@ -59,8 +62,79 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     { key: 'rr', label: 'RR' },
   ];
 
+  // ─── 走行前→走行後 コピーの安全化（確認 + Undo + 空欄のみ） ───
+
+  /** before を after に流し込んだ次状態を計算する。onlyEmpty=true なら after が空のホイールのみ更新 */
+  const buildCopied = (prev: TirePressures, onlyEmpty: boolean): TirePressures => {
+    const next = { ...prev };
+    (['fl', 'fr', 'rl', 'rr'] as const).forEach((key) => {
+      const cur = prev[key];
+      if (cur.before === '') return; // コピー元が空ならスキップ
+      if (onlyEmpty && cur.after !== '') return; // 空欄のみモードで既存値は保持
+      next[key] = { ...cur, after: cur.before, diff: calculatePressureDiff(cur.before, cur.before) };
+    });
+    return next;
+  };
+
+  /** 実際にコピーを適用し、Undo トーストを表示する */
+  const applyCopy = (onlyEmpty: boolean) => {
+    let snapshot: TirePressures | null = null;
+    setTirePressures((prev) => {
+      snapshot = prev; // 直前値を退避（Undo 用）
+      return buildCopied(prev, onlyEmpty);
+    });
+    setTpMode('compare');
+    messageApi.open({
+      type: 'success',
+      duration: 5,
+      content: (
+        <span>
+          走行前→走行後にコピーしました{onlyEmpty ? '（空欄のみ）' : ''}
+          <button
+            type="button"
+            className="ml-3 text-blue-600 dark:text-blue-400 underline"
+            onClick={() => {
+              if (snapshot) setTirePressures(snapshot);
+              messageApi.destroy();
+              messageApi.info('コピーを元に戻しました', 2);
+            }}
+          >
+            元に戻す
+          </button>
+        </span>
+      ),
+    });
+  };
+
+  /** コピー操作のエントリ。上書き対象に既存値があるときのみ確認モーダル */
+  const handleCopyBeforeToAfter = () => {
+    const hasSource = (['fl', 'fr', 'rl', 'rr'] as const).some((k) => tirePressures[k].before !== '');
+    if (!hasSource) {
+      messageApi.warning('コピー元の走行前の値がありません');
+      return;
+    }
+    // 上書きで失われる既存 after があるか
+    const willOverwrite = (['fl', 'fr', 'rl', 'rr'] as const).some(
+      (k) => tirePressures[k].before !== '' && tirePressures[k].after !== '',
+    );
+    if (willOverwrite) {
+      modal.confirm({
+        title: '走行後の値を上書きします',
+        content: 'すでに入力済みの走行後の空気圧があります。走行前の値で上書きしますか？（実行後に元に戻せます）',
+        okText: 'すべて上書き',
+        cancelText: 'キャンセル',
+        onOk: () => applyCopy(false),
+      });
+    } else {
+      // 既存値がなければ確認不要でそのままコピー
+      applyCopy(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-6 sm:space-y-8">
+      {modalContextHolder}
+      {messageContextHolder}
       {/* タイヤ空気圧とダンパー設定を横並び */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* タイヤ空気圧設定 */}
@@ -89,22 +163,23 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               value={tpMode}
               onChange={(v) => setTpMode(v as any)}
             />
-            <button
-              type="button"
-              onClick={() => {
-                setTirePressures(prev => ({
-                  ...prev,
-                  fl: { ...prev.fl, after: prev.fl.before, diff: calculatePressureDiff(prev.fl.before, prev.fl.before) },
-                  fr: { ...prev.fr, after: prev.fr.before, diff: calculatePressureDiff(prev.fr.before, prev.fr.before) },
-                  rl: { ...prev.rl, after: prev.rl.before, diff: calculatePressureDiff(prev.rl.before, prev.rl.before) },
-                  rr: { ...prev.rr, after: prev.rr.before, diff: calculatePressureDiff(prev.rr.before, prev.rr.before) },
-                }));
-                setTpMode('compare');
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: [
+                  { key: 'all', label: '走行前→走行後にコピー（上書き）' },
+                  { key: 'empty', label: '空欄のみコピー（既存値は保持）' },
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'all') handleCopyBeforeToAfter();
+                  else applyCopy(true);
+                },
               }}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
             >
-              走行前→走行後にコピー
-            </button>
+              <button type="button" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                走行前→走行後にコピー <DownOutlined className="text-[10px]" />
+              </button>
+            </Dropdown>
           </div>
 
           <div className="space-y-3">

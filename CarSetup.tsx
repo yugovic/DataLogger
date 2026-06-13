@@ -5,7 +5,7 @@ import { AutoComplete, Input, Tabs, message } from 'antd';
 import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
-import { saveSetup, getUserSetups, getSetup, updateSetup } from './src/services/setupService';
+import { saveSetup, getUserSetups, getSetup, updateSetup, getSetupsByCarModel } from './src/services/setupService';
 import { CarSetup as CarSetupType, KnowledgeNote, LapTime, WeatherType } from './src/types/setup';
 import { toNumberOrNull, toIntOrNull, calcPressureDiff } from './src/lib/units';
 import { checkFirestoreConnection } from './src/utils/initFirestore';
@@ -47,6 +47,7 @@ useEffect(() => {
 }, [currentUser]);
 const [isSaving, setIsSaving] = useState(false);
 const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
+const [isInheriting, setIsInheriting] = useState(false);
 const [settingsModal, setSettingsModal] = useState(false);
 const [currentSettingView, setCurrentSettingView] = useState('account');
 const [dropdownState, setDropdownState] = useState<DropdownState>({
@@ -410,6 +411,78 @@ const handleLoadPrevious = async () => {
     message.error(errorMessage);
   } finally {
     setIsLoadingPrevious(false);
+  }
+};
+
+// 同一車種の最新セットアップから「セッション非依存の設定」だけを引き継ぐ。
+// 引き継ぐ: タイヤ銘柄/コンパウンド・サスペンション・アライメント・ダンパー
+// 引き継がない: 空気圧の実測値・天候・ラップタイム・走行距離/燃料（=セッション固有値）
+const handleInheritFromPrevious = async () => {
+  if (!currentUser) {
+    message.error('ログインが必要です');
+    return;
+  }
+  if (!carModel.trim()) {
+    message.warning('先に車種を選択すると、その車種の前回セットアップを引き継げます');
+    return;
+  }
+
+  setIsInheriting(true);
+  try {
+    const sameModel = await getSetupsByCarModel(currentUser.uid, carModel);
+    if (sameModel.length === 0) {
+      message.warning(`「${carModel}」の過去のセットアップが見つかりません`);
+      return;
+    }
+    const src = sameModel[0]; // date desc 取得済みなので先頭が最新
+
+    // タイヤ銘柄・コンパウンド（セッション非依存）
+    setTireBrand(src.tireInfo.brand);
+    setTireCompound(src.tireInfo.compound);
+
+    // サスペンション設定（セッション非依存）
+    if (src.suspensionSettings) {
+      setFrontDamperCompression(src.suspensionSettings.frontDamper.compression ?? null);
+      setFrontDamperRebound(src.suspensionSettings.frontDamper.rebound ?? null);
+      setRearDamperCompression(src.suspensionSettings.rearDamper.compression ?? null);
+      setRearDamperRebound(src.suspensionSettings.rearDamper.rebound ?? null);
+      setFrontSpringRate(src.suspensionSettings.springRate.front != null ? src.suspensionSettings.springRate.front.toString() : '');
+      setRearSpringRate(src.suspensionSettings.springRate.rear != null ? src.suspensionSettings.springRate.rear.toString() : '');
+      setFrontRideHeight(src.suspensionSettings.rideHeight.front != null ? src.suspensionSettings.rideHeight.front.toString() : '');
+      setRearRideHeight(src.suspensionSettings.rideHeight.rear != null ? src.suspensionSettings.rideHeight.rear.toString() : '');
+      setFrontStabilizer(src.suspensionSettings.antiRollBar.front != null ? src.suspensionSettings.antiRollBar.front.toString() : '');
+      setRearStabilizer(src.suspensionSettings.antiRollBar.rear != null ? src.suspensionSettings.antiRollBar.rear.toString() : '');
+      setDamperSettings({
+        fl: { bump: src.suspensionSettings.frontDamper.compression ?? null, rebound: src.suspensionSettings.frontDamper.rebound ?? null },
+        fr: { bump: src.suspensionSettings.frontDamper.compression ?? null, rebound: src.suspensionSettings.frontDamper.rebound ?? null },
+        rl: { bump: src.suspensionSettings.rearDamper.compression ?? null, rebound: src.suspensionSettings.rearDamper.rebound ?? null },
+        rr: { bump: src.suspensionSettings.rearDamper.compression ?? null, rebound: src.suspensionSettings.rearDamper.rebound ?? null }
+      });
+    }
+
+    // アライメント設定（セッション非依存）
+    if (src.alignmentSettings) {
+      setFrontCamber(src.alignmentSettings.camber.front != null ? src.alignmentSettings.camber.front.toString() : '');
+      setRearCamber(src.alignmentSettings.camber.rear != null ? src.alignmentSettings.camber.rear.toString() : '');
+      setFrontToe(src.alignmentSettings.toe.front != null ? src.alignmentSettings.toe.front.toString() : '');
+      setRearToe(src.alignmentSettings.toe.rear != null ? src.alignmentSettings.toe.rear.toString() : '');
+      setCaster(src.alignmentSettings.caster != null ? src.alignmentSettings.caster.toString() : '');
+    }
+
+    // ドライバー名（車両に紐づく運転者として引き継ぐ）
+    if (src.driver) setDriver(src.driver);
+
+    const srcDate = src.date instanceof Date ? src.date : new Date(src.date);
+    message.success(`${srcDate.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })}のセットアップから引き継ぎました`);
+  } catch (error: unknown) {
+    logger.error('Inherit setup error:', error);
+    const err = error as { code?: string; message?: string } | undefined;
+    const errorMessage = err?.code === 'permission-denied'
+      ? 'アクセス権限がありません。再度ログインしてください'
+      : `引き継ぎに失敗しました: ${err?.message || 'エラーが発生しました'}`;
+    message.error(errorMessage);
+  } finally {
+    setIsInheriting(false);
   }
 };
 
@@ -797,12 +870,27 @@ suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500">
     </button>
   </div>
 ) : (
-  <button className="flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm self-start sm:self-auto">
-    <i className="fas fa-bolt mr-2"></i>
-    クイック入力
+  <button
+    onClick={handleInheritFromPrevious}
+    disabled={isInheriting}
+    title="同一車種の前回セットアップから、タイヤ銘柄・サスペンション・アライメントを引き継ぎます（空気圧の実測値・天候・ラップタイムは引き継ぎません）"
+    className={`flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm self-start sm:self-auto ${isInheriting ? 'opacity-50 cursor-not-allowed' : ''}`}
+  >
+    {isInheriting ? (
+      <i className="fas fa-spinner fa-spin mr-2"></i>
+    ) : (
+      <i className="fas fa-bolt mr-2"></i>
+    )}
+    <span className="hidden sm:inline">前回のセットアップから引き継ぐ</span>
+    <span className="sm:hidden">引き継ぐ</span>
   </button>
 )}
 </div>
+{!isViewMode && (
+  <div className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+    「前回のセットアップから引き継ぐ」では、タイヤ銘柄・サスペンション・アライメントを引き継ぎます（空気圧の実測値・天候・ラップタイムは引き継ぎません）
+  </div>
+)}
 </div>
 {/* データ表示セクション */}
 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -812,7 +900,7 @@ suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500">
 <i className="fas fa-temperature-high text-blue-500 dark:text-blue-400 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">環境データ</h3>
 <div className="ml-auto text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-平均気温: 24°C &nbsp; 平均路温: 33°C
+気温: {airTemp !== '' ? `${airTemp}°C` : '—'} &nbsp; 路温: {trackTemp !== '' ? `${trackTemp}°C` : '—'}
 </div>
 </div>
 <div className="mb-4">
@@ -1040,7 +1128,7 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">点火時期 (°BTDC)</label>
                   <div className="relative">
-                    <Input defaultValue="12" className="text-center pr-8 h-8 text-sm" />
+                    <Input className="text-center pr-8 h-8 text-sm" />
                     <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
                       <i className="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -1049,7 +1137,7 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">燃料噴射時期 (ms)</label>
                   <div className="relative">
-                    <Input defaultValue="2.8" className="text-center pr-8 h-8 text-sm" />
+                    <Input className="text-center pr-8 h-8 text-sm" />
                     <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
                       <i className="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -1058,7 +1146,7 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ブースト圧 (kPa)</label>
                   <div className="relative">
-                    <Input defaultValue="120" className="text-center pr-8 h-8 text-sm" />
+                    <Input className="text-center pr-8 h-8 text-sm" />
                     <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
                       <i className="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -1067,23 +1155,12 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">スロットル開度マップ</label>
                   <AutoComplete
-                    defaultValue="track"
                     className="w-full"
                     options={[
                       { value: 'track' },
                       { value: 'sport' },
                       { value: 'eco' }
                     ]}
-                    onOpenChange={(open) => {
-                      if (open) {
-                        setTimeout(() => {
-                          const selectedItem = document.querySelector('.ant-select-item[title="track"]');
-                          if (selectedItem) {
-                            selectedItem.scrollIntoView({ block: 'center' });
-                          }
-                        }, 10);
-                      }
-                    }}
                   />
                 </div>
               </div>
@@ -1098,7 +1175,7 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">フロントスプリッター (mm)</label>
                   <div className="relative">
-                    <Input defaultValue="50" className="text-center pr-8 h-8 text-sm" />
+                    <Input className="text-center pr-8 h-8 text-sm" />
                     <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
                       <i className="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -1107,7 +1184,7 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">リアウイング角度 (°)</label>
                   <div className="relative">
-                    <Input defaultValue="12" className="text-center pr-8 h-8 text-sm" />
+                    <Input className="text-center pr-8 h-8 text-sm" />
                     <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
                       <i className="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -1116,29 +1193,18 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">アンダーパネル設定</label>
                   <AutoComplete
-                    defaultValue="full"
                     className="w-full"
                     options={[
                       { value: 'full' },
                       { value: 'partial' },
                       { value: 'none' }
                     ]}
-                    onOpenChange={(open) => {
-                      if (open) {
-                        setTimeout(() => {
-                          const selectedItem = document.querySelector('.ant-select-item[title="full"]');
-                          if (selectedItem) {
-                            selectedItem.scrollIntoView({ block: 'center' });
-                          }
-                        }, 10);
-                      }
-                    }}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">サイドスカート高さ (mm)</label>
                   <div className="relative">
-                    <Input defaultValue="35" className="text-center pr-8 h-8 text-sm" />
+                    <Input className="text-center pr-8 h-8 text-sm" />
                     <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
                       <i className="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -1156,7 +1222,7 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ラジエター開度 (%)</label>
                   <div className="relative">
-                    <Input defaultValue="80" className="text-center pr-8 h-8 text-sm" />
+                    <Input className="text-center pr-8 h-8 text-sm" />
                     <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
                       <i className="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -1165,7 +1231,7 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">オイルクーラー開度 (%)</label>
                   <div className="relative">
-                    <Input defaultValue="75" className="text-center pr-8 h-8 text-sm" />
+                    <Input className="text-center pr-8 h-8 text-sm" />
                     <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
                       <i className="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -1174,29 +1240,18 @@ onOpenChange={(open) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">インタークーラースプレー</label>
                   <AutoComplete
-                    defaultValue="auto"
                     className="w-full"
                     options={[
                       { value: 'auto' },
                       { value: 'manual' },
                       { value: 'off' }
                     ]}
-                    onOpenChange={(open) => {
-                      if (open) {
-                        setTimeout(() => {
-                          const selectedItem = document.querySelector('.ant-select-item[title="auto"]');
-                          if (selectedItem) {
-                            selectedItem.scrollIntoView({ block: 'center' });
-                          }
-                        }, 10);
-                      }
-                    }}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ブレーキダクト開度 (%)</label>
                   <div className="relative">
-                    <Input defaultValue="90" className="text-center pr-8 h-8 text-sm" />
+                    <Input className="text-center pr-8 h-8 text-sm" />
                     <button className="absolute right-0 top-0 h-full px-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
                       <i className="fas fa-chevron-down text-xs"></i>
                     </button>

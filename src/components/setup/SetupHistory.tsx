@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Empty, Spin, message, Select, DatePicker, Button } from 'antd';
-import { LoadingOutlined, FilterOutlined, CloseOutlined } from '@ant-design/icons';
+import { LoadingOutlined, FilterOutlined, CloseOutlined, SwapOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserSetups } from '../../services/setupService';
 import { CarSetup } from '../../types/setup';
@@ -8,6 +8,8 @@ import { SetupCard } from './SetupCard';
 import { Header } from '../common/Header';
 import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { setupsToCsv, csvFileName, downloadCsv } from '../../lib/csv';
+import logger from '../../utils/logger';
 
 export const SetupHistory: React.FC = () => {
   const { currentUser } = useAuth();
@@ -23,6 +25,10 @@ export const SetupHistory: React.FC = () => {
   const [filterSessionType, setFilterSessionType] = useState<string | null>(null);
   const [filterCircuit, setFilterCircuit] = useState<string | null>(null);
   const [filterCarModel, setFilterCarModel] = useState<string | null>(null);
+
+  // 比較選択モード
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     // 初期フィルターの復元（URL優先 → localStorage）
@@ -159,6 +165,76 @@ export const SetupHistory: React.FC = () => {
   // フィルターが適用されているかチェック
   const hasActiveFilters = filterMonth || filterSessionType || filterCircuit || filterCarModel;
 
+  // 「前回」マップ: 同一車種で日付が1つ前のセットアップ ID を引く。
+  // setups は date desc で取得済みなので、車種ごとに次のインデックスが「前回」。
+  const previousIdByCurrent = useMemo(() => {
+    const map = new Map<string, string>();
+    const lastSeenByModel = new Map<string, string>();
+    // 新しい順に走査し、同一車種で直前（=次に新しい）に見たものを記録する
+    setups.forEach((s) => {
+      if (!s.id) return;
+      const prevSameModel = lastSeenByModel.get(s.carModel);
+      if (prevSameModel) {
+        // prevSameModel（より新しい）から見た「前回」が現在の s
+        map.set(prevSameModel, s.id);
+      }
+      lastSeenByModel.set(s.carModel, s.id);
+    });
+    return map;
+  }, [setups]);
+
+  // 「前回と比較」: 同一車種の直前データと比較画面へ
+  const handleCompareWithPrevious = (id: string) => {
+    const prevId = previousIdByCurrent.get(id);
+    if (!prevId) {
+      message.info('比較できる前回の同一車種データがありません');
+      return;
+    }
+    // a = 前回（古い） / b = 今回（新しい）
+    navigate(`/compare?a=${prevId}&b=${id}`);
+  };
+
+  // 選択トグル（最大2件まで）
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) {
+        // 古い方を外して新しい選択を追加（常に最新2件を保持）
+        return [prev[1], id];
+      }
+      return [...prev, id];
+    });
+  };
+
+  // 選択2件を比較
+  const handleCompareSelected = () => {
+    if (selectedIds.length !== 2) return;
+    navigate(`/compare?a=${selectedIds[0]}&b=${selectedIds[1]}`);
+  };
+
+  const toggleCompareMode = () => {
+    setCompareMode((prev) => {
+      if (prev) setSelectedIds([]);
+      return !prev;
+    });
+  };
+
+  // CSVエクスポート（現在のフィルタ結果を出力）
+  const handleExportCsv = () => {
+    if (filteredSetups.length === 0) {
+      message.warning('出力するデータがありません');
+      return;
+    }
+    try {
+      const csv = setupsToCsv(filteredSetups);
+      downloadCsv(csv, csvFileName());
+      message.success(`${filteredSetups.length}件をCSVに出力しました`);
+    } catch (error) {
+      logger.error('CSV export error:', error);
+      message.error('CSV出力に失敗しました');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
@@ -178,10 +254,40 @@ export const SetupHistory: React.FC = () => {
 
       {/* メインコンテンツ */}
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">走行履歴</h2>
-          <p className="text-gray-600 dark:text-gray-400">過去の走行データとセットアップ情報を確認できます</p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">走行履歴</h2>
+            <p className="text-gray-600 dark:text-gray-400">過去の走行データとセットアップ情報を確認できます</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              icon={<SwapOutlined />}
+              type={compareMode ? 'primary' : 'default'}
+              onClick={toggleCompareMode}
+            >
+              {compareMode ? '比較を終了' : 'カードを選んで比較'}
+            </Button>
+            <Button icon={<DownloadOutlined />} onClick={handleExportCsv}>
+              CSVエクスポート
+            </Button>
+          </div>
         </div>
+
+        {/* 比較選択モードの操作バー */}
+        {compareMode && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+            <span className="text-sm text-blue-700 dark:text-blue-300">
+              比較する2枚のカードを選択してください（{selectedIds.length}/2）
+            </span>
+            <Button
+              type="primary"
+              disabled={selectedIds.length !== 2}
+              onClick={handleCompareSelected}
+            >
+              選択した2件を比較する
+            </Button>
+          </div>
+        )}
 
         {/* フィルターセクション */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
@@ -296,7 +402,15 @@ export const SetupHistory: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSetups.map((setup) => (
-                <SetupCard key={setup.id} setup={setup} />
+                <SetupCard
+                  key={setup.id}
+                  setup={setup}
+                  selectable={compareMode}
+                  selected={setup.id ? selectedIds.includes(setup.id) : false}
+                  onToggleSelect={toggleSelect}
+                  onCompareWithPrevious={handleCompareWithPrevious}
+                  hasPrevious={setup.id ? previousIdByCurrent.has(setup.id) : false}
+                />
               ))}
             </div>
           </>
