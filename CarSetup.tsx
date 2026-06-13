@@ -6,7 +6,7 @@ import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { saveSetup, getUserSetups, getSetup, updateSetup, getSetupsByCarModel } from './src/services/setupService';
-import { CarSetup as CarSetupType, KnowledgeNote, LapTime, WeatherType } from './src/types/setup';
+import { CarSetup as CarSetupType, KnowledgeNote, LapTime, WeatherType, SetupVisibility, LapTimeSource, LapEvidence } from './src/types/setup';
 import { toNumberOrNull, toIntOrNull, calcPressureDiff } from './src/lib/units';
 import { checkFirestoreConnection } from './src/utils/initFirestore';
 import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
@@ -66,6 +66,11 @@ const [detailedLaps, setDetailedLaps] = useState<LapTime[]>([]);
 const [sessionDate, setSessionDate] = useState<Date>(new Date());
 // ドライバー名: state → 保存 → 読込 → 表示の一貫配線
 const [driver, setDriver] = useState<string>('');
+// 共有設定・ロガー証憑: 編集保存で既存値を消さないための保全state（UIはWP5/WP6が追加）
+const [visibility, setVisibility] = useState<SetupVisibility>('private');
+const [anonymized, setAnonymized] = useState<boolean>(false);
+const [lapSource, setLapSource] = useState<LapTimeSource>('manual');
+const [lapEvidence, setLapEvidence] = useState<LapEvidence | null>(null);
 const dropdownRef = useRef<HTMLDivElement>(null);
 const handleDropdownClick = (e: React.MouseEvent, inputValue: string, options: { value: string; label: string }[]) => {
 e.stopPropagation();
@@ -199,6 +204,8 @@ const handleSave = async () => {
     const setupData: Omit<CarSetupType, 'id' | 'createdAt' | 'updatedAt'> = {
       userId: currentUser.uid,
       driver: driver.trim() || null,
+      visibility,            // 既存値を保全（共有UIはWP6）
+      anonymized,
       carModel: carModel,
       circuit: circuit,
       date: sessionDate,  // 保存済み日時を保持（new Date() 直書き禁止）
@@ -224,11 +231,13 @@ const handleSave = async () => {
         distance: toNumberOrNull(distance),
         fuel: toNumberOrNull(fuel)
       },
-      // ラップタイムデータを保存
+      // ラップタイムデータを保存（ロガー由来の証憑は編集保存でも保全する）
       lapTimeData: {
         bestLap: bestLap || null,
         totalLaps: toIntOrNull(totalLaps),
-        laps: detailedLaps || []
+        laps: detailedLaps || [],
+        source: lapSource,
+        evidence: lapEvidence
       },
       suspensionSettings: {
         frontDamper: {
@@ -590,16 +599,24 @@ useEffect(() => {
       setCircuit(setupData.circuit);
       setSessionType(setupData.sessionType);
 
-      // ラップタイムデータ
+      // ラップタイムデータ（ロガー証憑も復元し、編集保存での消失を防ぐ）
       if (setupData.lapTimeData) {
         setBestLap(setupData.lapTimeData.bestLap ?? '');
         setTotalLaps(setupData.lapTimeData.totalLaps != null ? setupData.lapTimeData.totalLaps.toString() : '');
         setDetailedLaps(setupData.lapTimeData.laps || []);
+        setLapSource(setupData.lapTimeData.source ?? 'manual');
+        setLapEvidence(setupData.lapTimeData.evidence ?? null);
       } else {
         setBestLap('');
         setTotalLaps('');
         setDetailedLaps([]);
+        setLapSource('manual');
+        setLapEvidence(null);
       }
+
+      // 共有設定の保全
+      setVisibility(setupData.visibility ?? 'private');
+      setAnonymized(setupData.anonymized ?? false);
 
       // ダンパー設定（null はそのまま）
       setDamperSettings({
@@ -723,16 +740,14 @@ useEffect(() => {
       setCircuit(setupData.circuit);
       setSessionType(setupData.sessionType);
 
-      // ラップタイムデータ
-      if (setupData.lapTimeData) {
-        setBestLap(setupData.lapTimeData.bestLap || '');
-        setTotalLaps((setupData.lapTimeData.totalLaps || 0).toString());
-        setDetailedLaps(setupData.lapTimeData.laps || []);
-      } else {
-        setBestLap('');
-        setTotalLaps('');
-        setDetailedLaps([]);
-      }
+      // ラップタイム・証憑・共有設定はコピーしない（新規セッションへの偽データ混入防止）
+      setBestLap('');
+      setTotalLaps('');
+      setDetailedLaps([]);
+      setLapSource('manual');
+      setLapEvidence(null);
+      setVisibility('private');
+      setAnonymized(false);
       
       // ダンパー設定（null はそのまま）
       setDamperSettings({

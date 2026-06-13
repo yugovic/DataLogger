@@ -82,10 +82,23 @@ export interface LapTime {
   milliseconds?: number;
 }
 
+/** ラップタイムの出所。logger = ロガーファイル由来（証憑つき） */
+export type LapTimeSource = 'manual' | 'logger';
+
+/** ロガー証憑メタデータ（lapTimeData.source === 'logger' の場合のみ付与） */
+export interface LapEvidence {
+  fileName: string;
+  format: 'aim-csv' | 'digispice-dtb' | 'nmea'; // src/lib/telemetry/types.ts の TelemetryFormat と同一
+  importedAt: Date;
+  trackId: Maybe<string>; // src/lib/tracks.ts のサーキットID（推定不能時 null）
+}
+
 export interface LapTimeData {
   bestLap?: Maybe<string>;
   totalLaps?: Maybe<number>;
   laps?: LapTime[];
+  source?: LapTimeSource;          // 省略時は 'manual'（旧データ互換）
+  evidence?: Maybe<LapEvidence>;   // ロガー由来の場合のみ
 }
 
 export interface KnowledgeNote {
@@ -94,10 +107,15 @@ export interface KnowledgeNote {
   learning?: string;
 }
 
+/** 公開設定。shared = Give-to-Get 相互閲覧の対象（BUSINESS_PLAN Phase 0c） */
+export type SetupVisibility = 'private' | 'shared';
+
 export interface CarSetup {
   id?: string;
   userId: string;
   driver: Maybe<string>;     // ドライバー名（新規追加: WP1指摘#3）
+  visibility?: SetupVisibility; // 省略時は 'private'（旧データ互換）
+  anonymized?: boolean;         // 共有時にドライバー特定情報を除外する
   carModel: string;
   circuit: string;
   date: Date;                // セッション日時。保存値を表示し、新規時のみ現在日時を初期値

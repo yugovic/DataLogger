@@ -68,6 +68,24 @@ export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'upda
   }
 };
 
+// Firestoreドキュメント → CarSetup 変換（Timestamp→Date を一元処理）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const fromFirestoreDoc = (id: string, data: any): CarSetup => {
+  const setup = {
+    ...data,
+    id,
+    date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
+  } as CarSetup;
+  // ロガー証憑の取込日時（ネストしたTimestamp）も変換
+  const importedAt = data.lapTimeData?.evidence?.importedAt;
+  if (importedAt?.toDate && setup.lapTimeData?.evidence) {
+    setup.lapTimeData.evidence.importedAt = importedAt.toDate();
+  }
+  return setup;
+};
+
 // セットアップデータの取得
 export const getSetup = async (setupId: string): Promise<CarSetup | null> => {
   try {
@@ -75,14 +93,7 @@ export const getSetup = async (setupId: string): Promise<CarSetup | null> => {
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      const data = docSnap.data();
-      return {
-        ...data,
-        id: docSnap.id,
-        date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
-      } as CarSetup;
+      return fromFirestoreDoc(docSnap.id, docSnap.data());
     }
     return null;
   } catch (error) {
@@ -103,16 +114,7 @@ export const getUserSetups = async (userId: string, limitCount: number = 20): Pr
 
     const querySnapshot = await getDocs(q);
     logger.log('Found', querySnapshot.size, 'setups');
-    return querySnapshot.docs.map(d => {
-      const data = d.data();
-      return {
-        ...data,
-        id: d.id,
-        date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
-      } as CarSetup;
-    });
+    return querySnapshot.docs.map(d => fromFirestoreDoc(d.id, d.data()));
   } catch (error: any) {
     logger.error('セットアップ一覧の取得に失敗しました:', error);
     throw error;
@@ -130,16 +132,7 @@ export const getSetupsByCarModel = async (userId: string, carModel: string): Pro
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(d => {
-      const data = d.data();
-      return {
-        ...data,
-        id: d.id,
-        date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
-      } as CarSetup;
-    });
+    return querySnapshot.docs.map(d => fromFirestoreDoc(d.id, d.data()));
   } catch (error) {
     logger.error('車種別セットアップの取得に失敗しました:', error);
     throw error;

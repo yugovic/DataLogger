@@ -71,6 +71,13 @@ const alignmentSettingsSchema = z.object({
   caster: nullableNum(-10, 20),  // deg
 }).optional();
 
+const lapEvidenceSchema = z.object({
+  fileName: z.string().min(1),
+  format: z.enum(['aim-csv', 'digispice-dtb', 'nmea']),
+  importedAt: z.date(),
+  trackId: z.string().nullable(),
+});
+
 const lapTimeDataSchema = z.object({
   bestLap: z.string().nullable().optional(),
   totalLaps: nullableNum(0, 1000).optional(),
@@ -82,6 +89,8 @@ const lapTimeDataSchema = z.object({
     seconds: z.number().optional(),
     milliseconds: z.number().optional(),
   })).optional(),
+  source: z.enum(['manual', 'logger']).optional(),
+  evidence: lapEvidenceSchema.nullable().optional(),
 }).optional();
 
 // ─── メインスキーマ（保存前バリデーション） ──────────────────
@@ -89,6 +98,8 @@ const lapTimeDataSchema = z.object({
 export const carSetupSchema = z.object({
   userId: z.string().min(1, 'ユーザーIDが必要です'),
   driver: z.string().nullable(),
+  visibility: z.enum(['private', 'shared']).optional(),
+  anonymized: z.boolean().optional(),
   carModel: z.string().min(1, '車種を入力してください'),
   circuit: z.string().min(1, 'サーキットを入力してください'),
   date: z.date(),
