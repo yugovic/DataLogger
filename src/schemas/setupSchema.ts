@@ -98,6 +98,12 @@ const lapTimeDataSchema = z.object({
   evidence: lapEvidenceSchema.nullable().optional(),
 }).optional();
 
+const setupTelemetryRefsSchema = z.object({
+  traceIds: z.array(z.string().min(1)),
+  primaryTraceId: z.string().nullable(),
+  importStatus: z.enum(['none', 'attached', 'trace_saved']),
+}).optional();
+
 // ─── メインスキーマ（保存前バリデーション） ──────────────────
 
 export const carSetupSchema = z.object({
@@ -126,6 +132,7 @@ export const carSetupSchema = z.object({
     learning: z.string().optional(),
   }).optional(),
   lapTimeData: lapTimeDataSchema,
+  telemetry: setupTelemetryRefsSchema,
   images: z.array(z.string()).optional(),
 });
 

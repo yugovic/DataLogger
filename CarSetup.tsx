@@ -6,7 +6,7 @@ import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { saveSetup, getUserSetups, getSetup, updateSetup, getSetupsByCarModel } from './src/services/setupService';
-import { CarSetup as CarSetupType, KnowledgeNote, LapTime, WeatherType, SetupVisibility, LapTimeSource, LapEvidence, TargetPressures } from './src/types/setup';
+import type { CarSetup as CarSetupType, KnowledgeNote, LapTime, WeatherType, SetupVisibility, LapTimeSource, LapEvidence, TargetPressures, SetupTelemetryRefs } from './src/types/setup';
 import { toNumberOrNull, toIntOrNull, calcPressureDiff } from './src/lib/units';
 import { checkFirestoreConnection } from './src/utils/initFirestore';
 import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
@@ -15,8 +15,11 @@ import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
 import { TelemetryImport } from './src/components/telemetry/TelemetryImport';
 import { EvidenceBadge } from './src/components/telemetry/EvidenceBadge';
-import { LapAttachPayload } from './src/components/telemetry/evidence';
+import type { LapAttachPayload } from './src/components/telemetry/evidence';
+import type { TelemetryImportResult } from './src/components/telemetry/useTelemetryImport';
 import { Header } from './src/components/common/Header';
+import { buildTelemetryTraceFromImport } from './src/lib/telemetry';
+import { saveTelemetryTrace } from './src/services/telemetryTraceService';
 import logger from './src/utils/logger';
 interface DropdownState {
 isOpen: boolean;
@@ -29,6 +32,18 @@ const toLocalDatetimeInput = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
+const emptyTelemetryRefs = (): SetupTelemetryRefs => ({
+  traceIds: [],
+  primaryTraceId: null,
+  importStatus: 'none',
+});
+
+const mergeTraceRef = (current: SetupTelemetryRefs, traceId: string): SetupTelemetryRefs => ({
+  traceIds: Array.from(new Set([traceId, ...current.traceIds])),
+  primaryTraceId: traceId,
+  importStatus: 'trace_saved',
+});
+
 const App: React.FC = () => {
 const { currentUser } = useAuth();
 const { id: setupId } = useParams<{ id: string }>();
@@ -74,17 +89,24 @@ const [visibility, setVisibility] = useState<SetupVisibility>('private');
 const [anonymized, setAnonymized] = useState<boolean>(false);
 const [lapSource, setLapSource] = useState<LapTimeSource>('manual');
 const [lapEvidence, setLapEvidence] = useState<LapEvidence | null>(null);
+const [telemetryRefs, setTelemetryRefs] = useState<SetupTelemetryRefs>(emptyTelemetryRefs);
+const [pendingTelemetryResult, setPendingTelemetryResult] = useState<TelemetryImportResult | null>(null);
 const [showTelemetryImport, setShowTelemetryImport] = useState(false);
 
 // ロガー取込結果をラップタイムへ添付（source='logger' + 証憑メタを保持）
-const handleTelemetryAttach = (payload: LapAttachPayload) => {
+const handleTelemetryAttach = (payload: LapAttachPayload, result: TelemetryImportResult) => {
   setDetailedLaps(payload.laps);
   setBestLap(payload.bestLap ?? '');
   setTotalLaps(payload.totalLaps > 0 ? String(payload.totalLaps) : '');
   setLapSource('logger');
   setLapEvidence(payload.evidence);
+  setTelemetryRefs((prev) => ({
+    ...prev,
+    importStatus: 'attached',
+  }));
+  setPendingTelemetryResult(result);
   setShowTelemetryImport(false);
-  message.success('ロガーのラップタイムを証憑つきで添付しました');
+  message.success('ロガーのラップタイムを証憑つきで添付しました。保存時に比較用トレースも作成します');
 };
 
 // 証憑の整合性ルール: logger 由来のラップを手動編集する前に警告する。
@@ -114,6 +136,8 @@ const handleDetachEvidence = () => {
     onOk: () => {
       setLapSource('manual');
       setLapEvidence(null);
+      setPendingTelemetryResult(null);
+      setTelemetryRefs((prev) => (prev.traceIds.length > 0 ? prev : emptyTelemetryRefs()));
       message.info('ロガー証憑を外しました（手動入力扱い）');
     },
   });
@@ -293,6 +317,7 @@ const handleSave = async () => {
         source: lapSource,
         evidence: lapEvidence
       },
+      telemetry: telemetryRefs,
       suspensionSettings: {
         frontDamper: {
           compression: frontDamperCompression,
@@ -331,6 +356,7 @@ const handleSave = async () => {
     };
 
     // 新規保存か更新かを判定
+    let savedSetupId = setupId;
     if (setupId && !isViewMode) {
       // 編集モードから保存する場合は更新
       await updateSetup(setupId, setupData);
@@ -339,8 +365,34 @@ const handleSave = async () => {
     } else {
       // 新規作成
       const newSetupId = await saveSetup(setupData);
+      savedSetupId = newSetupId;
       message.success('セットアップデータを保存しました');
       logger.log('Saved setup with ID:', newSetupId);
+    }
+
+    if (savedSetupId && pendingTelemetryResult && lapSource === 'logger') {
+      const trace = buildTelemetryTraceFromImport({
+        ownerId: currentUser.uid,
+        setupId: savedSetupId,
+        setup: setupData,
+        fileName: pendingTelemetryResult.fileName,
+        fileSizeBytes: pendingTelemetryResult.fileSizeBytes,
+        session: pendingTelemetryResult.session,
+        detection: pendingTelemetryResult.detection,
+        trackId: pendingTelemetryResult.track?.id ?? null,
+        lineSource: pendingTelemetryResult.lineSource,
+      });
+
+      if (trace) {
+        const traceId = await saveTelemetryTrace(trace);
+        const nextTelemetry = mergeTraceRef(telemetryRefs, traceId);
+        await updateSetup(savedSetupId, { telemetry: nextTelemetry });
+        setTelemetryRefs(nextTelemetry);
+        setPendingTelemetryResult(null);
+        message.success('比較用テレメトリトレースを保存しました');
+      } else {
+        message.warning('比較用トレースは保存できませんでした（完全なNORMALラップが必要です）');
+      }
     }
   } catch (error: any) {
     logger.error('Save error:', error);
@@ -677,6 +729,8 @@ useEffect(() => {
         setLapSource('manual');
         setLapEvidence(null);
       }
+      setTelemetryRefs(setupData.telemetry ?? emptyTelemetryRefs());
+      setPendingTelemetryResult(null);
 
       // 共有設定の保全
       setVisibility(setupData.visibility ?? 'private');
@@ -816,6 +870,8 @@ useEffect(() => {
       setDetailedLaps([]);
       setLapSource('manual');
       setLapEvidence(null);
+      setTelemetryRefs(emptyTelemetryRefs());
+      setPendingTelemetryResult(null);
       setVisibility('private');
       setAnonymized(false);
       
@@ -1188,6 +1244,15 @@ onOpenChange={(open) => {
         このセッションのテレメトリを分析
       </Link>
     )}
+    {telemetryRefs.primaryTraceId && (
+      <Link
+        to={`/telemetry/compare?aTrace=${telemetryRefs.primaryTraceId}`}
+        className="ml-4 inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 whitespace-nowrap"
+      >
+        <i className="fas fa-chart-area"></i>
+        自己ベストと比較
+      </Link>
+    )}
   </div>
 )}
 <div className="mb-4">
@@ -1304,6 +1369,8 @@ onOpenChange={(open) => {
     if (lapSource === 'logger') {
       setLapSource('manual');
       setLapEvidence(null);
+      setPendingTelemetryResult(null);
+      setTelemetryRefs((prev) => (prev.traceIds.length > 0 ? prev : emptyTelemetryRefs()));
       message.info('手動編集のため、ロガー証憑を外しました（手動入力扱い）');
     } else {
       message.success('ラップタイムが保存されました');

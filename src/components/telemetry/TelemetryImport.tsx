@@ -10,10 +10,11 @@ import { calcLapMaxSpeeds } from './lapMetrics';
 import { LapList } from './LapList';
 import { DropZone, ImportErrorPanel, ImportProgress, SessionSummaryPanel } from './ImportPanels';
 import { useTelemetryImport } from './useTelemetryImport';
+import type { TelemetryImportResult } from './useTelemetryImport';
 
 interface TelemetryImportProps {
   /** 「このセットアップに添付」確定時に呼ばれる */
-  onAttach: (payload: LapAttachPayload) => void;
+  onAttach: (payload: LapAttachPayload, result: TelemetryImportResult) => void;
 }
 
 export const TelemetryImport: React.FC<TelemetryImportProps> = ({ onAttach }) => {
@@ -38,6 +39,7 @@ export const TelemetryImport: React.FC<TelemetryImportProps> = ({ onAttach }) =>
         format: result.session.meta.format,
         trackId: result.track?.id ?? null,
       }),
+      result,
     );
   };
 

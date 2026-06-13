@@ -52,6 +52,34 @@ service cloud.firestore {
       );
     }
 
+    // 比較用テレメトリトレース（ラップ単位の間引きデータ）
+    match /telemetryTraces/{traceId} {
+      // 作成: オーナーのみ。Phase B1 では private/shared のみ許可する。
+      allow create: if request.auth != null &&
+        request.resource.data.ownerId == request.auth.uid &&
+        (
+          request.resource.data.visibility == 'private' ||
+          request.resource.data.visibility == 'shared'
+        );
+
+      // 更新/削除: オーナーのみ。ownerId は改変不可。
+      allow update: if request.auth != null &&
+        resource.data.ownerId == request.auth.uid &&
+        request.resource.data.ownerId == request.auth.uid &&
+        (
+          request.resource.data.visibility == 'private' ||
+          request.resource.data.visibility == 'shared'
+        );
+      allow delete: if request.auth != null &&
+        resource.data.ownerId == request.auth.uid;
+
+      // 読み取り: オーナーは常に可。shared は既存の Give-to-Get 条件と同じ。
+      allow read: if request.auth != null && (
+        resource.data.ownerId == request.auth.uid ||
+        (resource.data.visibility == 'shared' && requesterSharingActive())
+      );
+    }
+
     // テスト用コレクション
     match /test/{document=**} {
       allow read, write: if request.auth != null;

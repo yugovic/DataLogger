@@ -16,6 +16,7 @@ export type AnalyticsEventName =
   | 'setup_deleted'
   | 'setup_shared'
   | 'telemetry_imported'
+  | 'telemetry_trace_saved'
   | 'comparison_viewed'
   | 'login'
   | 'sign_up';
@@ -27,6 +28,7 @@ export type AnalyticsEventParams = {
   setup_deleted: { circuit?: string; car_model?: string };
   setup_shared: { circuit?: string; car_model?: string };
   telemetry_imported: { format?: string; circuit?: string };
+  telemetry_trace_saved: { format?: string; circuit?: string; car_model?: string };
   comparison_viewed: { circuit?: string; car_model?: string };
   login: Record<string, never>;
   sign_up: Record<string, never>;

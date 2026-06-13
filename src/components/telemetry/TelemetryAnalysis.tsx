@@ -9,7 +9,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { LineChartOutlined, ReloadOutlined, CarOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { LineChartOutlined, ReloadOutlined, CarOutlined, EnvironmentOutlined, SwapOutlined } from '@ant-design/icons';
 import { Header } from '../common/Header';
 import { calcLapMaxSpeeds, firstGpsPoint } from './lapMetrics';
 import { LapList } from './LapList';
@@ -151,14 +151,23 @@ export const TelemetryAnalysis: React.FC = () => {
 
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {/* Page title */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex items-center space-x-3 mb-1">
-            <LineChartOutlined className="text-xl text-blue-500" />
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">テレメトリ分析</h2>
+        <div className="mb-6 sm:mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="flex items-center space-x-3 mb-1">
+              <LineChartOutlined className="text-xl text-blue-500" />
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">テレメトリ分析</h2>
+            </div>
+            <p className="text-gray-500 dark:text-gray-400 ml-8 text-sm">
+              ロガーファイルからラップを検出し、同一ファイル内の2本を重ねて比較します（処理はすべて端末内）
+            </p>
           </div>
-          <p className="text-gray-500 dark:text-gray-400 ml-8 text-sm">
-            ロガーファイルからラップを検出し、2本を重ねて比較します（処理はすべて端末内）
-          </p>
+          <Link
+            to="/telemetry/files"
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            <SwapOutlined />
+            前回/今回ファイルを比較
+          </Link>
         </div>
 
         {/* セット文脈ストリップ: 記録から来た場合に「どのセッションか」を併記（§4.6 セット文脈） */}

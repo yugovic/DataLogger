@@ -107,6 +107,13 @@ export interface LapTimeData {
   evidence?: Maybe<LapEvidence>;   // ロガー由来の場合のみ
 }
 
+/** セットアップ記録に紐づく比較用テレメトリ資産の参照 */
+export interface SetupTelemetryRefs {
+  traceIds: string[];
+  primaryTraceId: Maybe<string>; // 代表ラップ（通常はロガー取込時のベスト NORMAL）
+  importStatus: 'none' | 'attached' | 'trace_saved';
+}
+
 export interface KnowledgeNote {
   intention?: string;
   result?: string;
@@ -136,6 +143,7 @@ export interface CarSetup {
   notes?: string;
   knowledge?: KnowledgeNote;
   lapTimeData?: LapTimeData;
+  telemetry?: SetupTelemetryRefs;
   images?: string[];
   createdAt: Date;
   updatedAt: Date;

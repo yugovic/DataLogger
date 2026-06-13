@@ -12,6 +12,8 @@ import { Dashboard } from './components/Dashboard';
 import { VehicleList } from './components/vehicle/VehicleList';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { TelemetryAnalysis } from './components/telemetry/TelemetryAnalysis';
+import { TelemetryFileCompare } from './components/telemetry/TelemetryFileCompare';
+import { TelemetryTraceCompare } from './components/telemetry/TelemetryTraceCompare';
 import { SetupCompare } from './components/compare/SetupCompare';
 import { SharedBrowse } from './components/share/SharedBrowse';
 import { SharedSetupDetail } from './components/share/SharedSetupDetail';
@@ -105,6 +107,22 @@ const App: React.FC = () => {
               element={
                 <PrivateRoute>
                   <SharedSetupDetail />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/telemetry/compare"
+              element={
+                <PrivateRoute>
+                  <TelemetryTraceCompare />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/telemetry/files"
+              element={
+                <PrivateRoute>
+                  <TelemetryFileCompare />
                 </PrivateRoute>
               }
             />

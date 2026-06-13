@@ -64,3 +64,10 @@ export {
   type AnnotationKind,
   type CoachingReadout,
 } from './annotations';
+export {
+  TELEMETRY_TRACE_PARSER_VERSION,
+  buildTelemetryTraceFromImport,
+  downsampleLapProfile,
+  traceToLapProfile,
+  type BuildTelemetryTraceInput,
+} from './persistedTrace';
