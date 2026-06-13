@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Tabs, Button, Select, message, Empty, Input } from 'antd';
+import { Modal, Tabs, Button, Select, message, Empty, Input, Alert } from 'antd';
 import { PlusOutlined, DeleteOutlined, CameraOutlined, CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons';
 import { LapTime, LapType } from '../../../types/setup';
 
@@ -10,13 +10,16 @@ interface LapTimeModalProps {
   onClose: () => void;
   onSave: (laps: LapTime[], bestLap: string, totalLaps: number) => void;
   initialLaps?: LapTime[];
+  /** ロガー証憑つきラップを編集中（保存すると証憑が外れることを警告表示） */
+  evidenceActive?: boolean;
 }
 
 export const LapTimeModal: React.FC<LapTimeModalProps> = ({
   visible,
   onClose,
   onSave,
-  initialLaps = []
+  initialLaps = [],
+  evidenceActive = false
 }) => {
   const [laps, setLaps] = useState<LapTime[]>(initialLaps);
   const [activeTab, setActiveTab] = useState('manual');
@@ -654,6 +657,16 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
         </Button>
       ]}
     >
+      {/* 証憑の整合性ルール: logger 由来のラップを手動編集すると証憑が外れる */}
+      {evidenceActive && (
+        <Alert
+          type="warning"
+          showIcon
+          className="mb-4"
+          message="このラップタイムはロガー証憑つきです"
+          description="保存すると手動入力扱いとなり、ロガー証憑（ファイル名・形式・取込日時）は外れます。"
+        />
+      )}
       <Tabs activeKey={activeTab} onChange={setActiveTab}
         items={[
           {

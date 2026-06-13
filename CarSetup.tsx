@@ -1,7 +1,7 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
-import { AutoComplete, Input, Tabs, message } from 'antd';
+import { useParams, useLocation, Link } from 'react-router-dom';
+import { AutoComplete, Input, Tabs, message, Modal } from 'antd';
 import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
@@ -13,6 +13,9 @@ import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
 import { SuspensionTab } from './src/components/setup/tabs/SuspensionTab';
 import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
+import { TelemetryImport } from './src/components/telemetry/TelemetryImport';
+import { EvidenceBadge } from './src/components/telemetry/EvidenceBadge';
+import { LapAttachPayload } from './src/components/telemetry/evidence';
 import { Header } from './src/components/common/Header';
 import logger from './src/utils/logger';
 interface DropdownState {
@@ -71,6 +74,50 @@ const [visibility, setVisibility] = useState<SetupVisibility>('private');
 const [anonymized, setAnonymized] = useState<boolean>(false);
 const [lapSource, setLapSource] = useState<LapTimeSource>('manual');
 const [lapEvidence, setLapEvidence] = useState<LapEvidence | null>(null);
+const [showTelemetryImport, setShowTelemetryImport] = useState(false);
+
+// ロガー取込結果をラップタイムへ添付（source='logger' + 証憑メタを保持）
+const handleTelemetryAttach = (payload: LapAttachPayload) => {
+  setDetailedLaps(payload.laps);
+  setBestLap(payload.bestLap ?? '');
+  setTotalLaps(payload.totalLaps > 0 ? String(payload.totalLaps) : '');
+  setLapSource('logger');
+  setLapEvidence(payload.evidence);
+  setShowTelemetryImport(false);
+  message.success('ロガーのラップタイムを証憑つきで添付しました');
+};
+
+// 証憑の整合性ルール: logger 由来のラップを手動編集する前に警告する。
+// 編集を確定（LapTimeModal の保存）した時点で manual へ降格させ、
+// 証憑が実ファイルと食い違う状態を作らない。
+const confirmManualEditOfEvidence = (onOk: () => void) => {
+  Modal.confirm({
+    title: '手動編集すると証憑が外れます',
+    content:
+      'このラップタイムはロガーファイルから取り込まれた証憑つきデータです。手動で編集して保存すると「手動入力」扱いとなり、ロガー証憑は削除されます。',
+    okText: '編集を続行',
+    cancelText: 'キャンセル',
+    okButtonProps: { danger: true },
+    onOk,
+  });
+};
+
+// 証憑を明示的に外す（ラップ値はそのまま手動入力扱いへ降格）
+const handleDetachEvidence = () => {
+  Modal.confirm({
+    title: 'ロガー証憑を外しますか？',
+    content:
+      'ラップタイムの値は残りますが「手動入力」扱いとなり、ロガー由来の証憑情報（ファイル名・形式・取込日時）は削除されます。',
+    okText: '証憑を外す',
+    cancelText: 'キャンセル',
+    okButtonProps: { danger: true },
+    onOk: () => {
+      setLapSource('manual');
+      setLapEvidence(null);
+      message.info('ロガー証憑を外しました（手動入力扱い）');
+    },
+  });
+};
 const dropdownRef = useRef<HTMLDivElement>(null);
 const handleDropdownClick = (e: React.MouseEvent, inputValue: string, options: { value: string; label: string }[]) => {
 e.stopPropagation();
@@ -1073,13 +1120,40 @@ onOpenChange={(open) => {
 <i className="fas fa-stopwatch text-blue-500 dark:text-blue-400 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">ラップタイム</h3>
 </div>
-<button 
-  onClick={() => setShowLapTimeModal(true)}
+<div className="flex items-center gap-3">
+{!isViewMode && (
+  <button
+    onClick={() => setShowTelemetryImport(true)}
+    className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm cursor-pointer whitespace-nowrap !rounded-button"
+  >
+    <i className="fas fa-file-import mr-1"></i>
+    ロガーから取込
+  </button>
+)}
+<button
+  onClick={() => {
+    // 証憑つき（logger）のラップを手動編集する場合は事前に警告する
+    if (lapSource === 'logger') {
+      confirmManualEditOfEvidence(() => setShowLapTimeModal(true));
+    } else {
+      setShowLapTimeModal(true);
+    }
+  }}
   className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm cursor-pointer whitespace-nowrap !rounded-button"
 >
   詳細入力
 </button>
 </div>
+</div>
+{/* ロガー証憑バッジ（manual 時は表示なし） */}
+{lapSource === 'logger' && lapEvidence && (
+  <div className="mb-4">
+    <EvidenceBadge
+      evidence={lapEvidence}
+      onDetach={!isViewMode ? handleDetachEvidence : undefined}
+    />
+  </div>
+)}
 <div className="mb-4">
 <div className="space-y-3">
 <div>
@@ -1089,6 +1163,7 @@ onOpenChange={(open) => {
   onChange={(e) => setBestLap(e.target.value)}
   placeholder="例: 1:58.423"
   className="w-full"
+  disabled={lapSource === 'logger'}
 />
 </div>
 <div>
@@ -1099,8 +1174,14 @@ onOpenChange={(open) => {
   placeholder="例: 12"
   className="w-full"
   type="number"
+  disabled={lapSource === 'logger'}
 />
 </div>
+{lapSource === 'logger' && (
+  <p className="text-xs text-gray-400 dark:text-gray-500">
+    ロガー取込値のため直接編集できません。変更する場合は再取込するか、証憑を外してください。
+  </p>
+)}
 </div>
 </div>
 </div>
@@ -1385,10 +1466,46 @@ onOpenChange={(open) => {
     setDetailedLaps(laps);
     setBestLap(bestLapTime);
     setTotalLaps(totalLapsCount.toString());
-    message.success('ラップタイムが保存されました');
+    // 証憑の整合性ルール: 手動編集を確定したらロガー証憑を外し manual へ降格
+    if (lapSource === 'logger') {
+      setLapSource('manual');
+      setLapEvidence(null);
+      message.info('手動編集のため、ロガー証憑を外しました（手動入力扱い）');
+    } else {
+      message.success('ラップタイムが保存されました');
+    }
   }}
   initialLaps={detailedLaps}
+  evidenceActive={lapSource === 'logger'}
 />
+
+{/* ロガー取込モーダル */}
+<Modal
+  title={
+    <span>
+      <i className="fas fa-file-import text-blue-500 mr-2"></i>
+      ロガーから取込
+    </span>
+  }
+  open={showTelemetryImport}
+  onCancel={() => setShowTelemetryImport(false)}
+  footer={null}
+  width={720}
+>
+  {/* 閉じるたびに取込状態を破棄する（条件レンダリングでアンマウント） */}
+  {showTelemetryImport && (
+    <div className="pt-2">
+      <TelemetryImport onAttach={handleTelemetryAttach} />
+      <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500">
+        ラップ重ね比較は{' '}
+        <Link to="/telemetry" className="text-blue-500 hover:text-blue-600">
+          テレメトリ分析ページ
+        </Link>{' '}
+        で行えます
+      </div>
+    </div>
+  )}
+</Modal>
 </main>
 {/* フッター */}
 {dropdownState.isOpen && (

@@ -11,8 +11,10 @@ import { SetupHistory } from './components/setup/SetupHistory';
 import { Dashboard } from './components/Dashboard';
 import { VehicleList } from './components/vehicle/VehicleList';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import TelemetryComparison from './components/demo/TelemetryComparison';
+import { TelemetryAnalysis } from './components/telemetry/TelemetryAnalysis';
 import { SetupCompare } from './components/compare/SetupCompare';
+import { SharedBrowse } from './components/share/SharedBrowse';
+import { SharedSetupDetail } from './components/share/SharedSetupDetail';
 
 const App: React.FC = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
@@ -90,7 +92,30 @@ const App: React.FC = () => {
                 </PrivateRoute>
               }
             />
-            <Route path="/demo/telemetry" element={<TelemetryComparison />} />
+            <Route
+              path="/shared"
+              element={
+                <PrivateRoute>
+                  <SharedBrowse />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/shared/:id"
+              element={
+                <PrivateRoute>
+                  <SharedSetupDetail />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/telemetry"
+              element={
+                <PrivateRoute>
+                  <TelemetryAnalysis />
+                </PrivateRoute>
+              }
+            />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
           </ErrorBoundary>
