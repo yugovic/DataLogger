@@ -23,6 +23,46 @@ import { cleanGpsPoints } from './telemetry/detectLaps';
 import { haversineMeters, makeLocalProjection } from './telemetry/geo';
 import type { LatLon, StartFinishLine, TelemetryPoint } from './telemetry/types';
 
+export interface TrackMapPoint extends LatLon {
+  /** S/Fラインからの概算距離（m）。表示用なのでラップ検出には使わない */
+  distanceM: number;
+}
+
+export interface TrackMapSector {
+  id: string;
+  name: string;
+  startDistanceM: number;
+  endDistanceM: number;
+}
+
+export interface TrackMapMarker {
+  id: string;
+  name: string;
+  distanceM: number;
+  kind: 'corner' | 'sector' | 'reference';
+}
+
+export interface TrackMapCurb {
+  id: string;
+  name: string;
+  startDistanceM: number;
+  endDistanceM: number;
+  side: 'left' | 'right' | 'both';
+}
+
+export interface TrackMap {
+  /** データ由来。official 以外は UI/仕様書で概算であることを示す */
+  source: 'official' | 'sample-derived' | 'manual';
+  /** 境界線を簡易生成するための平均コース幅（m）。将来は左右境界ポリラインへ置換する */
+  widthM: number;
+  /** 表示用中心線。距離は単調増加、最後はおおむねS/Fへ戻る */
+  centerline: readonly TrackMapPoint[];
+  sectors: readonly TrackMapSector[];
+  markers: readonly TrackMapMarker[];
+  curbs: readonly TrackMapCurb[];
+  notes?: string;
+}
+
 /** サーキット定義 */
 export interface Track {
   /** 安定識別子（保存データの evidence.trackId に使う） */
@@ -35,6 +75,8 @@ export interface Track {
   minLapSeconds: number;
   /** 地域（都道府県） */
   region: string;
+  /** コース幅・境界・セクター・コーナー名など、解析画面の表示用マップ */
+  map?: TrackMap;
 }
 
 /**
@@ -53,6 +95,70 @@ function lineFromCenterCourse(center: LatLon, courseDeg: number, halfWidthM: num
   ];
 }
 
+const SUZUKA_FULL_CENTERLINE: readonly TrackMapPoint[] = [
+  { distanceM: 0, lat: 34.844794, lon: 136.538867 },
+  { distanceM: 248, lat: 34.843085, lon: 136.540617 },
+  { distanceM: 506, lat: 34.841294, lon: 136.542403 },
+  { distanceM: 751, lat: 34.839349, lon: 136.54332 },
+  { distanceM: 1001, lat: 34.840052, lon: 136.541475 },
+  { distanceM: 1248, lat: 34.841253, lon: 136.539359 },
+  { distanceM: 1499, lat: 34.842461, lon: 136.537431 },
+  { distanceM: 1751, lat: 34.84454, lon: 136.53715 },
+  { distanceM: 1996, lat: 34.844906, lon: 136.534684 },
+  { distanceM: 2251, lat: 34.843326, lon: 136.532715 },
+  { distanceM: 2501, lat: 34.843832, lon: 136.5306 },
+  { distanceM: 2752, lat: 34.846061, lon: 136.530224 },
+  { distanceM: 3001, lat: 34.846469, lon: 136.529729 },
+  { distanceM: 3254, lat: 34.845361, lon: 136.52751 },
+  { distanceM: 3496, lat: 34.846158, lon: 136.525097 },
+  { distanceM: 3747, lat: 34.848111, lon: 136.523772 },
+  { distanceM: 4002, lat: 34.847358, lon: 136.522089 },
+  { distanceM: 4253, lat: 34.845987, lon: 136.524244 },
+  { distanceM: 4498, lat: 34.845094, lon: 136.526693 },
+  { distanceM: 4747, lat: 34.844323, lon: 136.529258 },
+  { distanceM: 4996, lat: 34.843949, lon: 136.53188 },
+  { distanceM: 5252, lat: 34.845378, lon: 136.534035 },
+  { distanceM: 5498, lat: 34.846038, lon: 136.536345 },
+  { distanceM: 5752, lat: 34.844993, lon: 136.538648 },
+  { distanceM: 5781, lat: 34.844794, lon: 136.538867 },
+];
+
+const SUZUKA_FULL_MAP: TrackMap = {
+  source: 'sample-derived',
+  widthM: 14,
+  centerline: SUZUKA_FULL_CENTERLINE,
+  sectors: [
+    { id: 's1', name: 'S1 東コース前半', startDistanceM: 0, endDistanceM: 1750 },
+    { id: 's2', name: 'S2 東コース後半', startDistanceM: 1750, endDistanceM: 3000 },
+    { id: 's3', name: 'S3 西コース', startDistanceM: 3000, endDistanceM: 5000 },
+    { id: 's4', name: 'S4 130R-最終', startDistanceM: 5000, endDistanceM: 5781 },
+  ],
+  markers: [
+    { id: 'turn-1', name: '1コーナー', distanceM: 650, kind: 'corner' },
+    { id: 'turn-2', name: '2コーナー', distanceM: 820, kind: 'corner' },
+    { id: 's-curves', name: 'S字', distanceM: 1110, kind: 'corner' },
+    { id: 'gyaku-bank', name: '逆バンク', distanceM: 1480, kind: 'corner' },
+    { id: 'dunlop', name: 'ダンロップ', distanceM: 1740, kind: 'corner' },
+    { id: 'degner', name: 'デグナー', distanceM: 2220, kind: 'corner' },
+    { id: 'hairpin', name: 'ヘアピン', distanceM: 2940, kind: 'corner' },
+    { id: 'spoon', name: 'スプーン', distanceM: 3820, kind: 'corner' },
+    { id: 'back-straight', name: '西ストレート', distanceM: 4600, kind: 'reference' },
+    { id: 'one-thirty-r', name: '130R', distanceM: 5120, kind: 'corner' },
+    { id: 'chicane', name: 'シケイン', distanceM: 5480, kind: 'corner' },
+    { id: 'final-corner', name: '最終コーナー', distanceM: 5680, kind: 'corner' },
+  ],
+  curbs: [
+    { id: 't1-t2-curb', name: '1-2コーナー縁石', startDistanceM: 620, endDistanceM: 900, side: 'both' },
+    { id: 's-curves-curb', name: 'S字縁石', startDistanceM: 1020, endDistanceM: 1450, side: 'both' },
+    { id: 'degner-curb', name: 'デグナー縁石', startDistanceM: 2100, endDistanceM: 2370, side: 'both' },
+    { id: 'hairpin-curb', name: 'ヘアピン縁石', startDistanceM: 2840, endDistanceM: 3070, side: 'both' },
+    { id: 'spoon-curb', name: 'スプーン縁石', startDistanceM: 3650, endDistanceM: 4120, side: 'both' },
+    { id: 'chicane-curb', name: 'シケイン縁石', startDistanceM: 5400, endDistanceM: 5580, side: 'both' },
+  ],
+  notes:
+    'DigiSpice同梱サンプルのGPS中心線から作った表示用マップ。境界は平均幅からの簡易生成で、公式測量値ではない。',
+};
+
 /**
  * 国内主要サーキット一覧。
  * courseDeg はコントロールライン通過時の進行方位（度）。
@@ -67,6 +173,7 @@ export const TRACKS: readonly Track[] = [
     startFinishLine: lineFromCenterCourse({ lat: 34.844828, lon: 136.53883 }, 138.8, 15),
     minLapSeconds: 70, // 歴代最速 (F1) 約87秒
     region: '三重県',
+    map: SUZUKA_FULL_MAP,
   },
   {
     id: 'tsukuba-2000',

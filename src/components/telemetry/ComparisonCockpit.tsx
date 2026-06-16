@@ -34,8 +34,10 @@ import {
   type LapProfile,
 } from '../../lib/telemetry';
 import type { Lap, StartFinishLine, TelemetryPoint } from '../../lib/telemetry';
+import type { TrackMap } from '../../lib/tracks';
 import type { LineSource } from './resolveLapDetection';
 import { formatLapSeconds } from './evidence';
+import { boundsFromPoints, buildTrackMapOverlay, mergeBounds } from './trackMapOverlay';
 
 // A=基準: 青 / B=比較: アンバー（LapList・TelemetryAnalysis の SLOT_COLORS と一致）
 const SLOT_COLORS: Record<LapSlot, string> = { A: '#3b82f6', B: '#f59e0b' };
@@ -73,6 +75,7 @@ interface ComparisonCockpitProps {
   line: StartFinishLine | null;
   lineSource: LineSource | null;
   origin: { lat: number; lon: number };
+  trackMap?: TrackMap | null;
   /** コース判定名（解析イベントの付加情報用・任意） */
   trackName?: string | null;
 }
@@ -87,6 +90,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
   line,
   lineSource,
   origin,
+  trackMap,
   trackName,
 }) => {
   const { darkMode } = useTheme();
@@ -299,20 +303,17 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
   const mapOption = useMemo<echarts.EChartsOption | null>(() => {
     const pathA = projectPath(points, sessionDistance, a.lap, origin);
     const pathB = projectPath(points, sessionDistance, b.lap, origin);
+    const projectedLine = line ? projectLineXY(line, origin) : [];
+    const overlay = buildTrackMapOverlay(trackMap, origin, { darkMode, showLabels: true });
     const all = [...pathA, ...pathB];
-    if (all.length === 0) return null;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const [x, y] of all) {
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    const half = (Math.max(maxX - minX, maxY - minY) / 2) * 1.08 || 1;
+    const bounds = mergeBounds([boundsFromPoints(all), boundsFromPoints(projectedLine), overlay.bounds]);
+    if (!bounds) return null;
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cy = (bounds.minY + bounds.maxY) / 2;
+    const half = (Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / 2) * 1.08 || 1;
 
     const series: echarts.SeriesOption[] = [
+      ...overlay.series,
       { name: `A: LAP ${a.lap.lapNumber}`, type: 'line', data: pathA, showSymbol: false, lineStyle: { width: 1.6, color: SLOT_COLORS.A, opacity: 0.9 }, itemStyle: { color: SLOT_COLORS.A } },
       { name: `B: LAP ${b.lap.lapNumber}`, type: 'line', data: pathB, showSymbol: false, lineStyle: { width: 1.6, color: SLOT_COLORS.B, opacity: 0.9 }, itemStyle: { color: SLOT_COLORS.B } },
       // 現在位置ドット（2点: A/B）— カーソル連動で命令的に更新
@@ -322,7 +323,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
       series.push({
         name: lineSource === 'estimated' ? '基準線（自動推定）' : 'コントロールライン',
         type: 'line',
-        data: projectLineXY(line, origin),
+        data: projectedLine,
         showSymbol: false,
         lineStyle: { width: 3, color: '#ef4444' },
         itemStyle: { color: '#ef4444' },
@@ -338,7 +339,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
       yAxis: { type: 'value', show: false, min: cy - half, max: cy + half },
       series,
     };
-  }, [points, sessionDistance, a.lap, b.lap, origin, line, lineSource, axis.label]);
+  }, [points, sessionDistance, a.lap, b.lap, origin, line, lineSource, axis.label, trackMap, darkMode]);
 
   // ─── チャートインスタンス管理 + 同期カーソル ──────────────────
   const deltaRef = useRef<HTMLDivElement>(null);

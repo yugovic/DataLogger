@@ -1,4 +1,4 @@
-// テレメトリ分析ページ（/telemetry, WP5 → 比較コックピット段階A）
+// テレメトリ取込・分析ページ（/telemetry/import, WP5 → 比較コックピット段階A）
 //
 // 旧 /demo/telemetry（ハードコードモック）の実データ版。ロガーファイルを
 // その場で読み込み、同一セッション内のラップ2本（A=ベスト/B=ターゲット）を
@@ -17,7 +17,10 @@ import type { LapSlot } from './LapList';
 import { DropZone, ImportErrorPanel, ImportProgress, SessionSummaryPanel } from './ImportPanels';
 import { useTelemetryImport } from './useTelemetryImport';
 import { ComparisonCockpit, type CockpitSlot } from './ComparisonCockpit';
+import { SingleLapTelemetryView, type SingleLapPath } from './SingleLapTelemetryView';
 import { buildLapProfile, channelAvailability, deriveCompareSeries } from '../../lib/telemetry';
+import type { Lap } from '../../lib/telemetry';
+import { makeLocalProjection } from '../../lib/telemetry/geo';
 import { getSetup } from '../../services/setupService';
 import type { CarSetup } from '../../types/setup';
 import logger from '../../utils/logger';
@@ -47,7 +50,8 @@ export const TelemetryAnalysis: React.FC = () => {
     return () => { active = false; };
   }, [contextSetupId]);
 
-  // 取込結果が変わったら選択を初期化: A=ベスト、B=2番手の計測周
+  // 取込結果が変わったら選択を初期化:
+  // NORMAL があれば A=ベスト / B=2番手、NORMAL がなければ最も長い切り出しラップを単独表示する。
   useEffect(() => {
     if (!result) {
       setSelection({});
@@ -55,7 +59,12 @@ export const TelemetryAnalysis: React.FC = () => {
     }
     const { laps, bestLapIndex } = result.detection;
     const next: Partial<Record<LapSlot, number>> = {};
-    const a = bestLapIndex ?? (laps.length > 0 ? 0 : undefined);
+    let a = bestLapIndex ?? undefined;
+    if (a === undefined && laps.length > 0) {
+      a = laps.reduce((longest, lap, i) => (
+        lap.timeSeconds > laps[longest].timeSeconds ? i : longest
+      ), 0);
+    }
     if (a !== undefined) {
       next.A = a;
       let secondBest: number | undefined;
@@ -65,9 +74,6 @@ export const TelemetryAnalysis: React.FC = () => {
           secondBest = i;
         }
       });
-      if (secondBest === undefined && laps.length > 1) {
-        secondBest = a === 0 ? 1 : 0;
-      }
       if (secondBest !== undefined) next.B = secondBest;
     }
     setSelection(next);
@@ -75,6 +81,8 @@ export const TelemetryAnalysis: React.FC = () => {
 
   const handleSelect = (index: number) => {
     setSelection((prev) => {
+      const lap = result?.detection.laps[index];
+      if (lap && lap.type !== 'NORMAL') return { A: index };
       if (prev.A === index) return { B: prev.B }; // タップで選択解除
       if (prev.B === index) return { A: prev.A };
       if (prev.A === undefined) return { ...prev, A: index };
@@ -119,7 +127,7 @@ export const TelemetryAnalysis: React.FC = () => {
       const index = selection[slot];
       if (index === undefined) return [];
       const lap = result.detection.laps[index];
-      if (!lap) return [];
+      if (!lap || lap.type !== 'NORMAL') return [];
       const profile = buildLapProfile(
         result.session.points,
         compareSeries.distance,
@@ -132,6 +140,27 @@ export const TelemetryAnalysis: React.FC = () => {
     if (built.length !== 2) return null;
     return [built[0], built[1]];
   }, [result, compareSeries, selection]);
+
+  const singleLapSlot = useMemo<CockpitSlot | null>(() => {
+    if (!result || !compareSeries) return null;
+    const index = selection.A ?? selection.B;
+    if (index === undefined) return null;
+    const lap = result.detection.laps[index];
+    if (!lap) return null;
+    const profile = buildLapProfile(
+      result.session.points,
+      compareSeries.distance,
+      compareSeries.longG,
+      compareSeries.latG,
+      lap,
+    );
+    return { slot: 'A', lap, profile };
+  }, [result, compareSeries, selection]);
+
+  const singleLapPath = useMemo(
+    () => (result && singleLapSlot ? buildSingleLapPath(result.session.points, singleLapSlot.lap) : undefined),
+    [result, singleLapSlot],
+  );
 
   // ─── Render ──────────────────────────────────────────────
 
@@ -155,19 +184,19 @@ export const TelemetryAnalysis: React.FC = () => {
           <div>
             <div className="flex items-center space-x-3 mb-1">
               <LineChartOutlined className="text-xl text-blue-500" />
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">テレメトリ分析</h2>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">ロガー取込・分析</h2>
             </div>
             <p className="text-gray-500 dark:text-gray-400 ml-8 text-sm">
-              ロガーファイルからラップを検出し、同一ファイル内の2本を重ねて比較します（処理はすべて端末内）
+              ロガーファイルからラップを検出し、1ラップ確認または同一ファイル内の2本比較を行います（処理はすべて端末内）
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
-              to="/telemetry/traces"
+              to="/telemetry"
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <AreaChartOutlined />
-              保存済みトレース
+              走行ログ一覧
             </Link>
             <Link
               to="/telemetry/files"
@@ -276,15 +305,33 @@ export const TelemetryAnalysis: React.FC = () => {
                     line={result.line}
                     lineSource={result.lineSource}
                     origin={origin}
+                    trackMap={result.track?.map}
                     trackName={result.track?.name ?? null}
                   />
+                ) : singleLapSlot ? (
+                  <div className="self-start">
+                    <SingleLapTelemetryView
+                      title="選択ラップを確認"
+                      description="比較相手を選ばなくても、この1本の速度、G、主要指標を確認できます。"
+                      profile={singleLapSlot.profile}
+                      lapTimeSeconds={singleLapSlot.lap.timeSeconds}
+                      lapNumber={singleLapSlot.lap.lapNumber}
+                      lapType={singleLapSlot.lap.type}
+                      circuit={result.track?.name ?? contextSetup?.circuit ?? 'コース未判定'}
+                      carModel={contextSetup?.carModel}
+                      fileName={result.fileName}
+                      sourceLabel={result.session.meta.format}
+                      path={singleLapPath}
+                      trackMap={result.track?.map}
+                    />
+                  </div>
                 ) : (
                   <div className={`${cardClass} px-4 py-10 text-center self-start`}>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                      比較する2本のラップを選択してください
+                      表示するラップを選択してください
                     </p>
                     <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                      左の一覧から A（基準）と B（比較）をタップで選びます
+                      左の一覧から1本を選ぶと単独表示、NORMALを2本選ぶと比較表示になります
                     </p>
                   </div>
                 )}
@@ -296,3 +343,27 @@ export const TelemetryAnalysis: React.FC = () => {
     </div>
   );
 };
+
+function buildSingleLapPath(points: readonly { time: number; lat: number | null; lon: number | null }[], lap: Lap): SingleLapPath | undefined {
+  const originPoint = points.find((p) => (
+    p.time >= lap.startTime &&
+    p.time <= lap.endTime &&
+    p.lat !== null &&
+    p.lon !== null
+  ));
+  if (!originPoint || originPoint.lat === null || originPoint.lon === null) return undefined;
+
+  const origin = { lat: originPoint.lat, lon: originPoint.lon };
+  const { toXY } = makeLocalProjection(origin);
+  const xM: number[] = [];
+  const yM: number[] = [];
+  for (const point of points) {
+    if (point.time < lap.startTime) continue;
+    if (point.time > lap.endTime) break;
+    if (point.lat === null || point.lon === null) continue;
+    const xy = toXY({ lat: point.lat, lon: point.lon });
+    xM.push(Math.round(xy.x * 100) / 100);
+    yM.push(Math.round(xy.y * 100) / 100);
+  }
+  return xM.length >= 2 ? { xM, yM, origin } : undefined;
+}

@@ -13,11 +13,13 @@ import {
   deltaT,
   traceToLapProfile,
 } from '../../lib/telemetry';
+import { findTrackById } from '../../lib/tracks';
 import type { TelemetryTrace } from '../../types/telemetryTrace';
 import { formatLapSeconds } from './evidence';
 import { CoachPanel } from './CoachPanel';
 import { MetricDeltaCards } from './MetricDeltaCards';
 import { SegmentTable } from './SegmentTable';
+import { boundsFromPoints, buildTrackMapOverlay, mergeBounds } from './trackMapOverlay';
 
 const A_COLOR = '#3b82f6';
 const B_COLOR = '#f59e0b';
@@ -37,6 +39,10 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
   const metricsA = useMemo(() => computeLapMetrics(profileA, traceA.lap.timeSeconds), [profileA, traceA]);
   const metricsB = useMemo(() => computeLapMetrics(profileB, traceB.lap.timeSeconds), [profileB, traceB]);
   const segments = useMemo(() => computeSegmentDeltas(d, 3), [d]);
+  const trackMap = useMemo(
+    () => (traceA.trackId ? findTrackById(traceA.trackId)?.map : null) ?? (traceB.trackId ? findTrackById(traceB.trackId)?.map : null),
+    [traceA.trackId, traceB.trackId],
+  );
   const coaching = useMemo(
     () => buildCoachingReadout(d, metricsA, metricsB, segments),
     [d, metricsA, metricsB, segments],
@@ -147,20 +153,15 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
 
   const mapOption = useMemo<echarts.EChartsOption | null>(() => {
     if (!traceA.path || !traceB.path) return null;
-    const pathA = traceA.path.xM.map((x, i) => [x, traceA.path!.yM[i]]);
-    const pathB = traceB.path.xM.map((x, i) => [x, traceB.path!.yM[i]]);
+    const pathA = traceA.path.xM.map((x, i) => [x, traceA.path!.yM[i]] as [number, number]);
+    const pathB = traceB.path.xM.map((x, i) => [x, traceB.path!.yM[i]] as [number, number]);
+    const overlay = buildTrackMapOverlay(trackMap, traceA.path.origin, { darkMode, showLabels: true });
     const all = [...pathA, ...pathB];
-    if (all.length === 0) return null;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const [x, y] of all) {
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    const half = (Math.max(maxX - minX, maxY - minY) / 2) * 1.08 || 1;
+    const bounds = mergeBounds([boundsFromPoints(all), overlay.bounds]);
+    if (!bounds) return null;
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cy = (bounds.minY + bounds.maxY) / 2;
+    const half = (Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / 2) * 1.08 || 1;
     return {
       backgroundColor: 'transparent',
       animation: false,
@@ -170,11 +171,12 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
       xAxis: { type: 'value', show: false, min: cx - half, max: cx + half },
       yAxis: { type: 'value', show: false, min: cy - half, max: cy + half },
       series: [
+        ...overlay.series,
         { name: 'A', type: 'line', data: pathA, showSymbol: false, lineStyle: { width: 1.6, color: A_COLOR } },
         { name: 'B', type: 'line', data: pathB, showSymbol: false, lineStyle: { width: 1.6, color: B_COLOR } },
       ],
     };
-  }, [axis.label, traceA.path, traceB.path]);
+  }, [axis.label, darkMode, trackMap, traceA.path, traceB.path]);
 
   const cardClass = 'bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50';
   const headingClass = 'text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider';

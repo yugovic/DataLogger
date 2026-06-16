@@ -1,7 +1,8 @@
 // 保存済み比較トレース変換 — Phase B1
 //
 // 生ログ全体ではなく、ラップ単位の距離グリッドへ間引いたチャンネルだけを
-// Firestore に保存する。これにより、後日「過去の自分」と比較できる。
+// Firestore に保存する。NORMAL ラップは後日の比較対象に、OUT/IN しかない
+// 1ラップ切り出しログは単独確認用の走行ログとして扱う。
 
 import type { CarSetup } from '../../types/setup';
 import type { TelemetryTraceInput } from '../../types/telemetryTrace';
@@ -122,10 +123,10 @@ function lapGpsDropout(session: TelemetrySession, lap: Lap): boolean {
 }
 
 export function buildTelemetryTraceFromImport(input: BuildTelemetryTraceInput): TelemetryTraceInput | null {
-  const lapIndex = input.lapIndex ?? input.detection.bestLapIndex;
+  const lapIndex = input.lapIndex ?? input.detection.bestLapIndex ?? longestLapIndex(input.detection.laps);
   if (lapIndex === null || lapIndex === undefined) return null;
   const lap = input.detection.laps[lapIndex];
-  if (!lap || lap.type !== 'NORMAL') return null;
+  if (!lap) return null;
 
   const compareSeries = deriveCompareSeries(input.session.points);
   const profile = buildLapProfile(
@@ -141,6 +142,7 @@ export function buildTelemetryTraceFromImport(input: BuildTelemetryTraceInput): 
   const metrics = computeLapMetrics(profile, lap.timeSeconds);
   const path = downsamplePath(input.session, compareSeries.distance, lap, channels.distanceM);
   const normalLaps = input.detection.laps.filter((l) => l.type === 'NORMAL').length;
+  const isComparableLap = lap.type === 'NORMAL';
 
   return {
     ownerId: input.ownerId,
@@ -165,8 +167,10 @@ export function buildTelemetryTraceFromImport(input: BuildTelemetryTraceInput): 
       lapNumber: lap.lapNumber,
       type: lap.type,
       timeSeconds: round(lap.timeSeconds, 3),
-      valid: true,
-      invalidReason: null,
+      valid: isComparableLap,
+      invalidReason: isComparableLap
+        ? null
+        : 'S/Fライン通過で閉じたNORMALラップではないため、比較ではなく単独確認用として保存しました',
     },
     conditions: {
       weather: input.setup.weather,
@@ -192,6 +196,13 @@ export function buildTelemetryTraceFromImport(input: BuildTelemetryTraceInput): 
       missingOperationChannels: true,
     },
   };
+}
+
+function longestLapIndex(laps: readonly Lap[]): number | null {
+  if (laps.length === 0) return null;
+  return laps.reduce((bestIndex, lap, index) => (
+    lap.timeSeconds > laps[bestIndex].timeSeconds ? index : bestIndex
+  ), 0);
 }
 
 export function traceToLapProfile(trace: Pick<TelemetryTraceInput, 'channels'>): LapProfile {

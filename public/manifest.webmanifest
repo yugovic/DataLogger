@@ -1,0 +1,11 @@
+{
+  "name": "VELOCITY LOGGER",
+  "short_name": "VELOCITY",
+  "description": "車両セットアップ記録とテレメトリ分析",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": []
+}

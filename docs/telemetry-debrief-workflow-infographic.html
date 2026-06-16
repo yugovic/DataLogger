@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telemetry Debrief Workflow Infographic</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d8dee9;
+      --blue: #2563eb;
+      --blue-soft: #dbeafe;
+      --green: #059669;
+      --green-soft: #d1fae5;
+      --amber: #d97706;
+      --amber-soft: #fef3c7;
+      --red: #dc2626;
+      --red-soft: #fee2e2;
+      --violet: #7c3aed;
+      --violet-soft: #ede9fe;
+      --shadow: 0 18px 45px rgba(23, 32, 51, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "YuGothic", "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    .canvas {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 32px auto;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid #e5e7eb;
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    header {
+      padding: 38px 44px 30px;
+      background:
+        linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(124, 58, 237, 0.08)),
+        #ffffff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    h1 {
+      margin: 16px 0 8px;
+      font-size: clamp(30px, 4vw, 52px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 780px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .content {
+      padding: 34px 44px 42px;
+      display: grid;
+      gap: 28px;
+    }
+
+    .commit-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .commit {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 14px;
+      min-height: 136px;
+    }
+
+    .badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .badge.blue { background: var(--blue-soft); color: var(--blue); }
+    .badge.green { background: var(--green-soft); color: var(--green); }
+    .badge.violet { background: var(--violet-soft); color: var(--violet); }
+    .badge.amber { background: var(--amber-soft); color: var(--amber); }
+
+    h2, h3 {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h2 { font-size: 22px; }
+    h3 { font-size: 18px; }
+
+    .hash {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: #475569;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 8px 0 0;
+    }
+
+    .flow {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 24px;
+    }
+
+    .flow-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #eef2ff;
+      color: #4338ca;
+      font-weight: 700;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      position: relative;
+    }
+
+    .step {
+      position: relative;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 18px 14px;
+      min-height: 172px;
+    }
+
+    .step::after {
+      content: "→";
+      position: absolute;
+      right: -13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 22px;
+      font-weight: 800;
+      z-index: 2;
+    }
+
+    .step:last-child::after { content: ""; }
+
+    .num {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--blue);
+      color: white;
+      font-weight: 800;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .step h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      min-height: 228px;
+    }
+
+    .card h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    li + li { margin-top: 8px; }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      border-radius: 16px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .metric .label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .metric .value {
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .value.good { color: var(--green); }
+    .value.bad { color: var(--red); }
+    .value.info { color: var(--blue); }
+    .value.warn { color: var(--amber); }
+
+    .verification {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 22px;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .verification h2 { color: #ffffff; }
+
+    .checks {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .check {
+      border: 1px solid rgba(226, 232, 240, 0.18);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 13px;
+    }
+
+    .check strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 3px;
+    }
+
+    footer {
+      padding: 0 44px 34px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 920px) {
+      .commit-row,
+      .grid-3,
+      .metric-strip,
+      .verification {
+        grid-template-columns: 1fr;
+      }
+
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .step::after {
+        content: "↓";
+        right: 18px;
+        top: auto;
+        bottom: -20px;
+        transform: none;
+      }
+
+      .step:last-child::after { content: ""; }
+
+      header,
+      .content,
+      footer {
+        padding-left: 22px;
+        padding-right: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <header>
+      <div class="eyebrow">VELOCITY LOGGER / P0 WORKFLOW</div>
+      <h1>テレメトリ比較を<br />「次に何を変えるか」へ接続</h1>
+      <p class="lead">
+        今回の対応では、保存済みトレース比較の土台をコミットした上で、
+        走行後の初回価値を出すためのデブリーフ、比較候補の自動選択、トレース一覧を追加しました。
+      </p>
+    </header>
+
+    <main class="content">
+      <section class="commit-row">
+        <article class="commit">
+          <div class="badge blue">1</div>
+          <div>
+            <h2>保存済みトレース比較の土台</h2>
+            <p class="small">Firestore に間引きトレースを保存し、自己ベストや過去ログと比較できる基盤を追加。</p>
+            <span class="hash">c8115da Add persisted telemetry trace comparison</span>
+          </div>
+        </article>
+        <article class="commit">
+          <div class="badge green">2</div>
+          <div>
+            <h2>P0 デブリーフ導線</h2>
+            <p class="small">保存済みログを、比較・一覧・次走アクションへつなげるユーザーループを追加。</p>
+            <span class="hash">6daf238 Add telemetry debrief workflow</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="flow">
+        <div class="flow-title">
+          <div>
+            <h2>新しい利用ループ</h2>
+            <p class="small">「ログを入れる」から「次に試す1点が決まる」までをアプリ内で閉じる。</p>
+          </div>
+          <div class="pill">P0: 継続利用の最小ループ</div>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <div class="num">1</div>
+            <h3>ロガー取込</h3>
+            <p>AIM / DigiSpice / NMEA を解析し、ラップ検出と証憑を生成。</p>
+          </article>
+          <article class="step">
+            <div class="num">2</div>
+            <h3>トレース保存</h3>
+            <p>ベスト NORMAL ラップを比較用に間引いて永続化。</p>
+          </article>
+          <article class="step">
+            <div class="num">3</div>
+            <h3>候補自動選択</h3>
+            <p>自己ベスト、前回、条件近似の順で比較対象を提示。</p>
+          </article>
+          <article class="step">
+            <div class="num">4</div>
+            <h3>デブリーフ</h3>
+            <p>最大ロス、最大ゲイン、注意ラベル、次走アクションを要約。</p>
+          </article>
+          <article class="step">
+            <div class="num">5</div>
+            <h3>詳細比較</h3>
+            <p>必要な時だけデルタT、速度、ライン、セット差分へ掘る。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="metric-strip">
+        <div class="metric">
+          <div class="label">New Routes</div>
+          <div class="value info">2</div>
+          <p class="small">/telemetry/debrief<br />/telemetry/traces</p>
+        </div>
+        <div class="metric">
+          <div class="label">Core Screens</div>
+          <div class="value good">2</div>
+          <p class="small">デブリーフ画面<br />保存済みトレース一覧</p>
+        </div>
+        <div class="metric">
+          <div class="label">Candidate Types</div>
+          <div class="value warn">3</div>
+          <p class="small">自己ベスト / 前回<br />条件が近いログ</p>
+        </div>
+        <div class="metric">
+          <div class="label">Commits</div>
+          <div class="value bad">2</div>
+          <p class="small">土台コミット<br />P0ワークフローコミット</p>
+        </div>
+      </section>
+
+      <section class="grid-3">
+        <article class="card">
+          <h3><span class="badge blue">A</span> 比較候補の自動選択</h3>
+          <ul>
+            <li>同じ車種 × コースを候補化</li>
+            <li>自己ベストを初期候補に採用</li>
+            <li>直近の過去セッションを提示</li>
+            <li>気温・路温・燃料・タイヤ差で条件近似を算出</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3><span class="badge green">B</span> セッション・デブリーフ</h3>
+          <ul>
+            <li>自己ベスト比 / 前回比を即表示</li>
+            <li>最大ロス・最大ゲインを抽出</li>
+            <li>次走アクションを1つだけ提示</li>
+            <li>気温差、推定ライン、操作チャンネル欠損を注意表示</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3><span class="badge violet">C</span> トレース資産化</h3>
+          <ul>
+            <li>保存済みトレース一覧を追加</li>
+            <li>車種・コースでフィルタ</li>
+            <li>自己ベストのみ表示</li>
+            <li>デブリーフ、詳細比較、元記録へ直行</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="grid-3">
+        <article class="card">
+          <h3><span class="badge amber">D</span> セット差分との接続</h3>
+          <ul>
+            <li>比較元と今回の CarSetup を取得</li>
+            <li>既存 setupFields の差分計算を再利用</li>
+            <li>空気圧、天候、タイヤ、足回り差を表示</li>
+            <li>テレメトリ差分の原因候補として提示</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3><span class="badge blue">E</span> 導線追加</h3>
+          <ul>
+            <li>セットアップ詳細に「デブリーフを見る」を追加</li>
+            <li>テレメトリ分析に「保存済みトレース」を追加</li>
+            <li>比較画面に保存済みB候補セレクタを追加</li>
+            <li>ヘッダーのテレメトリ配下アクティブ表示を調整</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3><span class="badge green">F</span> ユーザー価値</h3>
+          <ul>
+            <li>グラフを見る前に結論が分かる</li>
+            <li>比較対象選びで迷わない</li>
+            <li>ログが蓄積資産として見える</li>
+            <li>次回走行で試す1点へつながる</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="verification">
+        <div>
+          <h2>検証結果</h2>
+          <p class="small" style="color:#cbd5e1;">
+            新規ルート、型、テレメトリ計算、ビルドを確認済み。ブラウザ実表示は環境の in-app browser 接続不可のため、
+            localhost 応答確認で代替しました。
+          </p>
+        </div>
+        <div class="checks">
+          <div class="check"><strong>Typecheck</strong>npm run typecheck passed</div>
+          <div class="check"><strong>Tests</strong>247 tests passed</div>
+          <div class="check"><strong>Build</strong>npm run build passed</div>
+          <div class="check"><strong>Lint</strong>errors 0 / existing warnings only</div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      Generated for docs/telemetry-comparison-implementation-spec.md context. Last update: 2026-06-14.
+    </footer>
+  </div>
+</body>
+</html>

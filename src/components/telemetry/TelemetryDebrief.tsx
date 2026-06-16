@@ -28,6 +28,7 @@ import {
 } from '../../lib/telemetry';
 import { buildCompareSections, compareRow, formatDelta } from '../../lib/setupFields';
 import { formatLapSeconds } from './evidence';
+import { SingleLapTelemetryView } from './SingleLapTelemetryView';
 import logger from '../../utils/logger';
 
 interface SetupDiffItem {
@@ -261,15 +262,43 @@ const DebriefHeader: React.FC<{
   </section>
 );
 
-const FirstTraceCard: React.FC<{ trace: TelemetryTrace }> = ({ trace }) => (
-  <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-8 text-center">
-    <CheckCircleOutlined className="text-3xl text-emerald-500" />
-    <h3 className="mt-3 text-lg font-semibold text-gray-800 dark:text-gray-100">最初の比較用トレースとして保存されました</h3>
-    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-      {trace.carModel} / {trace.circuit} の次回以降の走行で、前回比・自己ベスト比・最大ロス区間を自動で出せます。
-    </p>
-  </section>
-);
+const FirstTraceCard: React.FC<{ trace: TelemetryTrace }> = ({ trace }) => {
+  const profile = traceToLapProfile(trace);
+  const isInspectableOnly = !trace.lap.valid || trace.lap.type !== 'NORMAL';
+  return (
+    <div className="space-y-4">
+      <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-8 text-center">
+        {isInspectableOnly ? (
+          <WarningOutlined className="text-3xl text-amber-500" />
+        ) : (
+          <CheckCircleOutlined className="text-3xl text-emerald-500" />
+        )}
+        <h3 className="mt-3 text-lg font-semibold text-gray-800 dark:text-gray-100">
+          {isInspectableOnly ? '切り出しログを単独確認できます' : '最初の比較用トレースとして保存されました'}
+        </h3>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          {isInspectableOnly
+            ? `${trace.carModel} / ${trace.circuit} の1ラップ切り出しログです。S/Fラインで閉じたNORMALラップではないため、比較ではなく単独確認として扱います。`
+            : `${trace.carModel} / ${trace.circuit} の次回以降の走行で、前回比・自己ベスト比・最大ロス区間を自動で出せます。`}
+        </p>
+      </section>
+      <SingleLapTelemetryView
+        title={isInspectableOnly ? '切り出しラップを単独確認' : '今回のラップを単独確認'}
+        description="比較相手がなくても、この1本の速度、G、走行ライン、主要指標を確認できます。"
+        profile={profile}
+        lapTimeSeconds={trace.lap.timeSeconds}
+        lapNumber={trace.lap.lapNumber}
+        lapType={trace.lap.type}
+        carModel={trace.carModel}
+        circuit={trace.circuit}
+        fileName={trace.source.fileName}
+        sourceLabel={trace.source.format}
+        path={trace.path}
+        qualityFlags={trace.qualityFlags}
+      />
+    </div>
+  );
+};
 
 const DebriefMetric: React.FC<{
   label: string;
@@ -371,4 +400,3 @@ function buildSetupDiffs(reference: CarSetup, current: CarSetup): SetupDiffItem[
   }
   return diffs;
 }
-

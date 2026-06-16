@@ -106,7 +106,7 @@ const handleTelemetryAttach = (payload: LapAttachPayload, result: TelemetryImpor
   }));
   setPendingTelemetryResult(result);
   setShowTelemetryImport(false);
-  message.success('ロガーのラップタイムを証憑つきで添付しました。保存時に比較用トレースも作成します');
+  message.success('ロガーのラップタイムを証憑つきで添付しました。保存時に走行ログも作成します');
 };
 
 // 証憑の整合性ルール: logger 由来のラップを手動編集する前に警告する。
@@ -389,9 +389,13 @@ const handleSave = async () => {
         await updateSetup(savedSetupId, { telemetry: nextTelemetry });
         setTelemetryRefs(nextTelemetry);
         setPendingTelemetryResult(null);
-        message.success('比較用テレメトリトレースを保存しました');
+        message.success(
+          trace.lap.valid
+            ? '比較用テレメトリトレースを保存しました'
+            : '単独確認用の走行ログを保存しました（比較には完全なNORMALラップが必要です）',
+        );
       } else {
-        message.warning('比較用トレースは保存できませんでした（完全なNORMALラップが必要です）');
+        message.warning('走行ログは保存できませんでした（解析できるラップが必要です）');
       }
     }
   } catch (error: any) {
@@ -1237,7 +1241,7 @@ onOpenChange={(open) => {
     />
     {setupId && (
       <Link
-        to={`/telemetry?setup=${setupId}`}
+        to={`/telemetry/import?setup=${setupId}`}
         className="inline-flex items-center gap-1.5 text-sm text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 whitespace-nowrap"
       >
         <i className="fas fa-chart-line"></i>
@@ -1407,9 +1411,9 @@ onOpenChange={(open) => {
     <div className="pt-2">
       <TelemetryImport onAttach={handleTelemetryAttach} />
       <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500">
-        ラップ重ね比較は{' '}
-        <Link to="/telemetry" className="text-blue-500 hover:text-blue-600">
-          テレメトリ分析ページ
+        ラップ重ね比較や単独ラップ確認は{' '}
+        <Link to="/telemetry/import" className="text-blue-500 hover:text-blue-600">
+          ロガー取込・分析ページ
         </Link>{' '}
         で行えます
       </div>

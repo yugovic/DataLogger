@@ -15,11 +15,14 @@ import { DropZone, ImportErrorPanel, ImportProgress, SessionSummaryPanel } from 
 import { LapList } from './LapList';
 import { calcLapMaxSpeeds } from './lapMetrics';
 import {
+  buildLocalLapInspection,
   buildLocalTelemetryTrace,
-  comparableLaps,
-  defaultComparableLapIndex,
+  defaultInspectableLapIndex,
 } from './localTrace';
+import { SingleLapTelemetryView } from './SingleLapTelemetryView';
 import { useTelemetryImport } from './useTelemetryImport';
+import { traceToLapProfile } from '../../lib/telemetry';
+import { findTrackById } from '../../lib/tracks';
 
 export const TelemetryTraceCompare: React.FC = () => {
   const location = useLocation();
@@ -111,8 +114,13 @@ export const TelemetryTraceCompare: React.FC = () => {
   };
 
   useEffect(() => {
-    setUploadLapIndex(defaultComparableLapIndex(uploadB.result));
+    setUploadLapIndex(defaultInspectableLapIndex(uploadB.result));
   }, [uploadB.result]);
+
+  const traceAProfile = useMemo(
+    () => (traceA ? traceToLapProfile(traceA) : null),
+    [traceA],
+  );
 
   const uploadedTraceB = useMemo(
     () => (
@@ -127,8 +135,13 @@ export const TelemetryTraceCompare: React.FC = () => {
     ),
     [traceA, uploadB.result, uploadLapIndex],
   );
+  const uploadedInspectionB = useMemo(
+    () => (uploadB.result ? buildLocalLapInspection({ result: uploadB.result, lapIndex: uploadLapIndex }) : null),
+    [uploadB.result, uploadLapIndex],
+  );
 
   const comparisonTraceB = uploadedTraceB ?? traceB;
+  const traceATrackMap = traceA?.trackId ? findTrackById(traceA.trackId)?.map : null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -222,14 +235,47 @@ export const TelemetryTraceCompare: React.FC = () => {
             {comparisonTraceB ? (
               <PersistedTraceComparison traceA={traceA} traceB={comparisonTraceB} />
             ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12">
-                <Empty
-                  description={
-                    <span className="text-gray-500 dark:text-gray-400">
-                      {candidateNotice ?? '比較対象のトレースがありません。上のエリアから比較ファイルをアップロードできます。'}
-                    </span>
-                  }
-                />
+              <div className="space-y-4">
+                {candidateNotice && (
+                  <div className="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                    {candidateNotice}。比較なしでもA単独の速度・G・主要指標を確認できます。
+                  </div>
+                )}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  {traceAProfile && (
+                    <SingleLapTelemetryView
+                      title="Aトレースを単独確認"
+                      description="比較対象がなくても、保存済みラップ1本の内容を確認できます。"
+                      profile={traceAProfile}
+                      lapTimeSeconds={traceA.lap.timeSeconds}
+                      lapNumber={traceA.lap.lapNumber}
+                      lapType={traceA.lap.type}
+                      carModel={traceA.carModel}
+                      circuit={traceA.circuit}
+                      fileName={traceA.source.fileName}
+                      sourceLabel={traceA.source.format}
+                      path={traceA.path}
+                      trackMap={traceATrackMap}
+                      qualityFlags={traceA.qualityFlags}
+                    />
+                  )}
+                  {uploadedInspectionB && uploadB.result && (
+                    <SingleLapTelemetryView
+                      title="アップロードBを単独確認"
+                      description="このラップは保存済みAとの比較には使えませんが、単独ログとして確認できます。"
+                      profile={uploadedInspectionB.profile}
+                      lapTimeSeconds={uploadedInspectionB.lap.timeSeconds}
+                      lapNumber={uploadedInspectionB.lap.lapNumber}
+                      lapType={uploadedInspectionB.lap.type}
+                      carModel={traceA.carModel}
+                      circuit={uploadB.result.track?.name ?? traceA.circuit}
+                      fileName={uploadB.result.fileName}
+                      sourceLabel={uploadB.result.session.meta.format}
+                      path={uploadedInspectionB.path}
+                      trackMap={uploadB.result.track?.map ?? traceATrackMap}
+                    />
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -261,7 +307,6 @@ const UploadComparisonTarget: React.FC<UploadComparisonTargetProps> = ({
     () => (result ? calcLapMaxSpeeds(result.session.points, result.detection.laps) : []),
     [result],
   );
-  const normalLaps = comparableLaps(result);
   const selection = useMemo(
     () => (selectedLap === null ? {} : ({ B: selectedLap } as const)),
     [selectedLap],
@@ -301,13 +346,13 @@ const UploadComparisonTarget: React.FC<UploadComparisonTargetProps> = ({
       {phase === 'done' && result && (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,420px)_1fr] gap-4">
           <SessionSummaryPanel result={result} />
-          {normalLaps.length > 0 ? (
+          {result.detection.laps.length > 0 ? (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Bに使うラップ
+                  Bに使う/表示するラップ
                 </span>
-                <span className="text-[11px] text-gray-400">NORMALラップのみ比較対象</span>
+                <span className="text-[11px] text-gray-400">NORMALなら比較対象</span>
               </div>
               <LapList
                 laps={result.detection.laps}
@@ -315,14 +360,13 @@ const UploadComparisonTarget: React.FC<UploadComparisonTargetProps> = ({
                 maxSpeeds={maxSpeeds}
                 selection={selection}
                 onSelect={(index) => {
-                  const lap = result.detection.laps[index];
-                  onSelectedLap(lap?.type === 'NORMAL' ? index : null);
+                  onSelectedLap(result.detection.laps[index] ? index : null);
                 }}
               />
             </div>
           ) : (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-5 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-300">比較できるNORMALラップがありません</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">表示できるラップがありません</p>
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                 コントロールラインを2回以上通過した走行データを選択してください。
               </p>

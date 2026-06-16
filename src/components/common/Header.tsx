@@ -198,12 +198,12 @@ export const Header: React.FC<HeaderProps> = ({
           車両管理
         </button>
         <button
-          aria-label="テレメトリ分析"
+          aria-label="走行ログ"
           onClick={() => navigate('/telemetry')}
           className={`flex items-center px-3 py-2 ${isActiveSection('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
         >
           <DatabaseOutlined className="mr-2" />
-          テレメトリ
+          走行ログ
         </button>
         <button
           aria-label="みんなの共有データ"
@@ -527,7 +527,7 @@ export const Header: React.FC<HeaderProps> = ({
               className={`flex items-center px-4 py-3 ${isActiveSection('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
             >
               <DatabaseOutlined className="mr-3" />
-              テレメトリ
+              走行ログ
             </button>
             <button
               onClick={() => { navigate('/shared'); setMobileMenuOpen(false); }}

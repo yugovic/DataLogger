@@ -137,6 +137,14 @@ const App: React.FC = () => {
               }
             />
             <Route
+              path="/telemetry/import"
+              element={
+                <PrivateRoute>
+                  <TelemetryAnalysis />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/telemetry/files"
               element={
                 <PrivateRoute>
@@ -148,7 +156,7 @@ const App: React.FC = () => {
               path="/telemetry"
               element={
                 <PrivateRoute>
-                  <TelemetryAnalysis />
+                  <TelemetryTraceList />
                 </PrivateRoute>
               }
             />

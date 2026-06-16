@@ -8,10 +8,11 @@ import { LapList, type LapSlot } from './LapList';
 import { PersistedTraceComparison } from './PersistedTraceComparison';
 import { calcLapMaxSpeeds } from './lapMetrics';
 import {
+  buildLocalLapInspection,
   buildLocalTelemetryTrace,
-  comparableLaps,
-  defaultComparableLapIndex,
+  defaultInspectableLapIndex,
 } from './localTrace';
+import { SingleLapTelemetryView } from './SingleLapTelemetryView';
 import { useTelemetryImport } from './useTelemetryImport';
 
 type ImportController = ReturnType<typeof useTelemetryImport>;
@@ -29,11 +30,11 @@ export const TelemetryFileCompare: React.FC = () => {
   const [lapB, setLapB] = useState<number | null>(null);
 
   useEffect(() => {
-    setLapA(defaultComparableLapIndex(importA.result));
+    setLapA(defaultInspectableLapIndex(importA.result));
   }, [importA.result]);
 
   useEffect(() => {
-    setLapB(defaultComparableLapIndex(importB.result));
+    setLapB(defaultInspectableLapIndex(importB.result));
   }, [importB.result]);
 
   const traceA = useMemo(
@@ -42,6 +43,14 @@ export const TelemetryFileCompare: React.FC = () => {
   );
   const traceB = useMemo(
     () => (importB.result ? buildLocalTelemetryTrace({ result: importB.result, lapIndex: lapB, slot: 'B' }) : null),
+    [importB.result, lapB],
+  );
+  const inspectionA = useMemo(
+    () => (importA.result ? buildLocalLapInspection({ result: importA.result, lapIndex: lapA }) : null),
+    [importA.result, lapA],
+  );
+  const inspectionB = useMemo(
+    () => (importB.result ? buildLocalLapInspection({ result: importB.result, lapIndex: lapB }) : null),
     [importB.result, lapB],
   );
 
@@ -75,7 +84,7 @@ export const TelemetryFileCompare: React.FC = () => {
             </p>
           </div>
           <Link
-            to="/telemetry"
+            to="/telemetry/import"
             className="inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             同一ファイル内のラップ比較へ
@@ -123,6 +132,39 @@ export const TelemetryFileCompare: React.FC = () => {
 
         {canCompare ? (
           <PersistedTraceComparison traceA={traceA} traceB={traceB} />
+        ) : inspectionA || inspectionB ? (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {inspectionA && importA.result && (
+              <SingleLapTelemetryView
+                title="Aファイルの選択ラップ"
+                description="比較対象Bがなくても、この1本の速度、G、主要指標を確認できます。"
+                profile={inspectionA.profile}
+                lapTimeSeconds={inspectionA.lap.timeSeconds}
+                lapNumber={inspectionA.lap.lapNumber}
+                lapType={inspectionA.lap.type}
+                circuit={importA.result.track?.name ?? 'コース未判定'}
+                fileName={importA.result.fileName}
+                sourceLabel={importA.result.session.meta.format}
+                path={inspectionA.path}
+                trackMap={importA.result.track?.map}
+              />
+            )}
+            {inspectionB && importB.result && (
+              <SingleLapTelemetryView
+                title="Bファイルの選択ラップ"
+                description="比較対象Aがなくても、この1本の速度、G、主要指標を確認できます。"
+                profile={inspectionB.profile}
+                lapTimeSeconds={inspectionB.lap.timeSeconds}
+                lapNumber={inspectionB.lap.lapNumber}
+                lapType={inspectionB.lap.type}
+                circuit={importB.result.track?.name ?? 'コース未判定'}
+                fileName={importB.result.fileName}
+                sourceLabel={importB.result.session.meta.format}
+                path={inspectionB.path}
+                trackMap={importB.result.track?.map}
+              />
+            )}
+          </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-10">
             <Empty
@@ -167,7 +209,6 @@ const FileCompareSlot: React.FC<FileCompareSlotProps> = ({
     () => (result ? calcLapMaxSpeeds(result.session.points, result.detection.laps) : []),
     [result],
   );
-  const normalLaps = comparableLaps(result);
   const selection = useMemo(
     () => (selectedLap === null ? {} : ({ [slot]: selectedLap } as Partial<Record<LapSlot, number>>)),
     [selectedLap, slot],
@@ -200,14 +241,14 @@ const FileCompareSlot: React.FC<FileCompareSlotProps> = ({
       {phase === 'done' && result && (
         <div className="space-y-3">
           <SessionSummaryPanel result={result} />
-          {normalLaps.length > 0 ? (
+          {result.detection.laps.length > 0 ? (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  比較ラップ
+                  表示ラップ
                 </span>
                 <span className="text-[11px] text-gray-400">
-                  {slot === 'A' ? '基準' : '比較'}に使う1本を選択
+                  NORMALを選ぶと比較にも使えます
                 </span>
               </div>
               <LapList
@@ -216,14 +257,13 @@ const FileCompareSlot: React.FC<FileCompareSlotProps> = ({
                 maxSpeeds={maxSpeeds}
                 selection={selection}
                 onSelect={(index) => {
-                  const lap = result.detection.laps[index];
-                  onSelectedLap(lap?.type === 'NORMAL' ? index : null);
+                  onSelectedLap(result.detection.laps[index] ? index : null);
                 }}
               />
             </div>
           ) : (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-5 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-300">比較できるNORMALラップがありません</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">表示できるラップがありません</p>
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                 コントロールラインを2回以上通過した走行データを選択してください。
               </p>

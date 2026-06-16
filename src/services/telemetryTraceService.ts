@@ -15,9 +15,14 @@ import { db } from '../lib/firebase';
 import { trackEvent } from '../lib/analytics';
 import { telemetryTraceSchema } from '../schemas/telemetryTraceSchema';
 import type { TelemetryTrace, TelemetryTraceInput } from '../types/telemetryTrace';
+import {
+  getSampleTelemetryTrace,
+  isSampleTelemetryTraceId,
+} from '../components/telemetry/sampleTelemetryTrace';
 import logger from '../utils/logger';
 
 const COLLECTION_NAME = 'telemetryTraces';
+const INCLUDE_SAMPLE_TRACES = import.meta.env.DEV;
 
 function sanitizeForFirestore(obj: unknown): unknown {
   if (obj === undefined) return null;
@@ -83,6 +88,10 @@ export async function saveTelemetryTrace(trace: TelemetryTraceInput): Promise<st
 }
 
 export async function getTelemetryTrace(traceId: string): Promise<TelemetryTrace | null> {
+  if (INCLUDE_SAMPLE_TRACES && isSampleTelemetryTraceId(traceId)) {
+    return getSampleTelemetryTrace();
+  }
+
   try {
     const snap = await getDoc(doc(db, COLLECTION_NAME, traceId));
     if (!snap.exists()) return null;
@@ -124,8 +133,13 @@ export async function getUserTelemetryTraces(
   try {
     const q = query(collection(db, COLLECTION_NAME), where('ownerId', '==', ownerId));
     const snap = await getDocs(q);
-    return snap.docs
-      .map((d) => fromFirestoreDoc(d.id, d.data()))
+    const sampleTraces = INCLUDE_SAMPLE_TRACES
+      ? [await getSampleTelemetryTrace(ownerId)]
+      : [];
+    return [
+      ...snap.docs.map((d) => fromFirestoreDoc(d.id, d.data())),
+      ...sampleTraces,
+    ]
       .filter((t) => !filter.excludeTraceId || t.id !== filter.excludeTraceId)
       .filter((t) => !filter.carModel || t.carModel === filter.carModel)
       .filter((t) => {
@@ -141,6 +155,8 @@ export async function getUserTelemetryTraces(
 }
 
 export async function findBestComparableTrace(current: TelemetryTrace): Promise<TelemetryTrace | null> {
+  if (!current.lap.valid || current.lap.type !== 'NORMAL') return null;
+
   const candidates = await getUserTelemetryTraces(current.ownerId, {
     carModel: current.carModel,
     trackId: current.trackId,
@@ -214,6 +230,8 @@ function buildCandidate(
  * 3. タイヤ・気温・路温・燃料が近いログ
  */
 export async function getComparableTraceCandidates(current: TelemetryTrace): Promise<ComparableTraceCandidate[]> {
+  if (!current.lap.valid || current.lap.type !== 'NORMAL') return [];
+
   const candidates = await getUserTelemetryTraces(current.ownerId, {
     carModel: current.carModel,
     trackId: current.trackId,

@@ -123,4 +123,58 @@ describe('persisted telemetry trace', () => {
     expect(profile.speed).toEqual(trace!.channels.speedKmh);
     expect(profile.lapLengthM).toBe(trace!.channels.distanceM[trace!.channels.distanceM.length - 1]);
   });
+
+  it('NORMALラップがない1ラップ切り出しログも単独確認用トレースとして生成できる', () => {
+    const detection: LapDetectionResult = {
+      laps: [
+        { lapNumber: 1, startTime: 0, endTime: 110, timeSeconds: 110, type: 'OUT' },
+        { lapNumber: 2, startTime: 110, endTime: 120, timeSeconds: 10, type: 'IN' },
+      ],
+      bestLapIndex: null,
+      crossingTimes: [110],
+    };
+
+    const trace = buildTelemetryTraceFromImport({
+      ownerId: 'user-1',
+      setupId: 'setup-1',
+      setup: makeSetup(),
+      fileName: 'single-lap.dtb',
+      fileSizeBytes: 1234,
+      session: makeSession(),
+      detection,
+      trackId: 'fuji-speedway',
+      lineSource: 'db',
+      stepM: 10,
+    });
+
+    expect(trace).not.toBeNull();
+    expect(trace?.lap.type).toBe('OUT');
+    expect(trace?.lap.valid).toBe(false);
+    expect(trace?.lap.invalidReason).toContain('単独確認用');
+    expect(trace?.qualityFlags.singleLapFile).toBe(true);
+    expect(trace?.channels.distanceM.length).toBeGreaterThan(2);
+  });
+
+  it('解析できるラップがない場合は保存用トレースを生成しない', () => {
+    const detection: LapDetectionResult = {
+      laps: [],
+      bestLapIndex: null,
+      crossingTimes: [],
+    };
+
+    const trace = buildTelemetryTraceFromImport({
+      ownerId: 'user-1',
+      setupId: 'setup-1',
+      setup: makeSetup(),
+      fileName: 'empty.csv',
+      fileSizeBytes: 1234,
+      session: makeSession(),
+      detection,
+      trackId: null,
+      lineSource: null,
+      stepM: 10,
+    });
+
+    expect(trace).toBeNull();
+  });
 });

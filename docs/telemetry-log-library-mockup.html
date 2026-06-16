@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telemetry Library - flow mockup</title>
+  <style>
+    :root {
+      --bg: #f3f5f8;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --surface-selected: #eef5ff;
+      --ink: #111827;
+      --text: #1f2937;
+      --muted: #667085;
+      --faint: #98a2b3;
+      --line: #dfe4ea;
+      --line-strong: #c7d0dc;
+      --blue: #2474ff;
+      --blue-dark: #175cd3;
+      --red: #e11d48;
+      --green: #059669;
+      --amber: #d97706;
+      --header-h: 56px;
+      --toolbar-h: 104px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "Hiragino Sans", "Yu Gothic", "YuGothic", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: var(--header-h) var(--toolbar-h) minmax(0, 1fr);
+      background: var(--bg);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      white-space: nowrap;
+      font-weight: 900;
+    }
+
+    .brand span:first-child {
+      color: var(--blue);
+      font-size: 20px;
+    }
+
+    .brand span:last-child {
+      color: #202632;
+      font-size: 20px;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .nav button,
+    .icon-button {
+      height: 34px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: #596274;
+      font-size: 13px;
+    }
+
+    .nav button {
+      padding: 0 11px;
+    }
+
+    .nav button.active {
+      border-color: var(--line);
+      background: #edf2f8;
+      color: #23324a;
+      font-weight: 800;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-button {
+      width: 34px;
+      display: grid;
+      place-items: center;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 18px;
+      padding: 14px 24px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 4px 0 0;
+      color: var(--ink);
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .title-rule {
+      width: 36px;
+      height: 3px;
+      margin-top: 9px;
+      background: var(--red);
+    }
+
+    .toolbar-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .filters,
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .search,
+    .select-chip,
+    .ghost-button,
+    .primary-button {
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--surface);
+      color: #4b5563;
+      font-size: 13px;
+    }
+
+    .search {
+      width: min(340px, 28vw);
+      padding: 0 11px;
+    }
+
+    .search input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+    }
+
+    .select-chip,
+    .ghost-button,
+    .primary-button {
+      padding: 0 12px;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .primary-button {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .content {
+      min-height: 0;
+      padding: 14px 24px 18px;
+      overflow: hidden;
+    }
+
+    .screen {
+      display: none;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .overview-layout {
+      height: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .panel {
+      min-height: 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .panel-title {
+      color: var(--ink);
+      font-weight: 900;
+      font-size: 15px;
+    }
+
+    .panel-sub {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 23px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--surface-soft);
+      color: #344054;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .tag.blue {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: var(--blue-dark);
+    }
+
+    .tag.green {
+      border-color: #bbf7d0;
+      background: #ecfdf3;
+      color: var(--green);
+    }
+
+    .tag.amber {
+      border-color: #fde68a;
+      background: #fffbeb;
+      color: var(--amber);
+    }
+
+    .tag.red {
+      border-color: #fecdd3;
+      background: #fff1f2;
+      color: var(--red);
+    }
+
+    .table-wrap {
+      height: calc(100% - 53px);
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 920px;
+      border-collapse: collapse;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--surface-soft);
+    }
+
+    th {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      color: #667085;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+      background: var(--surface);
+    }
+
+    tbody tr {
+      cursor: pointer;
+    }
+
+    tbody tr:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: -2px;
+    }
+
+    tr.selected td {
+      background: var(--surface-selected);
+    }
+
+    tr.selected td:first-child {
+      border-left: 3px solid var(--blue);
+    }
+
+    tr:hover td {
+      background: #f8fbff;
+    }
+
+    .identity {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .track-thumb,
+    .car-thumb {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .track-thumb {
+      width: 82px;
+      height: 54px;
+    }
+
+    .car-thumb {
+      width: 68px;
+      height: 38px;
+    }
+
+    .car-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 4px;
+    }
+
+    .name {
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .meta {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .lap-time {
+      color: var(--ink);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .date-time {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .inspector {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+
+    .inspector-body {
+      min-height: 0;
+      padding: 14px;
+      overflow: auto;
+    }
+
+    .map-box {
+      height: 190px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background-image:
+        linear-gradient(#e8eef5 1px, transparent 1px),
+        linear-gradient(90deg, #e8eef5 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 9px 10px;
+      background: #fff;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .recent-list {
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .recent-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+      align-items: center;
+    }
+
+    .inspector-footer {
+      padding: 14px;
+      border-top: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .analysis-screen {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .analysis-header {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .analysis-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--blue-dark);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .analysis-title {
+      margin-top: 7px;
+      color: var(--ink);
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+      padding: 10px 14px;
+      background: var(--surface-soft);
+    }
+
+    .control-label {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .select-box {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .analysis-content {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(300px, 1fr) minmax(230px, 0.76fr);
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    .analysis-grid-top {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(340px, 0.86fr) minmax(0, 1.5fr);
+      gap: 12px;
+    }
+
+    .analysis-grid-bottom {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1.52fr) 380px;
+      gap: 12px;
+    }
+
+    .flat-panel {
+      min-height: 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .flat-panel-header {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      color: #475467;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .chart-area,
+    .track-area {
+      height: calc(100% - 42px);
+      min-height: 0;
+    }
+
+    .track-area {
+      display: grid;
+      place-items: center;
+      background-image:
+        linear-gradient(#e8eef5 1px, transparent 1px),
+        linear-gradient(90deg, #e8eef5 1px, transparent 1px);
+      background-size: 30px 30px;
+    }
+
+    .chart-area {
+      position: relative;
+    }
+
+    .channel-stack {
+      height: calc(100% - 42px);
+      display: grid;
+      grid-template-rows: repeat(5, 1fr);
+    }
+
+    .channel-row {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 96px minmax(0, 1fr) 86px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .channel-row:last-child {
+      border-bottom: 0;
+    }
+
+    .channel-label {
+      padding-left: 12px;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .channel-label span {
+      display: block;
+      margin-top: 2px;
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: none;
+    }
+
+    .channel-value {
+      padding-right: 12px;
+      text-align: right;
+      color: var(--ink);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .channel-row svg {
+      height: 42px;
+    }
+
+    .insight {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+    }
+
+    .insight-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--line);
+      align-items: center;
+    }
+
+    .insight-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .insight-value {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 900;
+      text-align: right;
+    }
+
+    .insight-value.red {
+      color: var(--red);
+    }
+
+    .insight-value.green {
+      color: var(--green);
+    }
+
+    .summary {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .setup-list {
+      display: none;
+      min-height: 0;
+      padding: 8px 12px;
+      overflow: auto;
+    }
+
+    .setup-line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--line);
+      color: #475467;
+      font-size: 12px;
+    }
+
+    .setup-line strong {
+      color: var(--ink);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 960px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .toolbar,
+      .overview-layout,
+      .analysis-grid-top,
+      .analysis-grid-bottom,
+      .control-row {
+        grid-template-columns: 1fr;
+      }
+
+      .content,
+      .analysis-content {
+        overflow: visible;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span>VELOCITY</span><span>LOGGER</span></div>
+      <nav class="nav" aria-label="main navigation">
+        <button>Dashboard</button>
+        <button>Setup</button>
+        <button class="active">Telemetry</button>
+        <button>Shared</button>
+      </nav>
+      <div class="top-actions">
+        <button class="icon-button" aria-label="notifications">○</button>
+        <button class="icon-button" aria-label="settings">⚙</button>
+      </div>
+    </header>
+
+    <section class="toolbar">
+      <div>
+        <div class="eyebrow">Telemetry Library</div>
+        <h1>走行ログ</h1>
+        <div class="title-rule"></div>
+      </div>
+      <div class="toolbar-right">
+        <div class="filters">
+          <label class="search">
+            <span>⌕</span>
+            <input type="text" value="富士 Nissan" aria-label="search" />
+          </label>
+          <button class="select-chip">車種: すべて ▾</button>
+          <button class="select-chip">トラック: すべて ▾</button>
+          <button class="select-chip">Quality ▾</button>
+          <button class="select-chip">公開範囲 ▾</button>
+        </div>
+        <div class="actions">
+          <button class="ghost-button">⇄ 2ファイル比較</button>
+          <button class="primary-button">↥ ロガーを追加</button>
+        </div>
+      </div>
+    </section>
+
+    <main class="content">
+      <section class="screen active" id="overview">
+        <div class="overview-layout">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">トラック × 車両</div>
+                <div class="panel-sub">分析対象の組み合わせを選ぶ。ここではラップ選択や詳細分析はしない。</div>
+              </div>
+              <div>
+                <span class="tag">42 logs</span>
+                <span class="tag blue">8 pairs</span>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 30%;">Track</th>
+                    <th style="width: 22%;">Vehicle</th>
+                    <th style="width: 16%;">Best</th>
+                    <th style="width: 16%;">Last</th>
+                    <th style="width: 7%;">Logs</th>
+                    <th style="width: 9%;">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="selected" data-row="fuji-gtr" tabindex="0">
+                    <td>
+                      <div class="identity">
+                        <div class="track-thumb">
+                          <svg viewBox="0 0 80 54" width="74" height="48"><path d="M9 36 C20 16,38 10,49 16 C62 23,57 39,42 42 C30 45,22 41,13 46" fill="none" stroke="#111827" stroke-width="3" stroke-linecap="round"/></svg>
+                        </div>
+                        <div>
+                          <div class="name">富士スピードウェイ</div>
+                          <div class="meta">fuji-main / dry baseline</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="identity">
+                        <div class="car-thumb"><img src="../src/assets/telemetry-mock-car.png" alt="" /></div>
+                        <div>
+                          <div class="name">Nissan GT-R</div>
+                          <div class="meta">R35 / OUT</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><div class="lap-time">1:55.280</div><div class="date-time">2026/6/14 15:55</div></td>
+                    <td><div class="lap-time">1:58.044</div><div class="date-time">2026/6/15 09:20</div></td>
+                    <td><div class="lap-time">18</div><div class="date-time">logs</div></td>
+                    <td><span class="tag green">比較可</span><br /><span class="tag amber" style="margin-top:4px;">Usable</span></td>
+                  </tr>
+                  <tr data-row="suzuka-yaris" tabindex="0">
+                    <td>
+                      <div class="identity">
+                        <div class="track-thumb">
+                          <svg viewBox="0 0 80 54" width="74" height="48"><path d="M8 32 C16 15,30 14,36 25 C42 37,50 43,64 34 C75 27,69 12,53 9" fill="none" stroke="#111827" stroke-width="3" stroke-linecap="round"/></svg>
+                        </div>
+                        <div><div class="name">鈴鹿サーキット</div><div class="meta">suzuka-gp</div></div>
+                      </div>
+                    </td>
+                    <td><div class="identity"><div class="car-thumb"><img src="../src/assets/telemetry-mock-car.png" alt="" /></div><div><div class="name">GR Yaris</div><div class="meta">High boost</div></div></div></td>
+                    <td><div class="lap-time">2:24.118</div><div class="date-time">2026/5/28 10:44</div></td>
+                    <td><div class="lap-time">2:26.540</div><div class="date-time">2026/6/11 14:02</div></td>
+                    <td><div class="lap-time">9</div><div class="date-time">logs</div></td>
+                    <td><span class="tag green">比較可</span></td>
+                  </tr>
+                  <tr data-row="sugo-roadster" tabindex="0">
+                    <td>
+                      <div class="identity">
+                        <div class="track-thumb">
+                          <svg viewBox="0 0 80 54" width="74" height="48"><path d="M11 39 C20 17,37 11,54 17 C68 22,66 39,50 43 C36 46,27 37,16 44" fill="none" stroke="#111827" stroke-width="3" stroke-linecap="round"/></svg>
+                        </div>
+                        <div><div class="name">SUGO</div><div class="meta">sportsland-sugo</div></div>
+                      </div>
+                    </td>
+                    <td><div class="identity"><div class="car-thumb"><img src="../src/assets/telemetry-mock-car.png" alt="" /></div><div><div class="name">Roadster</div><div class="meta">ND / 195 tire</div></div></div></td>
+                    <td><div class="lap-time">1:43.887</div><div class="date-time">2026/4/19 11:31</div></td>
+                    <td><div class="lap-time">1:44.220</div><div class="date-time">2026/6/2 13:16</div></td>
+                    <td><div class="lap-time">7</div><div class="date-time">logs</div></td>
+                    <td><span class="tag green">比較可</span></td>
+                  </tr>
+                  <tr data-row="tsukuba-brz" tabindex="0">
+                    <td>
+                      <div class="identity">
+                        <div class="track-thumb">
+                          <svg viewBox="0 0 80 54" width="74" height="48"><path d="M13 18 H52 C68 18,72 36,58 42 H27 C10 42,5 29,13 18 Z" fill="none" stroke="#111827" stroke-width="3" stroke-linecap="round"/></svg>
+                        </div>
+                        <div><div class="name">筑波サーキット</div><div class="meta">TC2000</div></div>
+                      </div>
+                    </td>
+                    <td><div class="identity"><div class="car-thumb"><img src="../src/assets/telemetry-mock-car.png" alt="" /></div><div><div class="name">Subaru BRZ</div><div class="meta">ZC6</div></div></div></td>
+                    <td><div class="lap-time">1:04.930</div><div class="date-time">2026/3/18 09:50</div></td>
+                    <td><div class="lap-time">1:06.102</div><div class="date-time">2026/6/8 12:05</div></td>
+                    <td><div class="lap-time">4</div><div class="date-time">logs</div></td>
+                    <td><span class="tag amber">比較候補待ち</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside class="panel inspector">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">富士スピードウェイ</div>
+                <div class="panel-sub">Nissan GT-R / 18 logs</div>
+              </div>
+              <span class="tag green">比較可</span>
+            </div>
+            <div class="inspector-body">
+              <div class="map-box">
+                <svg viewBox="0 0 300 220" width="100%" height="100%">
+                  <path d="M36 147 C67 51,177 31,225 77 C270 120,221 181,135 171 C88 166,75 153,45 185" fill="none" stroke="#111827" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="156" cy="166" r="7" fill="#fff" stroke="#2474ff" stroke-width="4" />
+                </svg>
+              </div>
+              <div class="metric-grid">
+                <div class="metric"><div class="metric-label">Best</div><div class="lap-time">1:55.280</div><div class="date-time">2026/6/14 15:55</div></div>
+                <div class="metric"><div class="metric-label">Last</div><div class="lap-time">1:58.044</div><div class="date-time">2026/6/15 09:20</div></div>
+              </div>
+              <div class="recent-list">
+                <div class="recent-row"><div><div class="name">2026 Practice / LAP 1</div><div class="meta">2026/6/15 09:20</div></div><div class="lap-time">1:58.044</div></div>
+                <div class="recent-row"><div><div class="name">2026 Practice / LAP 1</div><div class="meta">2026/6/14 15:55</div></div><div class="lap-time">1:55.280</div></div>
+                <div class="recent-row"><div><div class="name">2026 Practice / LAP 13</div><div class="meta">2026/6/10 11:08</div></div><div class="lap-time">1:56.012</div></div>
+                <div class="recent-row"><div><div class="name">2025 Test / LAP 4</div><div class="meta">2025/11/20 13:40</div></div><div class="lap-time">1:57.301</div></div>
+              </div>
+            </div>
+            <div class="inspector-footer">
+              <button class="primary-button" style="width:100%;justify-content:center;" data-open-detail>詳細を開く</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="analysis">
+        <div class="analysis-screen">
+          <section class="analysis-header">
+            <div class="analysis-top">
+              <div>
+                <button class="back-button" id="backToOverview">← 組み合わせ一覧</button>
+                <div class="eyebrow" style="margin-top:10px;">Telemetry Analysis</div>
+                <div class="analysis-title">富士スピードウェイ × Nissan GT-R</div>
+              </div>
+              <div class="actions">
+                <span class="tag blue">18 logs</span>
+                <span class="tag">Best 1:55.280</span>
+                <span class="tag green">Dry</span>
+                <span class="tag amber">Usable</span>
+                <span class="tag">private</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <label>
+                <div class="control-label">分析ラップ</div>
+                <button class="select-box">2026 Practice / 2026-06-15 09:20 / LAP 1 / 1:58.044 <span>▾</span></button>
+              </label>
+              <label>
+                <div class="control-label">比較ラップ</div>
+                <button class="select-box">自己ベスト / 2026-06-14 15:55 / LAP 1 / 1:55.280 / +2.764 <span>▾</span></button>
+              </label>
+              <div class="actions">
+                <button class="primary-button">デブリーフ</button>
+                <button class="ghost-button">比較</button>
+                <button class="ghost-button">記録</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="analysis-content">
+            <div class="analysis-grid-top">
+              <section class="flat-panel">
+                <div class="flat-panel-header"><span>走行ライン</span><span>analysis vs reference</span></div>
+                <div class="track-area">
+                  <svg viewBox="0 0 360 280" width="100%" height="100%">
+                    <path d="M48 184 C82 62,212 42,273 94 C323 138,264 223,158 211 C102 205,85 188,54 236" fill="none" stroke="#2474ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.82" />
+                    <path d="M51 181 C88 70,207 43,268 98 C315 142,258 215,157 204 C108 199,83 186,58 229" fill="none" stroke="#e11d48" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+                    <circle cx="184" cy="206" r="8" fill="#fff" stroke="#2474ff" stroke-width="4" />
+                    <text x="36" y="252" fill="#667085" font-size="12" font-weight="800">blue: 比較 / red: 分析</text>
+                  </svg>
+                </div>
+              </section>
+
+              <section class="flat-panel">
+                <div class="flat-panel-header"><span>Delta T</span><span>positive = analysis lap is slower</span></div>
+                <div class="chart-area">
+                  <svg viewBox="0 0 820 300" width="100%" height="100%" preserveAspectRatio="none">
+                    <g stroke="#e5e7eb" stroke-width="1">
+                      <line x1="0" y1="75" x2="820" y2="75" />
+                      <line x1="0" y1="150" x2="820" y2="150" />
+                      <line x1="0" y1="225" x2="820" y2="225" />
+                      <line x1="205" y1="0" x2="205" y2="300" />
+                      <line x1="410" y1="0" x2="410" y2="300" />
+                      <line x1="615" y1="0" x2="615" y2="300" />
+                    </g>
+                    <line x1="0" y1="194" x2="820" y2="194" stroke="#cbd5e1" stroke-width="1.3" />
+                    <path d="M0 192 C64 188 122 173 168 162 C216 151 249 128 287 120 C335 109 361 139 397 154 C453 178 489 201 537 216 C592 232 617 207 653 167 C694 121 746 112 820 98" fill="none" stroke="#e11d48" stroke-width="4" stroke-linecap="round" />
+                    <path d="M0 192 C42 190 72 184 118 176 C150 169 191 154 236 137" fill="none" stroke="#059669" stroke-width="4" stroke-linecap="round" />
+                    <rect x="520" y="42" width="132" height="28" rx="4" fill="#b91c1c" />
+                    <text x="531" y="61" fill="#fff" font-size="12" font-weight="900">最大ロス T1 +0.42</text>
+                    <rect x="138" y="105" width="142" height="28" rx="4" fill="#047857" />
+                    <text x="149" y="124" fill="#fff" font-size="12" font-weight="900">最大ゲイン 100R</text>
+                  </svg>
+                </div>
+              </section>
+            </div>
+
+            <div class="analysis-grid-bottom">
+              <section class="flat-panel">
+                <div class="flat-panel-header"><span>Telemetry Channels</span><span>shared distance axis</span></div>
+                <div class="channel-stack">
+                  <div class="channel-row"><div class="channel-label">Speed<span>km/h</span></div><svg viewBox="0 0 720 86" width="100%" height="86" preserveAspectRatio="none"><path d="M0 68 C82 18 151 22 194 64 C240 111 277 36 344 55 C424 78 456 34 521 28 C584 22 604 74 657 64 C688 58 706 46 720 42" fill="none" stroke="#2474ff" stroke-width="2"/><path d="M0 70 C82 22 154 26 196 71 C238 118 280 45 346 60 C420 82 460 42 521 36 C584 30 608 82 656 72 C690 64 706 52 720 48" fill="none" stroke="#e11d48" stroke-width="2.4"/></svg><div class="channel-value">242.8</div></div>
+                  <div class="channel-row"><div class="channel-label">Throttle<span>%</span></div><svg viewBox="0 0 720 86" width="100%" height="86" preserveAspectRatio="none"><path d="M0 72 L80 12 L180 12 L220 72 L300 72 L360 18 L500 18 L570 70 L720 12" fill="none" stroke="#2474ff" stroke-width="2"/><path d="M0 72 L88 18 L182 18 L222 72 L305 72 L368 24 L492 24 L574 72 L720 20" fill="none" stroke="#e11d48" stroke-width="2.4"/></svg><div class="channel-value">96%</div></div>
+                  <div class="channel-row"><div class="channel-label">Brake<span>%</span></div><svg viewBox="0 0 720 86" width="100%" height="86" preserveAspectRatio="none"><path d="M0 74 L126 74 L155 16 L189 74 L407 74 L434 28 L468 74 L596 74 L629 20 L660 74 L720 74" fill="none" stroke="#2474ff" stroke-width="2"/><path d="M0 74 L132 74 L164 12 L194 74 L412 74 L446 26 L470 74 L602 74 L636 16 L668 74 L720 74" fill="none" stroke="#e11d48" stroke-width="2.4"/></svg><div class="channel-value">0%</div></div>
+                  <div class="channel-row"><div class="channel-label">Steering<span>deg</span></div><svg viewBox="0 0 720 86" width="100%" height="86" preserveAspectRatio="none"><path d="M0 43 C92 20 119 66 172 43 C235 16 274 70 340 43 C404 16 454 68 512 42 C588 10 632 75 720 42" fill="none" stroke="#2474ff" stroke-width="2"/><path d="M0 43 C92 28 119 62 174 43 C236 24 278 65 342 43 C402 22 458 63 516 42 C584 18 638 70 720 43" fill="none" stroke="#e11d48" stroke-width="2.4"/></svg><div class="channel-value">-8°</div></div>
+                  <div class="channel-row"><div class="channel-label">Gear<span>channel</span></div><svg viewBox="0 0 720 86" width="100%" height="86" preserveAspectRatio="none"><path d="M0 70 L90 70 L90 58 L175 58 L175 46 L310 46 L310 34 L520 34 L520 22 L720 22" fill="none" stroke="#2474ff" stroke-width="2"/><path d="M0 70 L100 70 L100 58 L182 58 L182 46 L320 46 L320 34 L530 34 L530 22 L720 22" fill="none" stroke="#e11d48" stroke-width="2.4"/></svg><div class="channel-value">5</div></div>
+                </div>
+              </section>
+
+              <aside class="flat-panel insight">
+                <div class="flat-panel-header"><span>Debrief</span><span>詳細比較</span></div>
+                <div>
+                  <div class="insight-row"><div><div class="insight-label">自己ベスト比</div></div><div class="insight-value red">+2.764s</div></div>
+                  <div class="insight-row"><div><div class="insight-label">最大ロス</div></div><div class="insight-value red">T1 braking +0.42</div></div>
+                  <div class="insight-row"><div><div class="insight-label">最大ゲイン</div></div><div class="insight-value green">100R +0.18</div></div>
+                  <div class="insight-row"><div><div class="insight-label">次走アクション</div></div><div class="insight-value">T1進入を奥へ</div></div>
+                </div>
+                <div class="summary">
+                  T1でブレーキ開始が早く、100Rの最低速度は比較ラップより良い。次走はT1だけに絞って確認する。
+                </div>
+                <div class="setup-list">
+                  <div class="metric-label" style="margin-bottom:6px;">Setup Diff</div>
+                  <div class="setup-line"><span>Front camber</span><strong>-2.8 → -3.1</strong></div>
+                  <div class="setup-line"><span>Rear ARB</span><strong>4 → 5</strong></div>
+                </div>
+              </aside>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const overview = document.getElementById("overview");
+    const analysis = document.getElementById("analysis");
+    const openButtons = document.querySelectorAll("[data-open-detail]");
+    const backButton = document.getElementById("backToOverview");
+
+    function showAnalysis() {
+      overview.classList.remove("active");
+      analysis.classList.add("active");
+    }
+
+    function showOverview() {
+      analysis.classList.remove("active");
+      overview.classList.add("active");
+    }
+
+    openButtons.forEach((button) => button.addEventListener("click", showAnalysis));
+    backButton.addEventListener("click", showOverview);
+    if (window.location.hash === "#analysis") {
+      showAnalysis();
+    }
+
+    document.querySelectorAll("tbody tr").forEach((row) => {
+      row.addEventListener("click", () => {
+        document.querySelectorAll("tbody tr").forEach((item) => item.classList.remove("selected"));
+        row.classList.add("selected");
+      });
+      row.addEventListener("dblclick", showAnalysis);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          showAnalysis();
+        }
+        if (event.key === " ") {
+          event.preventDefault();
+          document.querySelectorAll("tbody tr").forEach((item) => item.classList.remove("selected"));
+          row.classList.add("selected");
+        }
+      });
+    });
+  </script>
+</body>
+</html>

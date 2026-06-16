@@ -12,7 +12,9 @@
 ### できていること
 
 - `src/lib/telemetry/` に、AIM CSV / DigiSpice .dtb / NMEA RMC のパーサー、フォーマット判定、ラップ検出、距離軸リサンプル、デルタT、指標計算、ルールベース注釈がある。
-- `src/components/telemetry/TelemetryAnalysis.tsx` は、ロガーファイルを端末内で読み込み、同一ファイル内の2ラップを `ComparisonCockpit` で比較できる。
+- `src/components/telemetry/TelemetryTraceList.tsx` は `/telemetry` の起点画面として、保存済み走行ログを車種・コース別に確認し、デブリーフ/比較/セットアップ記録へ遷移できる。
+- `src/components/telemetry/TelemetryAnalysis.tsx` は `/telemetry/import` で、ロガーファイルを端末内で読み込み、1ラップ確認または同一ファイル内の2ラップを `ComparisonCockpit` で比較できる。
+- `src/components/telemetry/SingleLapTelemetryView.tsx` は、比較相手がない1ラップでも速度、G、走行ライン、主要指標を確認できる。
 - `src/components/telemetry/TelemetryFileCompare.tsx` は、A/B それぞれに別ファイルを読み込み、前回ファイルと今回ファイル、または今回ファイルと受領/サンプルファイルを保存前に比較できる。
 - `src/components/telemetry/TelemetryImport.tsx` は、セットアップ記録へ `lapTimeData.evidence` を添付できる。
 - `/telemetry/compare?aTrace=&bTrace=` は保存済みトレース同士の比較に加え、保存済みAに対してアップロードしたローカルファイルをBとして差し込める。
@@ -22,9 +24,9 @@
 
 ### まだ足りないこと
 
-- 比較用のトレースが永続化されていない。ページを離れるとロガー再取込が必要。
-- 保存されるのはラップタイム証憑のみで、速度/G/デルタT/ライン/区間などの比較素材は残らない。
-- 保存済みトレースの一覧/検索/選択UIがまだない。比較URLやセットアップ詳細から入る導線に限られる。
+- 比較用の間引きトレースは保存できるが、ローカルBファイル、比較結果、選択した比較相手をセッション資産として残す導線はまだ限定的。
+- セットアップ記録本体にはラップタイム証憑とトレース参照のみを持つ。生ロガー全量やAIM等のCANチャンネルはまだ保持しない。
+- 保存済み走行ログの一覧はあるが、比較対象2本を明示的に選ぶピッカー、共有/購入リファレンス探索、比較結果の保存はまだ限定的。
 - ローカルファイル2本比較は保存前の一時比較であり、比較結果や選択したBファイルはまだセッション資産として保存されない。
 - 共有セットアップは読めるが、共有/購入された「比較用テレメトリ資産」の権限モデルがない。
 - 現行 `TelemetryPoint` は GPS・速度・方位・高度のみ。AIM 等で取れるスロットル/ブレーキ/舵角/RPM/CAN チャンネルを保持できない。
@@ -54,7 +56,7 @@
 
 1. セッション詳細: 「前回と比較」「自己ベストと比較」
 2. 走行履歴: 同じ車種×サーキットの過去ログ候補を自動提示
-3. テレメトリ分析: 左に自分の保存済みラップ、右に比較対象を選ぶ
+3. 走行ログ: 保存済みラップを車種・コース別に見て、デブリーフ、前回比較、自己ベスト比較へ入る
 4. ローカルファイル比較: Aに前回ファイル、Bに今回ファイルを読み込み、保存前に比較する
 
 比較の初期候補は自動で出す。
@@ -78,7 +80,14 @@
 
 - 今回 vs 前回: 両方が保存済みなら `/telemetry/compare?aTrace=&bTrace=`、保存前なら `/telemetry/files` で2ファイルを読み込む。
 - 今回 vs アップロードデータ: 今回が保存済みなら `/telemetry/compare?aTrace=` でBファイルをアップロード、両方が未保存なら `/telemetry/files`。
-- 同一走行内のベスト vs 2番手: `/telemetry` で1ファイル内の2ラップを比較する。
+- 同一走行内のベスト vs 2番手: `/telemetry/import` で1ファイル内の2ラップを比較する。
+- 1ラップだけの確認: `/telemetry/import`、`/telemetry/files`、`/telemetry/compare`、`/telemetry/debrief` の各画面で、比較相手が無い場合でも単独ラップビューを出す。
+
+単独ラップビューは比較ではない。特にDigiSpice公式ソフト等が出力する1ラップ切り出しログでは、ファイル内でS/Fライン交差が1回しか観測されず、`NORMAL` として証明できない場合がある。この場合は `OUT` または `IN` のまま、次のように扱う。
+
+- 表示可: ラップ時間、速度プロファイル、前後G/横G、主要指標、走行ライン（保存済みトレースの場合）
+- 比較/保存可: 原則 `NORMAL` ラップのみ
+- UI表示: `NORMAL` ではない場合、「切り出しログの確認用」と明示する
 
 ### 2.3 マーケット/共有データと比較する体験
 
@@ -127,7 +136,7 @@ CarSetup
 | リファレンス探索 | 共有/購入/販売データ検索 | 車種×コース×条件フィルタ、在庫カード |
 | 商品詳細 | 購入判断 | 証憑、匿名サマリー、売り手実績、プレビュー |
 
-既存 `/telemetry` は「新規ファイル取込」と「保存済み比較」の両方の入口として残す。ただし主導線はセッション詳細からに寄せる。
+`/telemetry` は保存済み走行ログの台帳として扱う。新規ファイル取込は `/telemetry/import`、保存前の前回/今回2ファイル比較は `/telemetry/files` に分け、ユーザーが最初に過去ログを確認してから必要に応じて追加・比較へ進む流れにする。
 
 ---
 
@@ -562,6 +571,8 @@ GPS軌跡は個人情報性がある。公開/販売時の粒度を分ける。
 
 ### ルーティング
 
+- `/telemetry`
+- `/telemetry/traces` （既存リンク互換の一覧エイリアス）
 - `/telemetry/import`
 - `/telemetry/files`
 - `/telemetry/compare?aTrace=&bTrace=`
@@ -605,3 +616,73 @@ GPS軌跡は個人情報性がある。公開/販売時の粒度を分ける。
 6. Firestore rules の private trace 読み取り保護
 
 この6点で、プロダクトは「その場限りのログビューア」から「走るたびに比較資産が増えるツール」に変わる。
+
+---
+
+## 12. トラックマップ overlay 仕様（2026-06-14 追加）
+
+### 12.1 既存ツール調査メモ
+
+調査は公式ヘルプ/製品ページを優先した。
+
+| ツール | トラック扱い | CarSetup6への示唆 |
+|---|---|---|
+| AiM RaceStudio 3 | Track はS/F、split、形状、予測リファレンス、ピットレーンを持つ。AnalysisではTrack Map and Segments Selectorでセグメントを管理し、Web/GDI地図、split report、corner/straight reportへ使う。 | `Track` は単なるS/Fラインでは足りない。表示用中心線、split/sector、pit lane、将来のreference lapを同じ trackId に束ねる。 |
+| MoTeC i2 | Track Map Report、Rainbow Track Maps、Automatic Track Generation、Track Section Editor、User Defined Track Sectionsを機能比較表に持つ。Track reportはチャンネル値を色勾配で見せ、2ラップの相対位置表示にも使う。 | マップは背景ではなく分析コンポーネント。速度/G/ブレーキ等のチャンネル色分けと、ユーザー定義区間を後で足せる型にする。 |
+| RaceChrono | Track Libraryからtrack profileを取得し、custom trackではStart/Finish trap、Start/Finish以外のtrap、方向、幅を編集する。通常のtrap幅は50-75mで、幅を広げると検出は増えるが精度が落ちると明示している。 | ラップ検出用のtrap/lineと、見た目のコース境界は分離する。検出幅の変更は品質警告の対象にする。 |
+| VBOX Circuit Tools | Circuit Tools 3はSatellite Track Map、Overhead Car View、sector highlighting、delta time、split-sector analysisを前面に出す。Track Map DatabaseはCircuit Tools/デバイス向けに別更新される。 | まず静的DBを持ち、更新可能なtrack map databaseとして扱う。セクター強調と実走ライン比較を優先する。 |
+
+参照URL:
+
+- AiM RaceStudio 3 manual: https://www.aim-sportline.com/docs/racestudio3/manual/html/index.html
+- AiM Tracks for Analysis and Devices: https://www.aim-sportline.com/docs/racestudio3/manual/html/tracks.html
+- AiM RaceStudio 3 Analysis: https://www.aim-sportline.com/docs/racestudio3/manual/html/analysis.html
+- MoTeC i2: https://www.motec.com.au/i2/i2overview/
+- RaceChrono support: https://racechrono.com/support
+- RaceChrono custom track tutorial: https://racechrono.com/article/1923
+- VBOX Circuit Tools: https://www.vboxmotorsport.co.uk/en/circuit-tools
+- VBOX Track Map Database: https://www.vboxmotorsport.co.uk/en/customer-ct-track-database
+
+### 12.2 データモデル
+
+`src/lib/tracks.ts` の `Track` に任意の `map` を追加する。
+
+```ts
+interface TrackMap {
+  source: 'official' | 'sample-derived' | 'manual';
+  widthM: number;
+  centerline: { distanceM: number; lat: number; lon: number }[];
+  sectors: { id: string; name: string; startDistanceM: number; endDistanceM: number }[];
+  markers: { id: string; name: string; distanceM: number; kind: 'corner' | 'sector' | 'reference' }[];
+  curbs: { id: string; name: string; startDistanceM: number; endDistanceM: number; side: 'left' | 'right' | 'both' }[];
+  notes?: string;
+}
+```
+
+設計意図:
+
+- `startFinishLine` はラップ検出用、`map` は分析表示用として分離する。
+- `centerline + widthM` から左右境界を簡易生成する。公式/測量データが入ったら `boundaries` を追加して置換する。
+- sector/corner/curb は距離軸で持つ。GPS座標で持たないことで、中心線の更新時にラベル位置も追従させる。
+- `source` を必須にして、実測由来・公式・手入力を混同しない。
+
+### 12.3 段階導入
+
+1. **MVP（今回）**: 鈴鹿だけ、DigiSpice同梱サンプル由来の中心線を使い、平均幅から境界を生成。主要コーナー名、簡易セクター、代表的な縁石区間を表示する。
+2. **国内主要コース**: S/F校正済みコースから順に、中心線と主要コーナー/セクターを追加する。未校正コースはS/Fのみのまま。
+3. **ユーザー編集**: RaceChronoのtrap編集に近い形で、S/F、split、コーナーラベルを編集できるようにする。ただし変更は `manual` として保存し、公式DBとは分離する。
+4. **分析強化**: MoTeC/VBOX型に、速度、前後G、ブレーキ推定、デルタTをトラック上で色分けする。
+5. **共有/マーケット**: `TrackMap` は共有資産ではなく公共DBとして扱い、販売/共有トレースには相対パスとtrackIdだけを持たせる。
+
+### 12.4 今回の実装範囲
+
+- `suzuka-full.map` を追加。
+- `trackMapOverlay.ts` で中心線、左右境界、縁石、セクター名、コーナー名をECharts seriesへ変換。
+- `/telemetry/import`、`/telemetry/files`、`/telemetry/compare` の単独/比較マップに overlay を表示。
+- 保存済みサンプルのような1ラップ切り出しログでも、比較用途ではなく単独確認としてコース文脈を見られる。
+
+制限:
+
+- 鈴鹿の境界は平均幅からの簡易生成で、公式測量値ではない。
+- 縁石区間とコーナー距離は実ログ中心線に対する表示用概算。正式な走行規則や審判用途には使わない。
+- 公式セクタータイムとはまだ連動しない。現時点では視覚上の区間ラベルである。
