@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Empty, Spin, message, Card, Button, Modal, Input, Select } from 'antd';
-import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined, ExperimentOutlined, DownloadOutlined } from '@ant-design/icons';
+import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined, ExperimentOutlined, DownloadOutlined, BookOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { toPublicVehicleProfile } from '../../lib/vehicleProfilePublic';
 import { getUserVehicles, deleteVehicle } from '../../services/vehicleService';
@@ -12,6 +13,7 @@ import { VehicleModal } from './VehicleModal';
 
 export const VehicleList: React.FC = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [settingsModal, setSettingsModal] = useState(false);
@@ -238,8 +240,19 @@ export const VehicleList: React.FC = () => {
                   )
                 }
                 actions={[
+                  (vehicle.profile?.modifications.length ?? 0) > 0 && vehicle.id ? (
+                    <Button
+                      key="journal"
+                      type="text"
+                      icon={<BookOutlined />}
+                      onClick={(e) => { e.stopPropagation(); navigate(`/vehicles/${vehicle.id}/journal`); }}
+                    >
+                      ジャーナル
+                    </Button>
+                  ) : null,
                   vehicle.profile && vehicle.id ? (
                     <Button
+                      key="spec-card"
                       type="text"
                       icon={<ExperimentOutlined />}
                       onClick={(e) => { e.stopPropagation(); toggleSpecCard(vehicle.id as string); }}

@@ -10,6 +10,7 @@ import CarSetup from '../CarSetup';
 import { SetupHistory } from './components/setup/SetupHistory';
 import { Dashboard } from './components/Dashboard';
 import { VehicleList } from './components/vehicle/VehicleList';
+import { BuildJournal } from './components/vehicle/BuildJournal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { TelemetryAnalysis } from './components/telemetry/TelemetryAnalysis';
 import { TelemetryFileCompare } from './components/telemetry/TelemetryFileCompare';
@@ -108,6 +109,14 @@ const App: React.FC = () => {
               element={
                 <PrivateRoute>
                   <VehicleList />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/vehicles/:id/journal"
+              element={
+                <PrivateRoute>
+                  <BuildJournal />
                 </PrivateRoute>
               }
             />
