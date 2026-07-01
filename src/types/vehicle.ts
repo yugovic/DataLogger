@@ -17,9 +17,69 @@ export interface Vehicle {
   photoURL?: string; // 車両写真
   notes?: string; // 備考
   setupConfig?: VehicleSetupConfig; // セッティング可能項目
+  profile?: VehicleProfile; // 車両プロフィール
   isActive: boolean; // アクティブフラグ
   createdAt: Date;
   updatedAt: Date;
+}
+
+// タイヤ区分（クラス判定の主軸）
+export type TireClass = 'S_TIRE' | 'HIGH_GRIP_RADIAL' | 'RADIAL';
+
+export const TIRE_CLASS_LABELS: Record<TireClass, string> = {
+  S_TIRE: 'Sタイヤ',
+  HIGH_GRIP_RADIAL: 'ハイグリップラジアル',
+  RADIAL: 'ラジアル',
+};
+
+// 改造カテゴリ
+export type ModCategory =
+  | 'intake_exhaust'
+  | 'forced_induction'
+  | 'suspension'
+  | 'brake'
+  | 'aero'
+  | 'weight_reduction'
+  | 'ecu'
+  | 'drivetrain'
+  | 'engine_internal'
+  | 'tire_wheel'
+  | 'body_reinforcement'
+  | 'other';
+
+export const MOD_CATEGORY_LABELS: Record<ModCategory, string> = {
+  intake_exhaust: '吸排気',
+  forced_induction: '過給',
+  suspension: '足回り',
+  brake: 'ブレーキ',
+  aero: 'エアロ',
+  weight_reduction: '軽量化',
+  ecu: 'ECU・電装',
+  drivetrain: '駆動系',
+  engine_internal: 'エンジン内部',
+  tire_wheel: 'タイヤ・ホイール',
+  body_reinforcement: 'ボディ補強',
+  other: 'その他',
+};
+
+// 改造パーツ申告エントリ
+export interface ModificationEntry {
+  id: string; // クライアント生成の一意ID
+  category: ModCategory;
+  partName: string; // パーツ名
+  maker: string | null; // メーカー名
+  installedAt: Date | null; // 装着日
+  removedAt: Date | null; // 取外し日（null = 現在も装着中）
+  costJPY: number | null; // 費用
+  memo: string | null; // 自由メモ
+}
+
+// 車両プロフィール
+export interface VehicleProfile {
+  modifications: ModificationEntry[];
+  tireClass: TireClass | null;
+  powerPs: number | null;
+  weightKg: number | null;
 }
 
 // 車両のセッティング可能項目の設定
