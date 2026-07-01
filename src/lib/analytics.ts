@@ -22,7 +22,10 @@ export type AnalyticsEventName =
   | 'public_share_viewed'
   | 'public_share_cta_clicked'
   | 'login'
-  | 'sign_up';
+  | 'sign_up'
+  | 'session_highlight_shown'
+  | 'session_highlight_image_saved'
+  | 'session_highlight_shared';
 
 // イベントごとのパラメータ型（個人情報禁止）
 export type AnalyticsEventParams = {
@@ -38,6 +41,9 @@ export type AnalyticsEventParams = {
   public_share_cta_clicked: { shareId?: string };
   login: Record<string, never>;
   sign_up: Record<string, never>;
+  session_highlight_shown: { circuit?: string; badge_count?: number };
+  session_highlight_image_saved: { circuit?: string };
+  session_highlight_shared: { circuit?: string; method?: string };
 };
 
 // 遅延初期化 — isSupported() は非同期なので Promise でラップ

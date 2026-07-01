@@ -15,6 +15,9 @@ import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
 import { SuspensionTab } from './src/components/setup/tabs/SuspensionTab';
 import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
+import { SessionHighlightModal } from './src/components/setup/SessionHighlightModal';
+import { computeSessionHighlight } from './src/lib/sessionHighlights';
+import type { SessionHighlight } from './src/lib/sessionHighlights';
 import { TelemetryImport } from './src/components/telemetry/TelemetryImport';
 import { EvidenceBadge } from './src/components/telemetry/EvidenceBadge';
 import type { LapAttachPayload } from './src/components/telemetry/evidence';
@@ -137,6 +140,8 @@ const [showTelemetryImport, setShowTelemetryImport] = useState(false);
 const [compareCandidates, setCompareCandidates] = useState<ComparableTraceCandidate[]>([]);
 const [showComparePrompt, setShowComparePrompt] = useState(false);
 const [savedTraceId, setSavedTraceId] = useState<string | null>(null);
+// ハイライトモーダル（新規保存成功後のみ表示）
+const [highlightData, setHighlightData] = useState<{ highlight: SessionHighlight; setup: CarSetupType } | null>(null);
 
 // ロガー取込結果をラップタイムへ添付（source='logger' + 証憑メタを保持）
 const handleTelemetryAttach = (payload: LapAttachPayload, result: TelemetryImportResult) => {
@@ -404,6 +409,7 @@ const handleSave = async () => {
 
     // 新規保存か更新かを判定
     let savedSetupId = setupId;
+    const isNewSave = !(setupId && !isViewMode);
     if (setupId && !isViewMode) {
       // 編集モードから保存する場合は更新
       await updateSetup(setupId, setupData);
@@ -417,7 +423,8 @@ const handleSave = async () => {
       logger.log('Saved setup with ID:', newSetupId);
     }
 
-    // ベストラップ更新チェック（同一サーキットの過去データと比較）
+    // ベストラップ更新チェック＋ハイライト計算（同一サーキットの過去データと比較）
+    // 過剰クエリを避けるため getUserSetups の結果をハイライト計算でも再利用する
     if (bestLap) {
       try {
         const pastSetups = await getUserSetups(currentUser.uid, 50);
@@ -439,8 +446,24 @@ const handleSave = async () => {
             message.info(`ベストラップまで +${Math.abs(delta).toFixed(3)}s`, 4);
           }
         }
+
+        // ハイライトモーダルは新規保存のみ表示（更新・編集保存では出さない）
+        if (isNewSave && savedSetupId) {
+          const currentSetupFull: CarSetupType = {
+            ...setupData,
+            id: savedSetupId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          // current を除く全過去セットアップを履歴として渡す
+          const history = pastSetups.filter((s) => s.id !== savedSetupId);
+          const highlight = computeSessionHighlight(currentSetupFull, history);
+          if (highlight) {
+            setHighlightData({ highlight, setup: currentSetupFull });
+          }
+        }
       } catch {
-        // ベストラップ比較失敗は保存フローに影響させない
+        // ベストラップ比較・ハイライト計算の失敗は保存フローに影響させない
       }
     }
 
@@ -1505,6 +1528,16 @@ onOpenChange={(open) => {
   initialLaps={detailedLaps}
   evidenceActive={lapSource === 'logger'}
 />
+
+{/* ファーストラップ・アルバム — セッションハイライトモーダル（新規保存後のみ） */}
+{highlightData && (
+  <SessionHighlightModal
+    open={true}
+    onClose={() => setHighlightData(null)}
+    highlight={highlightData.highlight}
+    savedSetup={highlightData.setup}
+  />
+)}
 
 {/* ロガー取込モーダル */}
 <Modal

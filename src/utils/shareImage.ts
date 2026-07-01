@@ -5,6 +5,8 @@
 
 import { buildSpecCardView } from '../lib/specCardView';
 import type { PublicVehicleProfile } from '../lib/vehicleProfilePublic';
+import type { HighlightBadge } from '../lib/sessionHighlights';
+import { HIGHLIGHT_BADGE_LABELS } from '../lib/sessionHighlights';
 
 export interface ShareCardData {
   circuit: string;
@@ -24,6 +26,16 @@ export interface SpecCardImageData {
 }
 
 export type SpecCardShareResult = 'shared' | 'unsupported' | 'cancelled';
+
+export interface HighlightImageData {
+  circuit: string;
+  carModel: string;
+  dateLabel: string;
+  bestLap: string;
+  lapCount: number | null;
+  badges: HighlightBadge[];
+  shareUrl?: string;
+}
 
 const truncateCanvasText = (
   ctx: CanvasRenderingContext2D,
@@ -309,6 +321,112 @@ export async function generateSpecCardImage(data: SpecCardImageData): Promise<Bl
   ctx.fillStyle = '#475569';
   ctx.font = '13px sans-serif';
   ctx.fillText('VELOCITY LOGGER — マシンスペックカード', 60, H - 25);
+  drawWatermark(ctx, { shareUrl: data.shareUrl });
+
+  return createPngBlob(canvas);
+}
+
+/**
+ * ファーストラップ・アルバム用ハイライト画像を生成して PNG Blob を返す。
+ * 1200×630 ダークトーン Canvas。drawWatermark を適用（公開URL入り対応）。
+ */
+export async function generateHighlightImage(data: HighlightImageData): Promise<Blob> {
+  const W = 1200;
+  const H = 630;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context not available');
+
+  // 背景グラデーション（既存パターンと統一）
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#0f172a');
+  bg.addColorStop(0.5, '#1e293b');
+  bg.addColorStop(1, '#0f172a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // アクセントバー
+  const accent = ctx.createLinearGradient(0, 0, W, 0);
+  accent.addColorStop(0, '#2563eb');
+  accent.addColorStop(0.3, '#3b82f6');
+  accent.addColorStop(1, '#0f172a');
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, 0, W, 6);
+
+  // ロゴ
+  ctx.fillStyle = '#3b82f6';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('VELOCITY LOGGER', 60, 60);
+
+  // サーキット名（大）
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = 'bold 40px sans-serif';
+  ctx.fillText(truncateCanvasText(ctx, data.circuit, W - 120), 60, 120);
+
+  // 車種名
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '20px sans-serif';
+  ctx.fillText(truncateCanvasText(ctx, data.carModel, W - 120), 60, 156);
+
+  // 日付
+  ctx.fillStyle = '#64748b';
+  ctx.font = '15px sans-serif';
+  ctx.fillText(data.dateLabel, 60, 188);
+
+  // ベストラップ（最大表示）
+  ctx.fillStyle = '#10b981';
+  ctx.font = 'bold 80px monospace';
+  ctx.fillText(data.bestLap, 60, 300);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '16px sans-serif';
+  ctx.fillText('BEST LAP', 60, 326);
+
+  // 周回数（あれば）
+  if (data.lapCount !== null) {
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.fillText(`${data.lapCount} LAPS`, 60, 370);
+  }
+
+  // バッジ（最大4個・ピル型）
+  if (data.badges.length > 0) {
+    const badgeY = data.lapCount !== null ? 410 : 370;
+    let badgeX = 60;
+    const badgePadX = 18;
+    const badgePadY = 10;
+    const badgeRadius = 16;
+    const badgeFont = 'bold 15px sans-serif';
+
+    ctx.font = badgeFont;
+    for (const badge of data.badges.slice(0, 4)) {
+      const label = HIGHLIGHT_BADGE_LABELS[badge];
+      const textWidth = ctx.measureText(label).width;
+      const pillW = textWidth + badgePadX * 2;
+      const pillH = 32;
+
+      // ピル背景
+      ctx.fillStyle = '#1d4ed8';
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY, pillW, pillH, badgeRadius);
+      ctx.fill();
+
+      // ラベルテキスト
+      ctx.fillStyle = '#dbeafe';
+      ctx.fillText(label, badgeX + badgePadX, badgeY + pillH / 2 + badgePadY / 2);
+
+      badgeX += pillW + 12;
+    }
+  }
+
+  // 下部バー
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, H - 60, W, 60);
+  ctx.fillStyle = '#475569';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('VELOCITY LOGGER — セッションハイライト', 60, H - 25);
   drawWatermark(ctx, { shareUrl: data.shareUrl });
 
   return createPngBlob(canvas);
