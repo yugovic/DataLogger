@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Empty, Spin, message, Card, Button, Modal, Input, Select } from 'antd';
-import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined } from '@ant-design/icons';
+import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined, BookOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserVehicles, deleteVehicle } from '../../services/vehicleService';
 import { Vehicle } from '../../types/vehicle';
@@ -9,6 +10,7 @@ import { VehicleModal } from './VehicleModal';
 
 export const VehicleList: React.FC = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [settingsModal, setSettingsModal] = useState(false);
@@ -170,68 +172,87 @@ export const VehicleList: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sorted.map((vehicle) => (
-              <Card
-                key={vehicle.id}
-                hoverable
-                className="shadow-sm hover:shadow-md transition-shadow"
-                onClick={() => handleEditVehicle(vehicle)}
-                cover={
-                  vehicle.photoURL ? (
-                    <>
-                      {console.log('Debug - Vehicle photo URL:', vehicle.photoURL?.substring(0, 100))}
-                      <img 
-                        alt={`${vehicle.make} ${vehicle.model}`} 
-                        src={vehicle.photoURL}
-                        loading="lazy"
-                        className="h-48 object-cover"
-                        onError={() => {
-                          console.error('Debug - Image load error for vehicle:', vehicle.id);
-                          console.error('Debug - Failed URL:', vehicle.photoURL?.substring(0, 100));
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <div className="h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                      <CarOutlined style={{ fontSize: 48, color: '#999' }} />
-                    </div>
-                  )
-                }
-                actions={[
-                  <Button
-                    type="text"
-                    icon={<EditOutlined />}
-                    onClick={(e) => { e.stopPropagation(); handleEditVehicle(vehicle); }}
-                  >
-                    編集
-                  </Button>,
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => { e.stopPropagation(); handleDeleteVehicle(vehicle); }}
-                  >
-                    削除
-                  </Button>,
-                ]}
-              >
-                <Card.Meta
-                  title={`${vehicle.make} ${vehicle.model}`}
-                  description={
-                    <div className="space-y-1 text-sm dark:text-gray-300">
-                      <div>{vehicle.year}年式 {vehicle.grade && `/ ${vehicle.grade}`}</div>
-                      {vehicle.licensePlate && <div>ナンバー: {vehicle.licensePlate}</div>}
-                      {vehicle.mileage && <div>走行距離: {vehicle.mileage.toLocaleString()} km</div>}
-                      <div className="text-gray-500 dark:text-gray-400 mt-2">
-                        {vehicle.engineType && `${vehicle.engineType} / `}
-                        {vehicle.transmission && `${vehicle.transmission} / `}
-                        {vehicle.drivetrain}
+            {sorted.map((vehicle) => {
+              const hasBuildJournal = (vehicle.profile?.modifications.length ?? 0) > 0;
+
+              return (
+                <Card
+                  key={vehicle.id}
+                  hoverable
+                  className="shadow-sm hover:shadow-md transition-shadow"
+                  onClick={() => handleEditVehicle(vehicle)}
+                  cover={
+                    vehicle.photoURL ? (
+                      <>
+                        {console.log('Debug - Vehicle photo URL:', vehicle.photoURL?.substring(0, 100))}
+                        <img
+                          alt={`${vehicle.make} ${vehicle.model}`}
+                          src={vehicle.photoURL}
+                          loading="lazy"
+                          className="h-48 object-cover"
+                          onError={() => {
+                            console.error('Debug - Image load error for vehicle:', vehicle.id);
+                            console.error('Debug - Failed URL:', vehicle.photoURL?.substring(0, 100));
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <div className="h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <CarOutlined style={{ fontSize: 48, color: '#999' }} />
                       </div>
-                    </div>
+                    )
                   }
-                />
-              </Card>
-            ))}
+                  actions={[
+                    ...(hasBuildJournal ? [
+                      <Button
+                        key="journal"
+                        type="text"
+                        icon={<BookOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (vehicle.id) navigate(`/vehicles/${vehicle.id}/journal`);
+                        }}
+                      >
+                        ビルドジャーナル
+                      </Button>,
+                    ] : []),
+                    <Button
+                      key="edit"
+                      type="text"
+                      icon={<EditOutlined />}
+                      onClick={(e) => { e.stopPropagation(); handleEditVehicle(vehicle); }}
+                    >
+                      編集
+                    </Button>,
+                    <Button
+                      key="delete"
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteVehicle(vehicle); }}
+                    >
+                      削除
+                    </Button>,
+                  ]}
+                >
+                  <Card.Meta
+                    title={`${vehicle.make} ${vehicle.model}`}
+                    description={
+                      <div className="space-y-1 text-sm dark:text-gray-300">
+                        <div>{vehicle.year}年式 {vehicle.grade && `/ ${vehicle.grade}`}</div>
+                        {vehicle.licensePlate && <div>ナンバー: {vehicle.licensePlate}</div>}
+                        {vehicle.mileage && <div>走行距離: {vehicle.mileage.toLocaleString()} km</div>}
+                        <div className="text-gray-500 dark:text-gray-400 mt-2">
+                          {vehicle.engineType && `${vehicle.engineType} / `}
+                          {vehicle.transmission && `${vehicle.transmission} / `}
+                          {vehicle.drivetrain}
+                        </div>
+                      </div>
+                    }
+                  />
+                </Card>
+              );
+            })}
           </div>
         )}
 

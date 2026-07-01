@@ -35,13 +35,13 @@ export function sessionTypeLabel(type: CarSetup['sessionType']): string {
 
 /**
  * ラップタイム文字列を比較用ミリ秒へ変換する。
- * 形式: "M:SS.mmm" または "SS.mmm"。解析不能なら null。
+ * 形式: "M:SS.mmm" / "M'SS.mmm" / "SS.mmm"。解析不能なら null。
  */
 export function lapTimeToMs(lap: string | null | undefined): number | null {
   if (!lap) return null;
   const trimmed = lap.trim();
-  // M:SS.mmm
-  const withMin = /^(\d+):(\d{1,2})(?:\.(\d{1,3}))?$/.exec(trimmed);
+  // M:SS.mmm / M'SS.mmm
+  const withMin = /^(\d+)[:'](\d{1,2})(?:\.(\d{1,3}))?$/.exec(trimmed);
   if (withMin) {
     const min = parseInt(withMin[1], 10);
     const sec = parseInt(withMin[2], 10);
