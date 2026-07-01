@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Empty, Spin, message, Card, Button, Modal, Input, Select } from 'antd';
-import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined } from '@ant-design/icons';
+import { LoadingOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined, ExperimentOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { toPublicVehicleProfile } from '../../lib/vehicleProfilePublic';
 import { getUserVehicles, deleteVehicle } from '../../services/vehicleService';
 import { Vehicle } from '../../types/vehicle';
+import { downloadSpecCardImage, shareSpecCardImageViaWebShare } from '../../utils/shareImage';
 import { Header } from '../common/Header';
+import { SpecCard } from './SpecCard';
 import { VehicleModal } from './VehicleModal';
 
 export const VehicleList: React.FC = () => {
@@ -17,6 +20,7 @@ export const VehicleList: React.FC = () => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [keyword, setKeyword] = useState('');
   const [sortKey, setSortKey] = useState<'newest'|'oldest'|'yearDesc'|'yearAsc'|'makeAsc'>('newest');
+  const [expandedVehicleIds, setExpandedVehicleIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchVehicles();
@@ -89,6 +93,42 @@ export const VehicleList: React.FC = () => {
         }
       },
     });
+  };
+
+  const toggleSpecCard = (vehicleId: string) => {
+    setExpandedVehicleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(vehicleId)) {
+        next.delete(vehicleId);
+      } else {
+        next.add(vehicleId);
+      }
+      return next;
+    });
+  };
+
+  const handleSaveSpecCard = async (vehicle: Vehicle) => {
+    if (!vehicle.profile) return;
+
+    const data = {
+      carModel: `${vehicle.make} ${vehicle.model}`,
+      profile: toPublicVehicleProfile(vehicle.profile),
+      ownerLabel: currentUser?.displayName ?? null,
+    };
+
+    try {
+      const shareResult = await shareSpecCardImageViaWebShare(data);
+      if (shareResult === 'cancelled') {
+        return;
+      }
+      if (shareResult === 'unsupported') {
+        await downloadSpecCardImage(data);
+      }
+      message.success('カード画像を保存しました');
+    } catch (error) {
+      console.error('Error saving spec card image:', error);
+      message.error('カード画像の保存に失敗しました');
+    }
   };
 
   const handleModalClose = () => {
@@ -198,6 +238,24 @@ export const VehicleList: React.FC = () => {
                   )
                 }
                 actions={[
+                  vehicle.profile && vehicle.id ? (
+                    <Button
+                      type="text"
+                      icon={<ExperimentOutlined />}
+                      onClick={(e) => { e.stopPropagation(); toggleSpecCard(vehicle.id as string); }}
+                    >
+                      カード
+                    </Button>
+                  ) : null,
+                  vehicle.profile ? (
+                    <Button
+                      type="text"
+                      icon={<DownloadOutlined />}
+                      onClick={(e) => { e.stopPropagation(); handleSaveSpecCard(vehicle); }}
+                    >
+                      保存
+                    </Button>
+                  ) : null,
                   <Button
                     type="text"
                     icon={<EditOutlined />}
@@ -213,7 +271,7 @@ export const VehicleList: React.FC = () => {
                   >
                     削除
                   </Button>,
-                ]}
+                ].filter(Boolean)}
               >
                 <Card.Meta
                   title={`${vehicle.make} ${vehicle.model}`}
@@ -230,6 +288,16 @@ export const VehicleList: React.FC = () => {
                     </div>
                   }
                 />
+                {vehicle.profile && vehicle.id && expandedVehicleIds.has(vehicle.id) && (
+                  <div className="mt-4">
+                    <SpecCard
+                      carModel={`${vehicle.make} ${vehicle.model}`}
+                      profile={toPublicVehicleProfile(vehicle.profile)}
+                      variant="full"
+                      ownerLabel={currentUser?.displayName ?? null}
+                    />
+                  </div>
+                )}
               </Card>
             ))}
           </div>

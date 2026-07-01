@@ -1,6 +1,8 @@
 // セットアップデータの型定義
 // 原則: 未入力は null。0 や '' への変換・デモ値での充填を禁止する
 
+import type { PublicVehicleProfile } from '../lib/vehicleProfilePublic';
+
 export type Maybe<T> = T | null;
 
 export interface TirePressure {
@@ -130,6 +132,8 @@ export interface CarSetup {
   visibility?: SetupVisibility; // 省略時は 'private'（旧データ互換）
   anonymized?: boolean;         // 共有時にドライバー特定情報を除外する
   carModel: string;
+  vehicleId?: Maybe<string>; // 登録車両との紐付け（任意）
+  vehicleProfileSnapshot?: Maybe<PublicVehicleProfile>; // 保存時点の公開用プロフィール
   circuit: string;
   date: Date;                // セッション日時。保存値を表示し、新規時のみ現在日時を初期値
   sessionType: 'practice' | 'qualifying' | 'race';

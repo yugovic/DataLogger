@@ -67,6 +67,42 @@ describe('carSetupSchema — 正常ペイロード', () => {
     const result = carSetupSchema.safeParse(payload);
     expect(result.success).toBe(true);
   });
+
+  it('登録車両IDと snapshot が null でも通ること', () => {
+    const payload = {
+      ...validPayload(),
+      vehicleId: null,
+      vehicleProfileSnapshot: null,
+    };
+
+    const result = carSetupSchema.safeParse(payload);
+
+    expect(result.success).toBe(true);
+  });
+
+  it('公開用 snapshot が通ること', () => {
+    const payload = {
+      ...validPayload(),
+      vehicleId: 'vehicle-001',
+      vehicleProfileSnapshot: {
+        modifications: [
+          {
+            category: 'brake' as const,
+            partName: 'ブレーキパッド',
+            maker: 'ENDLESS',
+          },
+        ],
+        tireClass: 'HIGH_GRIP_RADIAL' as const,
+        powerPs: 250,
+        weightKg: 1250,
+        modLevel: 'LIGHT' as const,
+      },
+    };
+
+    const result = carSetupSchema.safeParse(payload);
+
+    expect(result.success).toBe(true);
+  });
 });
 
 // ─── エラー系 ────────────────────────────────────────────────────────────────
@@ -111,6 +147,31 @@ describe('carSetupSchema — バリデーションエラー', () => {
   it('date が Date 型でないときエラーになること', () => {
     const payload = { ...validPayload(), date: '2026-06-01' as unknown as Date };
     const result = carSetupSchema.safeParse(payload);
+    expect(result.success).toBe(false);
+  });
+
+  it('snapshot に costJPY などの非公開フィールドが混入したらエラーになること', () => {
+    const payload = {
+      ...validPayload(),
+      vehicleId: 'vehicle-001',
+      vehicleProfileSnapshot: {
+        modifications: [
+          {
+            category: 'brake' as const,
+            partName: 'ブレーキパッド',
+            maker: null,
+            costJPY: 40000,
+          },
+        ],
+        tireClass: null,
+        powerPs: null,
+        weightKg: null,
+        modLevel: 'LIGHT' as const,
+      },
+    };
+
+    const result = carSetupSchema.safeParse(payload);
+
     expect(result.success).toBe(false);
   });
 });

@@ -12,6 +12,7 @@ import { CarSetup } from '../../types/setup';
 import { sessionTypeLabel } from '../../lib/setupFields';
 import { AnonymizedBadge, LoggerEvidenceBadge } from './ShareBadges';
 import { hasLoggerEvidence } from './shareUtils';
+import { SpecCard } from '../vehicle/SpecCard';
 
 interface SharedSetupCardProps {
   setup: CarSetup;
@@ -110,6 +111,15 @@ export const SharedSetupCard: React.FC<SharedSetupCardProps> = ({ setup, onOpen 
             {setup.tireInfo.brand || '—'} {setup.tireInfo.compound || ''}
           </span>
         </div>
+
+        {setup.vehicleProfileSnapshot && (
+          <SpecCard
+            carModel={setup.carModel}
+            profile={setup.vehicleProfileSnapshot}
+            variant="compact"
+            ownerLabel={setup.anonymized ? null : setup.driver}
+          />
+        )}
       </div>
     </Card>
   );

@@ -9,6 +9,23 @@ const nullableNum = (min?: number, max?: number) => {
   return schema;
 };
 
+const TIRE_CLASSES = ['S_TIRE', 'HIGH_GRIP_RADIAL', 'RADIAL'] as const;
+const MOD_CATEGORIES = [
+  'intake_exhaust',
+  'forced_induction',
+  'suspension',
+  'brake',
+  'aero',
+  'weight_reduction',
+  'ecu',
+  'drivetrain',
+  'engine_internal',
+  'tire_wheel',
+  'body_reinforcement',
+  'other',
+] as const;
+const MOD_LEVELS = ['NORMAL', 'LIGHT', 'MIDDLE', 'FULL'] as const;
+
 // ─── サブスキーマ ──────────────────────────────────────────
 
 const tirePressureSchema = z.object({
@@ -104,6 +121,20 @@ const setupTelemetryRefsSchema = z.object({
   importStatus: z.enum(['none', 'attached', 'trace_saved']),
 }).optional();
 
+const publicModificationSchema = z.object({
+  category: z.enum(MOD_CATEGORIES),
+  partName: z.string().min(1, 'パーツ名を入力してください'),
+  maker: z.string().nullable(),
+}).strict();
+
+export const publicVehicleProfileSchema = z.object({
+  modifications: z.array(publicModificationSchema),
+  tireClass: z.enum(TIRE_CLASSES).nullable(),
+  powerPs: nullableNum(0, 2000),
+  weightKg: nullableNum(300, 3500),
+  modLevel: z.enum(MOD_LEVELS),
+}).strict();
+
 // ─── メインスキーマ（保存前バリデーション） ──────────────────
 
 export const carSetupSchema = z.object({
@@ -112,6 +143,8 @@ export const carSetupSchema = z.object({
   visibility: z.enum(['private', 'shared']).optional(),
   anonymized: z.boolean().optional(),
   carModel: z.string().min(1, '車種を入力してください'),
+  vehicleId: z.string().nullable().optional(),
+  vehicleProfileSnapshot: publicVehicleProfileSchema.nullable().optional(),
   circuit: z.string().min(1, 'サーキットを入力してください'),
   date: z.date(),
   sessionType: z.enum(['practice', 'qualifying', 'race']),

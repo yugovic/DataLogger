@@ -23,6 +23,7 @@ import {
 } from '../../lib/setupFields';
 import { trackEvent } from '../../lib/analytics';
 import logger from '../../utils/logger';
+import { SpecCard } from '../vehicle/SpecCard';
 
 // 差分種別ごとのセル背景クラス（ダークモード対応）
 function cellClass(kind: DiffKind, side: 'a' | 'b'): string {
@@ -159,6 +160,13 @@ export const SetupCompare: React.FC = () => {
 
   // 比較対象が異なる車種の場合の注意表示
   const sameCarModel = setupA.carModel === setupB.carModel;
+  const hasVehicleConditionDiff =
+    setupA.vehicleProfileSnapshot &&
+    setupB.vehicleProfileSnapshot &&
+    (
+      setupA.vehicleProfileSnapshot.tireClass !== setupB.vehicleProfileSnapshot.tireClass ||
+      setupA.vehicleProfileSnapshot.modLevel !== setupB.vehicleProfileSnapshot.modLevel
+    );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -191,6 +199,12 @@ export const SetupCompare: React.FC = () => {
         {!sameCarModel && (
           <div className="mb-4 text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 px-3 py-2 rounded-md">
             車種が異なるセットアップを比較しています（{setupA.carModel} と {setupB.carModel}）。
+          </div>
+        )}
+
+        {hasVehicleConditionDiff && (
+          <div className="mb-4 text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 px-3 py-2 rounded-md">
+            車両条件が異なります。タイム差は改造度やタイヤ区分の違いも踏まえて確認してください。
           </div>
         )}
 
@@ -230,6 +244,16 @@ export const SetupCompare: React.FC = () => {
                 <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate">
                   {s.carModel} ・ {sessionTypeLabel(s.sessionType)}
                 </div>
+                {s.vehicleProfileSnapshot && (
+                  <div className="mt-2">
+                    <SpecCard
+                      carModel={s.carModel}
+                      profile={s.vehicleProfileSnapshot}
+                      variant="compact"
+                      ownerLabel={s.driver}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}

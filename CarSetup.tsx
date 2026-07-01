@@ -1,7 +1,7 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
-import { AutoComplete, Input, Tabs, message, Modal } from 'antd';
+import { AutoComplete, Input, Tabs, message, Modal, Select } from 'antd';
 import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
@@ -284,6 +284,7 @@ const [knowledge, setKnowledge] = useState<KnowledgeNote>({
 // セッション情報用状態 — 空値スタート
 const [circuit, setCircuit] = useState('');
 const [carModel, setCarModel] = useState('');
+const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 const [sessionType, setSessionType] = useState<'practice' | 'qualifying' | 'race'>('practice');
 
 // 目標温間圧 — 空値スタート（未設定は空文字）
@@ -326,6 +327,7 @@ const handleSave = async () => {
       visibility,            // 既存値を保全（共有UIはWP6）
       anonymized,
       carModel: carModel,
+      vehicleId: selectedVehicleId,
       circuit: circuit,
       date: sessionDate,  // 保存済み日時を保持（new Date() 直書き禁止）
       sessionType: sessionType,
@@ -601,6 +603,7 @@ const handleLoadPrevious = async () => {
 
     // セッション情報
     setCarModel(previousData.carModel);
+    setSelectedVehicleId(previousData.vehicleId ?? null);
     setCircuit(previousData.circuit);
     setSessionType(previousData.sessionType);
 
@@ -803,6 +806,7 @@ useEffect(() => {
 
       // セッション情報
       setCarModel(setupData.carModel);
+      setSelectedVehicleId(setupData.vehicleId ?? null);
       setCircuit(setupData.circuit);
       setSessionType(setupData.sessionType);
 
@@ -952,6 +956,7 @@ useEffect(() => {
 
       // セッション情報
       setCarModel(setupData.carModel);
+      setSelectedVehicleId(setupData.vehicleId ?? null);
       setCircuit(setupData.circuit);
       setSessionType(setupData.sessionType);
 
@@ -988,6 +993,19 @@ useEffect(() => {
 
   loadCopyData();
 }, [copyId]);
+
+const handleRegisteredVehicleSelect = (vehicleId: string) => {
+  if (vehicleId === '') {
+    setSelectedVehicleId(null);
+    return;
+  }
+
+  const selectedVehicle = vehicles.find((vehicle) => vehicle.id === vehicleId);
+  setSelectedVehicleId(vehicleId);
+  if (selectedVehicle) {
+    setCarModel(`${selectedVehicle.make} ${selectedVehicle.model}`);
+  }
+};
 
 return (
 <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -1035,11 +1053,29 @@ return (
 </div>
 </div>
 <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-<div className="flex items-center">
+<div className="flex items-center gap-2">
+<Select
+value={selectedVehicleId ?? ''}
+onChange={handleRegisteredVehicleSelect}
+className="w-36 sm:w-44"
+disabled={isViewMode}
+options={[
+  { value: '', label: '選択しない' },
+  ...vehicles
+    .filter((vehicle) => vehicle.id)
+    .map((vehicle) => ({
+      value: vehicle.id as string,
+      label: `${vehicle.make} ${vehicle.model}`,
+    })),
+]}
+/>
 <span className="text-red-500 mr-1 text-sm" title="必須">*</span>
 <AutoComplete
 value={carModel}
-onChange={setCarModel}
+onChange={(value) => {
+  setCarModel(value);
+  setSelectedVehicleId(null);
+}}
 className="w-36 sm:w-40"
 disabled={isViewMode}
 options={[...new Set(vehicles.map(v => `${v.make} ${v.model}`))].map(name => ({ value: name }))}

@@ -1,12 +1,103 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Switch, Button, Tabs, message, Divider, Upload } from 'antd';
-import { CarOutlined, PlusOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Vehicle } from '../../types/vehicle';
+import { Modal, Form, Input, InputNumber, Select, Switch, Button, Tabs, message, Divider, Upload, DatePicker, Tag } from 'antd';
+import { CarOutlined, PlusOutlined, LoadingOutlined, DeleteOutlined, StopOutlined, UndoOutlined } from '@ant-design/icons';
+import dayjs, { Dayjs } from 'dayjs';
+import { estimateModLevel, MOD_LEVEL_LABELS } from '../../lib/modLevel';
+import { vehicleProfileSchema } from '../../schemas/vehicleProfileSchema';
 import { addVehicle, updateVehicle, generateDefaultSetupConfig } from '../../services/vehicleService';
+import { MOD_CATEGORY_LABELS, TIRE_CLASS_LABELS, Vehicle, VehicleProfile } from '../../types/vehicle';
 import { useAuth } from '../../contexts/AuthContext';
 import type { UploadFile } from 'antd/es/upload/interface';
 // Cloud Storageは使わず、FirestoreにBase64(Data URL)で保存します
 
+interface ProfileFormModification {
+  id?: string;
+  category?: VehicleProfile['modifications'][number]['category'];
+  partName?: string;
+  maker?: string | null;
+  installedAt?: Dayjs | Date | null;
+  removedAt?: Dayjs | Date | null;
+  costJPY?: number | null;
+  memo?: string | null;
+}
+
+interface ProfileFormValue {
+  modifications?: ProfileFormModification[];
+  tireClass?: VehicleProfile['tireClass'];
+  powerPs?: number | null;
+  weightKg?: number | null;
+}
+
+const emptyProfileFormValue = (): ProfileFormValue => ({
+  modifications: [],
+  tireClass: null,
+  powerPs: null,
+  weightKg: null,
+});
+
+const toFormDate = (value: Date | null): Dayjs | null => (value ? dayjs(value) : null);
+
+const vehicleProfileToFormValue = (profile?: VehicleProfile): ProfileFormValue => {
+  if (!profile) return emptyProfileFormValue();
+
+  return {
+    ...profile,
+    modifications: profile.modifications.map((modification) => ({
+      ...modification,
+      installedAt: toFormDate(modification.installedAt),
+      removedAt: toFormDate(modification.removedAt),
+    })),
+  };
+};
+
+const toDateOrNull = (value: Dayjs | Date | null | undefined): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  return value.toDate();
+};
+
+const toNullableText = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeProfileFormValue = (value: ProfileFormValue | undefined): VehicleProfile => ({
+  modifications: (value?.modifications ?? []).map((modification) => ({
+    id: modification.id || crypto.randomUUID(),
+    category: modification.category ?? 'other',
+    partName: modification.partName?.trim() ?? '',
+    maker: toNullableText(modification.maker),
+    installedAt: toDateOrNull(modification.installedAt),
+    removedAt: toDateOrNull(modification.removedAt),
+    costJPY: modification.costJPY ?? null,
+    memo: toNullableText(modification.memo),
+  })),
+  tireClass: value?.tireClass ?? null,
+  powerPs: value?.powerPs ?? null,
+  weightKg: value?.weightKg ?? null,
+});
+
+const hasProfileContent = (profile: VehicleProfile): boolean =>
+  profile.modifications.length > 0 ||
+  profile.tireClass !== null ||
+  profile.powerPs !== null ||
+  profile.weightKg !== null;
+
+const modLevelClass = (level: ReturnType<typeof estimateModLevel>): string => {
+  switch (level) {
+    case 'NORMAL':
+      return 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600';
+    case 'LIGHT':
+      return 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700';
+    case 'MIDDLE':
+      return 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700';
+    case 'FULL':
+      return 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700';
+    default:
+      return 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600';
+  }
+};
 
 interface VehicleModalProps {
   visible: boolean;
@@ -23,6 +114,9 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [isDirty, setIsDirty] = useState(false);
   const [imageMeta, setImageMeta] = useState<{w:number; h:number; bytes:number} | null>(null);
+  const watchedProfile = Form.useWatch('profile', form) as ProfileFormValue | undefined;
+  const previewProfile = normalizeProfileFormValue(watchedProfile);
+  const previewModLevel = estimateModLevel(previewProfile.modifications);
 
   // Base64長からおおよそのバイト数を推定
   const estimateBase64Bytes = (dataUrl: string) => {
@@ -89,7 +183,10 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
     if (visible) {
       setIsDirty(false);
       if (vehicle) {
-        form.setFieldsValue(vehicle);
+        form.setFieldsValue({
+          ...vehicle,
+          profile: vehicleProfileToFormValue(vehicle.profile),
+        });
         // 既存の画像がある場合、ファイルリストに設定
         if (vehicle.photoURL) {
           setFileList([{
@@ -105,7 +202,8 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
         form.resetFields();
         form.setFieldsValue({
           isActive: true,
-          setupConfig: generateDefaultSetupConfig()
+          setupConfig: generateDefaultSetupConfig(),
+          profile: emptyProfileFormValue(),
         });
         setFileList([]);
       }
@@ -153,11 +251,29 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
       console.log('Debug - photoURL from form:', form.getFieldValue('photoURL'));
       console.log('Debug - Final photoURL:', photoURL);
       
+      const normalizedProfile = normalizeProfileFormValue(values.profile);
+      const profileValidation = vehicleProfileSchema.safeParse(normalizedProfile);
+      if (!profileValidation.success) {
+        const errorMessage = profileValidation.error.issues
+          .map((issue) => issue.message)
+          .join(' / ');
+        form.setFields([{ name: ['profile'], errors: [errorMessage] }]);
+        setActiveTab('profile');
+        message.error('プロフィールの入力内容を確認してください');
+        setLoading(false);
+        return;
+      }
+
+      const shouldSaveProfile = hasProfileContent(profileValidation.data) || vehicle?.profile !== undefined;
       const vehicleData = {
         ...values,
         photoURL,
         userId: currentUser.uid,
+        ...(shouldSaveProfile ? { profile: profileValidation.data } : {}),
       };
+      if (!shouldSaveProfile) {
+        delete vehicleData.profile;
+      }
       
       console.log('Debug - Vehicle data to save:', vehicleData);
 
@@ -171,7 +287,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
       onClose();
     } catch (error) {
       console.error('Error saving vehicle:', error);
-      message.error('保存に失敗しました');
+      message.error(error instanceof Error ? error.message : '保存に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -445,6 +561,186 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
               <Switch checkedChildren="アクティブ" unCheckedChildren="非アクティブ" />
             </Form.Item>
                 </>
+              )
+            },
+            {
+              key: 'profile',
+              label: 'チューニング',
+              children: (
+                <div className="space-y-6">
+                  <div className="rounded-lg border border-blue-100 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-900/20 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-base font-medium text-gray-800 dark:text-gray-200">改造度プレビュー</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">現在装着中のカテゴリから自動推定されます</p>
+                      </div>
+                      <span className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold ${modLevelClass(previewModLevel)}`}>
+                        {MOD_LEVEL_LABELS[previewModLevel]}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">改造パーツリスト</h3>
+                    </div>
+                    <Form.List name={['profile', 'modifications']}>
+                      {(fields, { add, remove }) => (
+                        <div className="space-y-3">
+                          {fields.map((field) => {
+                            const removedAt = form.getFieldValue(['profile', 'modifications', field.name, 'removedAt']);
+                            const isRemoved = removedAt !== null && removedAt !== undefined;
+                            return (
+                              <div
+                                key={field.key}
+                                className={`rounded-lg border p-4 transition-colors ${
+                                  isRemoved
+                                    ? 'border-gray-200 bg-gray-50 opacity-70 dark:border-gray-700 dark:bg-gray-800/60'
+                                    : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+                                }`}
+                              >
+                                <Form.Item name={[field.name, 'id']} hidden>
+                                  <Input />
+                                </Form.Item>
+                                <Form.Item name={[field.name, 'removedAt']} hidden>
+                                  <DatePicker />
+                                </Form.Item>
+                                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                      パーツ {field.name + 1}
+                                    </span>
+                                    {isRemoved && <Tag color="default">取外し済み</Tag>}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {isRemoved ? (
+                                      <Button
+                                        size="small"
+                                        icon={<UndoOutlined />}
+                                        onClick={() => {
+                                          form.setFieldValue(['profile', 'modifications', field.name, 'removedAt'], null);
+                                          setIsDirty(true);
+                                        }}
+                                      >
+                                        取外しを戻す
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        size="small"
+                                        icon={<StopOutlined />}
+                                        onClick={() => {
+                                          form.setFieldValue(['profile', 'modifications', field.name, 'removedAt'], dayjs());
+                                          setIsDirty(true);
+                                        }}
+                                      >
+                                        取外し
+                                      </Button>
+                                    )}
+                                    <Button
+                                      size="small"
+                                      danger
+                                      icon={<DeleteOutlined />}
+                                      onClick={() => {
+                                        remove(field.name);
+                                        setIsDirty(true);
+                                      }}
+                                    >
+                                      削除
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                  <Form.Item
+                                    name={[field.name, 'category']}
+                                    label="カテゴリ"
+                                    rules={[{ required: true, message: 'カテゴリを選択してください' }]}
+                                  >
+                                    <Select
+                                      options={Object.entries(MOD_CATEGORY_LABELS).map(([value, label]) => ({ value, label }))}
+                                    />
+                                  </Form.Item>
+                                  <Form.Item
+                                    name={[field.name, 'partName']}
+                                    label="パーツ名"
+                                    rules={[{ required: true, message: 'パーツ名を入力してください' }]}
+                                  >
+                                    <Input placeholder="例: 車高調キット" />
+                                  </Form.Item>
+                                  <Form.Item name={[field.name, 'maker']} label="メーカー">
+                                    <Input placeholder="未入力" />
+                                  </Form.Item>
+                                  <Form.Item name={[field.name, 'installedAt']} label="装着日">
+                                    <DatePicker className="w-full" placeholder="未入力" />
+                                  </Form.Item>
+                                  <Form.Item
+                                    name={[field.name, 'costJPY']}
+                                    label="費用"
+                                    extra="非公開（共有時に含まれません）"
+                                  >
+                                    <InputNumber min={0} max={10000000} className="w-full" placeholder="未入力" addonAfter="円" />
+                                  </Form.Item>
+                                  <Form.Item
+                                    name={[field.name, 'memo']}
+                                    label="メモ"
+                                    extra="非公開（共有時に含まれません）"
+                                  >
+                                    <Input.TextArea rows={2} placeholder="未入力" />
+                                  </Form.Item>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <Button
+                            type="dashed"
+                            block
+                            icon={<PlusOutlined />}
+                            onClick={() => {
+                              add({
+                                id: crypto.randomUUID(),
+                                partName: '',
+                                maker: null,
+                                installedAt: null,
+                                removedAt: null,
+                                costJPY: null,
+                                memo: null,
+                              });
+                              setIsDirty(true);
+                            }}
+                          >
+                            改造パーツを追加
+                          </Button>
+                        </div>
+                      )}
+                    </Form.List>
+                  </div>
+
+                  <Divider />
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <Form.Item name={['profile', 'tireClass']} label="タイヤ区分">
+                      <Select
+                        allowClear
+                        placeholder="未選択"
+                        options={Object.entries(TIRE_CLASS_LABELS).map(([value, label]) => ({ value, label }))}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name={['profile', 'powerPs']}
+                      label="パワー"
+                      extra="自己申告値として表示されます"
+                    >
+                      <InputNumber min={0} max={2000} className="w-full" placeholder="未入力" addonAfter="ps" />
+                    </Form.Item>
+                    <Form.Item
+                      name={['profile', 'weightKg']}
+                      label="車重"
+                      extra="自己申告値として表示されます"
+                    >
+                      <InputNumber min={300} max={3500} className="w-full" placeholder="未入力" addonAfter="kg" />
+                    </Form.Item>
+                  </div>
+                </div>
               )
             },
             {

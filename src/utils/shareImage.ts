@@ -3,6 +3,9 @@
 // ベストラップ更新や成長記録を 1200x630px のカード画像として描画し、
 // PNG ダウンロードまたは Web Share API でシェアする。
 
+import { buildSpecCardView } from '../lib/specCardView';
+import type { PublicVehicleProfile } from '../lib/vehicleProfilePublic';
+
 export interface ShareCardData {
   circuit: string;
   carModel: string;
@@ -11,6 +14,39 @@ export interface ShareCardData {
   deltaSeconds?: number;
   sessionType?: string;
 }
+
+export interface SpecCardImageData {
+  carModel: string;
+  profile: PublicVehicleProfile;
+  ownerLabel?: string | null;
+}
+
+export type SpecCardShareResult = 'shared' | 'unsupported' | 'cancelled';
+
+const truncateCanvasText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string => {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+
+  let result = text;
+  while (result.length > 0 && ctx.measureText(`${result}…`).width > maxWidth) {
+    result = result.slice(0, -1);
+  }
+  return `${result}…`;
+};
+
+const createPngBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Failed to create image blob'));
+        return;
+      }
+      resolve(blob);
+    }, 'image/png');
+  });
 
 /** ダーク系のシェアカード画像を Canvas に描画し、Blob URL を返す */
 export async function generateShareImage(data: ShareCardData): Promise<string> {
@@ -121,12 +157,142 @@ export async function generateShareImage(data: ShareCardData): Promise<string> {
   });
 }
 
+/** マシンスペックカード画像を Canvas に描画し、PNG Blob を返す */
+export async function generateSpecCardImage(data: SpecCardImageData): Promise<Blob> {
+  const W = 1200;
+  const H = 630;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context not available');
+
+  const view = buildSpecCardView(data.profile);
+
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#0f172a');
+  bg.addColorStop(0.52, '#1e293b');
+  bg.addColorStop(1, '#020617');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const accent = ctx.createLinearGradient(0, 0, W, 0);
+  accent.addColorStop(0, '#2563eb');
+  accent.addColorStop(0.45, '#38bdf8');
+  accent.addColorStop(1, '#0f172a');
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, 0, W, 8);
+
+  ctx.fillStyle = '#3b82f6';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('VELOCITY LOGGER', 60, 58);
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = 'bold 42px sans-serif';
+  ctx.fillText(truncateCanvasText(ctx, data.carModel, W - 120), 60, 122);
+
+  if (data.ownerLabel) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '18px sans-serif';
+    ctx.fillText(truncateCanvasText(ctx, `オーナー: ${data.ownerLabel}`, W - 120), 60, 154);
+  }
+
+  const badgeColor = {
+    NORMAL: '#64748b',
+    LIGHT: '#2563eb',
+    MIDDLE: '#7c3aed',
+    FULL: '#d97706',
+  }[view.modLevel];
+  ctx.fillStyle = badgeColor;
+  ctx.fillRect(60, 184, 220, 42);
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillText(view.modLevelLabel, 80, 212);
+
+  if (view.tireClassLabel) {
+    ctx.fillStyle = '#1d4ed8';
+    ctx.fillRect(300, 184, 250, 42);
+    ctx.fillStyle = '#dbeafe';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText(view.tireClassLabel, 320, 212);
+  }
+
+  let specY = 280;
+  ctx.fillStyle = '#64748b';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('DECLARED SPEC', 60, specY - 28);
+  view.specItems.forEach((item) => {
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 30px monospace';
+    ctx.fillText(item.value, 60, specY);
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(`${item.label} / ${item.notice}`, 60, specY + 24);
+    specY += 78;
+  });
+
+  const listX = 610;
+  let listY = 200;
+  ctx.fillStyle = '#64748b';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('MODIFICATIONS', listX, 160);
+
+  if (view.modificationGroups.length === 0) {
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.fillText('ノーマル車両', listX, listY);
+  } else {
+    const maxItems = 8;
+    const rows = view.modificationGroups.flatMap((group) =>
+      group.items.map((item) => ({
+        category: group.label,
+        text: item.maker ? `${item.partName} / ${item.maker}` : item.partName,
+      })),
+    );
+    rows.slice(0, maxItems).forEach((row) => {
+      ctx.fillStyle = '#93c5fd';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(row.category, listX, listY);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '20px sans-serif';
+      ctx.fillText(truncateCanvasText(ctx, row.text, W - listX - 70), listX, listY + 28);
+      listY += 62;
+    });
+    if (rows.length > maxItems) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '18px sans-serif';
+      ctx.fillText(`他${rows.length - maxItems}件`, listX, listY);
+    }
+  }
+
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, H - 60, W, 60);
+  ctx.fillStyle = '#475569';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('VELOCITY LOGGER — マシンスペックカード', 60, H - 25);
+
+  return createPngBlob(canvas);
+}
+
 /** シェア画像をダウンロード */
 export async function downloadShareImage(data: ShareCardData): Promise<void> {
   const url = await generateShareImage(data);
   const a = document.createElement('a');
   a.href = url;
   a.download = `velocity-logger-${data.circuit}-${data.bestLap}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** マシンスペックカード画像をダウンロード */
+export async function downloadSpecCardImage(data: SpecCardImageData): Promise<void> {
+  const blob = await generateSpecCardImage(data);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `velocity-logger-spec-card-${data.carModel}.png`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -156,5 +322,36 @@ export async function shareViaWebShare(data: ShareCardData): Promise<boolean> {
     return false;
   } catch {
     return false;
+  }
+}
+
+/** Web Share API でマシンスペックカードを共有 */
+export async function shareSpecCardImageViaWebShare(data: SpecCardImageData): Promise<SpecCardShareResult> {
+  if (!navigator.share) return 'unsupported';
+
+  const blob = await generateSpecCardImage(data);
+  const file = new File([blob], 'velocity-logger-spec-card.png', { type: 'image/png' });
+
+  if (!navigator.canShare || !navigator.canShare({ files: [file] })) {
+    return 'unsupported';
+  }
+
+  try {
+    await navigator.share({
+      title: `${data.carModel} マシンスペックカード`,
+      text: `${data.carModel} のマシンスペックカード`,
+      files: [file],
+    });
+    return 'shared';
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      error.name === 'AbortError'
+    ) {
+      return 'cancelled';
+    }
+    throw error;
   }
 }

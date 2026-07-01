@@ -22,6 +22,7 @@ import {
 import { SharedBadge, AnonymizedBadge, LoggerEvidenceBadge } from './ShareBadges';
 import { hasLoggerEvidence } from './shareUtils';
 import logger from '../../utils/logger';
+import { SpecCard } from '../vehicle/SpecCard';
 
 const formatDate = (date: Date): string => {
   const d = date instanceof Date ? date : new Date(date);
@@ -172,6 +173,17 @@ export const SharedSetupDetail: React.FC = () => {
             </button>
           )}
         </div>
+
+        {setup.vehicleProfileSnapshot && (
+          <div className="mb-4">
+            <SpecCard
+              carModel={setup.carModel}
+              profile={setup.vehicleProfileSnapshot}
+              variant="full"
+              ownerLabel={setup.anonymized ? null : setup.driver}
+            />
+          </div>
+        )}
 
         {/* 全セッティング（読み取り専用・網羅表示） */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">

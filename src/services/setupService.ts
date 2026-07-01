@@ -15,11 +15,13 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { toPublicVehicleProfile } from '../lib/vehicleProfilePublic';
 import { CarSetup, SetupVisibility } from '../types/setup';
 import { carSetupSchema } from '../schemas/setupSchema';
 import logger from '../utils/logger';
 import { trackEvent } from '../lib/analytics';
 import { recomputeSharingActive } from './profileService';
+import { getVehicle } from './vehicleService';
 
 const COLLECTION_NAME = 'setups';
 
@@ -39,10 +41,46 @@ function sanitizeForFirestore(obj: unknown): unknown {
   return result;
 }
 
+const resolveVehicleProfileSnapshot = async <
+  T extends {
+    userId?: string;
+    vehicleId?: string | null;
+    vehicleProfileSnapshot?: CarSetup['vehicleProfileSnapshot'];
+  },
+>(
+  setup: T,
+  options: { clearSnapshotOnNull: boolean } = { clearSnapshotOnNull: false },
+): Promise<T> => {
+  if (setup.vehicleId === undefined) return setup;
+
+  if (setup.vehicleId === null) {
+    if (!options.clearSnapshotOnNull) return setup;
+    return {
+      ...setup,
+      vehicleProfileSnapshot: null,
+    };
+  }
+
+  const vehicle = await getVehicle(setup.vehicleId);
+  if (!vehicle) {
+    throw new Error('選択された登録車両が見つかりません');
+  }
+  if (setup.userId && vehicle.userId !== setup.userId) {
+    throw new Error('選択された登録車両を使用する権限がありません');
+  }
+
+  return {
+    ...setup,
+    vehicleProfileSnapshot: vehicle.profile ? toPublicVehicleProfile(vehicle.profile) : null,
+  };
+};
+
 // セットアップデータの保存
 export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+  const setupWithSnapshot = await resolveVehicleProfileSnapshot(setup);
+
   // zodスキーマによる保存前バリデーション
-  const parsed = carSetupSchema.safeParse(setup);
+  const parsed = carSetupSchema.safeParse(setupWithSnapshot);
   if (!parsed.success) {
     // フィールドパスと日本語メッセージを組み合わせて分かりやすいエラー文を生成
     const fieldLabels: Record<string, string> = {
@@ -78,17 +116,17 @@ export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'upda
   try {
     const docRef = doc(collection(db, COLLECTION_NAME));
     const setupData = sanitizeForFirestore({
-      ...setup,
-      date: setup.date instanceof Date ? Timestamp.fromDate(setup.date) : setup.date,
+      ...setupWithSnapshot,
+      date: setupWithSnapshot.date instanceof Date ? Timestamp.fromDate(setupWithSnapshot.date) : setupWithSnapshot.date,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
 
-    logger.log('Saving setup with userId:', setup.userId);
+    logger.log('Saving setup with userId:', setupWithSnapshot.userId);
     await setDoc(docRef, setupData);
     logger.log('Setup saved with ID:', docRef.id);
     // 保存成功時に計測イベントを発火（個人情報を渡さない）
-    trackEvent('setup_saved', { circuit: setup.circuit, car_model: setup.carModel });
+    trackEvent('setup_saved', { circuit: setupWithSnapshot.circuit, car_model: setupWithSnapshot.carModel });
     return docRef.id;
   } catch (error: any) {
     logger.error('セットアップの保存に失敗しました:', error);
@@ -179,17 +217,18 @@ export const updateSetup = async (setupId: string, updates: Partial<CarSetup>): 
 
   try {
     const docRef = doc(db, COLLECTION_NAME, setupId);
+    const updatesWithSnapshot = await resolveVehicleProfileSnapshot(updates, { clearSnapshotOnNull: true });
     const updateData = sanitizeForFirestore({
-      ...updates,
+      ...updatesWithSnapshot,
       updatedAt: serverTimestamp(),
-      ...(updates.date ? {
-        date: updates.date instanceof Date ? Timestamp.fromDate(updates.date) : updates.date
+      ...(updatesWithSnapshot.date ? {
+        date: updatesWithSnapshot.date instanceof Date ? Timestamp.fromDate(updatesWithSnapshot.date) : updatesWithSnapshot.date
       } : {})
     });
 
     await updateDoc(docRef, updateData as any);
     // 更新成功時に計測イベントを発火
-    trackEvent('setup_updated', { circuit: updates.circuit, car_model: updates.carModel });
+    trackEvent('setup_updated', { circuit: updatesWithSnapshot.circuit, car_model: updatesWithSnapshot.carModel });
   } catch (error) {
     logger.error('セットアップの更新に失敗しました:', error);
     throw error;
