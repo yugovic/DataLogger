@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Spin, Empty, message } from 'antd';
+import { Checkbox, Spin, Empty, message } from 'antd';
 import {
   DashboardOutlined,
   ThunderboltOutlined,
@@ -18,12 +18,14 @@ import {
   BulbOutlined,
   RiseOutlined,
   ShareAltOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import * as echarts from 'echarts';
 import { Header } from './common/Header';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getUserSetups } from '../services/setupService';
+import { createPublicShare } from '../services/publicShareService';
 import { CarSetup } from '../types/setup';
 import { downloadShareImage, shareViaWebShare } from '../utils/shareImage';
 
@@ -125,6 +127,9 @@ export const Dashboard: React.FC = () => {
   const [currentSettingView, setCurrentSettingView] = useState('account');
   const [setups, setSetups] = useState<CarSetup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [includePublicLinkInGrowthShare, setIncludePublicLinkInGrowthShare] = useState(false);
+  const [growthShareUrl, setGrowthShareUrl] = useState<string | null>(null);
+  const [growthSharing, setGrowthSharing] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -195,6 +200,7 @@ export const Dashboard: React.FC = () => {
       .filter(s => s.lapTimeData?.bestLap && s.circuit)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(s => ({
+        setup: s,
         date: s.date,
         circuit: s.circuit,
         bestLap: lapTimeToSeconds(s.lapTimeData!.bestLap!)!,
@@ -450,6 +456,16 @@ export const Dashboard: React.FC = () => {
     };
   }, [stats, darkMode]);
 
+  const copyGrowthShareUrl = async () => {
+    if (!growthShareUrl) return;
+    try {
+      await navigator.clipboard.writeText(growthShareUrl);
+      message.success('公開リンクをコピーしました');
+    } catch {
+      message.error('公開リンクのコピーに失敗しました');
+    }
+  };
+
   const tirePressureOption = useMemo<echarts.EChartsOption | null>(() => {
     if (!stats) return null;
     const { tirePressureAvg } = stats;
@@ -667,42 +683,77 @@ export const Dashboard: React.FC = () => {
             {/* ─── Growth Summary (P0-2) + Share (P1-1) ─── */}
             {stats && stats.lapTrend.length >= 2 && (
               <div className={`${cardClass} p-5`}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    <RiseOutlined className="text-emerald-500" />
-                    <span className={headingClass}>成長タイムライン</span>
+                <div className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <RiseOutlined className="text-emerald-500" />
+                      <span className={headingClass}>成長タイムライン</span>
+                    </div>
+                    <label className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                      <Checkbox
+                        checked={includePublicLinkInGrowthShare}
+                        onChange={(event) => setIncludePublicLinkInGrowthShare(event.target.checked)}
+                      />
+                      公開リンクを発行して画像に含める
+                    </label>
                   </div>
-                  <button
-                    onClick={async () => {
-                      const trend = stats.lapTrend;
-                      const last = trend[trend.length - 1];
-                      const first = trend[0];
-                      const delta = first.bestLap - last.bestLap;
-                      const shared = await shareViaWebShare({
-                        circuit: last.circuit,
-                        carModel: setups.find(s => s.circuit === last.circuit && s.lapTimeData?.bestLap)?.carModel ?? '',
-                        bestLap: secondsToLapTime(last.bestLap),
-                        dateLabel: formatDate(last.date),
-                        deltaSeconds: delta,
-                        sessionType: sessionLabel(last.sessionType),
-                      });
-                      if (!shared) {
-                        await downloadShareImage({
+                  <div className="flex flex-wrap items-center gap-2">
+                    {growthShareUrl && (
+                      <button
+                        onClick={copyGrowthShareUrl}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 bg-blue-50 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/20"
+                      >
+                        <CopyOutlined style={{ fontSize: 13 }} />
+                        公開リンクをコピー
+                      </button>
+                    )}
+                    <button
+                      disabled={growthSharing}
+                      onClick={async () => {
+                        const trend = stats.lapTrend;
+                        const last = trend[trend.length - 1];
+                        const first = trend[0];
+                        const delta = first.bestLap - last.bestLap;
+                        const shareData = {
                           circuit: last.circuit,
-                          carModel: setups.find(s => s.circuit === last.circuit && s.lapTimeData?.bestLap)?.carModel ?? '',
+                          carModel: last.setup.carModel,
                           bestLap: secondsToLapTime(last.bestLap),
                           dateLabel: formatDate(last.date),
                           deltaSeconds: delta,
                           sessionType: sessionLabel(last.sessionType),
-                        });
-                        message.success('シェア画像をダウンロードしました');
-                      }
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    <ShareAltOutlined style={{ fontSize: 13 }} />
-                    シェア
-                  </button>
+                        };
+
+                        try {
+                          setGrowthSharing(true);
+                          let shareUrl: string | undefined;
+                          if (includePublicLinkInGrowthShare) {
+                            const shareId = await createPublicShare(last.setup);
+                            shareUrl = `${window.location.origin}/s/${shareId}`;
+                            setGrowthShareUrl(shareUrl);
+                          }
+
+                          const dataWithLink = { ...shareData, shareUrl };
+                          const shared = await shareViaWebShare(dataWithLink);
+                          if (!shared) {
+                            await downloadShareImage(dataWithLink);
+                            message.success('シェア画像をダウンロードしました');
+                          }
+                          if (shareUrl) {
+                            message.success('公開リンクを発行しました');
+                          }
+                        } catch (error) {
+                          console.error('Growth share error:', error);
+                          message.error('シェア画像の作成に失敗しました');
+                        } finally {
+                          setGrowthSharing(false);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                    >
+                      <ShareAltOutlined style={{ fontSize: 13 }} />
+                      {growthSharing ? '作成中' : 'シェア'}
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   {(() => {

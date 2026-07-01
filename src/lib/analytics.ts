@@ -18,6 +18,9 @@ export type AnalyticsEventName =
   | 'telemetry_imported'
   | 'telemetry_trace_saved'
   | 'comparison_viewed'
+  | 'public_share_created'
+  | 'public_share_viewed'
+  | 'public_share_cta_clicked'
   | 'login'
   | 'sign_up';
 
@@ -30,6 +33,9 @@ export type AnalyticsEventParams = {
   telemetry_imported: { format?: string; circuit?: string };
   telemetry_trace_saved: { format?: string; circuit?: string; car_model?: string };
   comparison_viewed: { circuit?: string; car_model?: string };
+  public_share_created: { setupId?: string; hasLoggerEvidence: boolean };
+  public_share_viewed: { shareId: string };
+  public_share_cta_clicked: { shareId?: string };
   login: Record<string, never>;
   sign_up: Record<string, never>;
 };

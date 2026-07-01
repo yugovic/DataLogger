@@ -5,6 +5,7 @@ import { CarSetup } from '../../types/setup';
 import { pressureSummary } from '../../lib/setupFields';
 import { ShareToggle } from '../share/ShareToggle';
 import { SharedBadge, AnonymizedBadge, LoggerEvidenceBadge } from '../share/ShareBadges';
+import { PublicShareButton } from '../share/PublicShareButton';
 import { isShared, hasLoggerEvidence } from '../share/shareUtils';
 
 interface SetupCardProps {
@@ -121,10 +122,13 @@ export const SetupCard: React.FC<SetupCardProps> = ({
           </div>
           <div className="flex gap-1">
             {shareable && setup.id && (
-              <ShareToggle
-                setup={setup}
-                onChanged={(next) => onVisibilityChanged?.(setup.id as string, next)}
-              />
+              <>
+                <PublicShareButton setup={setup} />
+                <ShareToggle
+                  setup={setup}
+                  onChanged={(next) => onVisibilityChanged?.(setup.id as string, next)}
+                />
+              </>
             )}
             {hasPrevious && setup.id && (
               <Tooltip title="前回と比較">

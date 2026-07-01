@@ -13,12 +13,14 @@ export interface ShareCardData {
   dateLabel: string;
   deltaSeconds?: number;
   sessionType?: string;
+  shareUrl?: string;
 }
 
 export interface SpecCardImageData {
   carModel: string;
   profile: PublicVehicleProfile;
   ownerLabel?: string | null;
+  shareUrl?: string;
 }
 
 export type SpecCardShareResult = 'shared' | 'unsupported' | 'cancelled';
@@ -47,6 +49,42 @@ const createPngBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
       resolve(blob);
     }, 'image/png');
   });
+
+const formatWatermarkShareUrl = (shareUrl: string): string => {
+  try {
+    const url = new URL(shareUrl);
+    return `${url.host}${url.pathname}`;
+  } catch {
+    return shareUrl;
+  }
+};
+
+export const drawWatermark = (
+  ctx: CanvasRenderingContext2D,
+  options: { shareUrl?: string } = {},
+): void => {
+  const W = ctx.canvas.width;
+  const H = ctx.canvas.height;
+  const right = W - 60;
+  const baseY = H - 25;
+
+  ctx.save();
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(226, 232, 240, 0.72)';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillText('VELOCITY LOGGER', right, options.shareUrl ? baseY - 16 : baseY);
+
+  if (options.shareUrl) {
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.78)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(
+      truncateCanvasText(ctx, formatWatermarkShareUrl(options.shareUrl), 460),
+      right,
+      baseY + 2,
+    );
+  }
+  ctx.restore();
+};
 
 /** ダーク系のシェアカード画像を Canvas に描画し、Blob URL を返す */
 export async function generateShareImage(data: ShareCardData): Promise<string> {
@@ -144,6 +182,7 @@ export async function generateShareImage(data: ShareCardData): Promise<string> {
   ctx.fillStyle = '#475569';
   ctx.font = '13px sans-serif';
   ctx.fillText('VELOCITY LOGGER — セットアップ記録・テレメトリ分析', 60, H - 25);
+  drawWatermark(ctx, { shareUrl: data.shareUrl });
 
   // Convert to blob URL
   return new Promise((resolve, reject) => {
@@ -270,6 +309,7 @@ export async function generateSpecCardImage(data: SpecCardImageData): Promise<Bl
   ctx.fillStyle = '#475569';
   ctx.font = '13px sans-serif';
   ctx.fillText('VELOCITY LOGGER — マシンスペックカード', 60, H - 25);
+  drawWatermark(ctx, { shareUrl: data.shareUrl });
 
   return createPngBlob(canvas);
 }

@@ -25,6 +25,58 @@ service cloud.firestore {
         || data.visibility == 'shared';
     }
 
+    // 公開共有リンクは未認証閲覧を許可するため、作成時に表示用summaryの形を固定する。
+    // driver / userId / anonymized / セットアップ数値詳細はsummaryに入れない。
+    function validPublicVehicleProfileSnapshot(profile) {
+      return profile == null || (
+        profile is map
+        && profile.keys().hasOnly(['modifications', 'tireClass', 'powerPs', 'weightKg', 'modLevel'])
+        && profile.modifications is list
+        && (profile.tireClass == null || profile.tireClass is string)
+        && (profile.powerPs == null || profile.powerPs is number)
+        && (profile.weightKg == null || profile.weightKg is number)
+        && profile.modLevel is string
+      );
+    }
+
+    function validPublicShareSummary(summary) {
+      return summary is map
+        && summary.keys().hasAll([
+          'circuit',
+          'carModel',
+          'bestLap',
+          'sessionDate',
+          'hasLoggerEvidence',
+          'vehicleProfileSnapshot'
+        ])
+        && summary.keys().hasOnly([
+          'circuit',
+          'carModel',
+          'bestLap',
+          'sessionDate',
+          'hasLoggerEvidence',
+          'vehicleProfileSnapshot'
+        ])
+        && summary.circuit is string
+        && summary.carModel is string
+        && (summary.bestLap == null || summary.bestLap is string)
+        && summary.sessionDate is timestamp
+        && summary.hasLoggerEvidence is bool
+        && validPublicVehicleProfileSnapshot(summary.vehicleProfileSnapshot);
+    }
+
+    function validPublicShareCreate(shareId) {
+      return shareId.matches('^[A-Za-z0-9]{12,}$')
+        && request.resource.data.keys().hasAll(['ownerId', 'setupId', 'createdAt', 'summary'])
+        && request.resource.data.keys().hasOnly(['ownerId', 'setupId', 'createdAt', 'summary'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.setupId is string
+        && request.resource.data.createdAt == request.time
+        && exists(/databases/$(database)/documents/setups/$(request.resource.data.setupId))
+        && get(/databases/$(database)/documents/setups/$(request.resource.data.setupId)).data.userId == request.auth.uid
+        && validPublicShareSummary(request.resource.data.summary);
+    }
+
     // セットアップ（トップレベル）
     match /setups/{setupId} {
       // 作成時: リクエストデータの userId が自分で、visibility が正当値であること
@@ -50,6 +102,14 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         (resource.data.visibility == 'shared' && requesterSharingActive())
       );
+    }
+
+    // 公開ランディングページ用の匿名サマリー。read は未認証を含め誰でも可。
+    match /publicShares/{shareId} {
+      allow read: if true;
+      allow create: if request.auth != null && validPublicShareCreate(shareId);
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      allow update: if false;
     }
 
     // 比較用テレメトリトレース（ラップ単位の間引きデータ）

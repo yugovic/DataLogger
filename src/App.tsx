@@ -20,6 +20,7 @@ import { TelemetryTraceList } from './components/telemetry/TelemetryTraceList';
 import { SetupCompare } from './components/compare/SetupCompare';
 import { SharedBrowse } from './components/share/SharedBrowse';
 import { SharedSetupDetail } from './components/share/SharedSetupDetail';
+import { PublicShareLanding } from './components/share/PublicShareLanding';
 import { OnboardingWizard, checkOnboardingNeeded } from './components/onboarding/OnboardingWizard';
 
 const OnboardingGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -78,6 +79,7 @@ const App: React.FC = () => {
           <ErrorBoundary>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/s/:shareId" element={<PublicShareLanding />} />
             <Route
               path="/"
               element={

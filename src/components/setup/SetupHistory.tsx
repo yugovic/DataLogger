@@ -6,6 +6,7 @@ import { getUserSetups } from '../../services/setupService';
 import { CarSetup } from '../../types/setup';
 import { SetupCard } from './SetupCard';
 import { Header } from '../common/Header';
+import { PublicShareManager } from '../share/PublicShareManager';
 import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { setupsToCsv, csvFileName, downloadCsv } from '../../lib/csv';
@@ -311,6 +312,8 @@ export const SetupHistory: React.FC = () => {
             </Button>
           </div>
         )}
+
+        <PublicShareManager />
 
         {/* フィルターセクション */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
