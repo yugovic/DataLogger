@@ -33,14 +33,56 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
   const [wheelSeconds, setWheelSeconds] = useState(30);
   const [wheelMilliseconds, setWheelMilliseconds] = useState(0);
 
-  // 時間文字列をパース
+  // 入力文字列を正規化: 全角→半角、各種区切りを統一
+  const normalizeTimeInput = (input: string): string => {
+    // 全角数字→半角
+    let s = input.replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+    // 全角コロン・全角ピリオド→半角
+    s = s.replace(/：/g, ':').replace(/．/g, '.').replace(/，/g, ',');
+    // カンマ小数点 → ピリオド
+    s = s.replace(/,/g, '.');
+    // ハイフン系（-‐–—）→コロン（分秒区切りとして誤入力）
+    s = s.replace(/[‐–—]/g, '-').replace(/-/g, ':');
+    // ピリオドが2つ以上ある場合、最初をコロンに変換（1.58.423 → 1:58.423）
+    const dots = s.split('.');
+    if (dots.length >= 3) {
+      s = dots[0] + ':' + dots.slice(1).join('.');
+    }
+    // スペース区切り → コロン
+    s = s.replace(/\s+/g, ':');
+    // 連続する区切り記号を1つに
+    s = s.replace(/[:.]+/g, (m) => (m.includes(':') ? ':' : '.'));
+    return s;
+  };
+
+  // 時間文字列をパース（区切り文字に寛容）
   const parseTimeString = (timeStr: string): { minutes: number; seconds: number; milliseconds: number } => {
-    const match = timeStr.match(/^(\d+):(\d{2})\.(\d{3})$/);
+    const normalized = normalizeTimeInput(timeStr);
+    // M:SS.mmm
+    const match = normalized.match(/^(\d+):(\d{1,2})\.(\d{1,3})$/);
     if (match) {
       return {
         minutes: parseInt(match[1]),
         seconds: parseInt(match[2]),
-        milliseconds: parseInt(match[3])
+        milliseconds: parseInt(match[3].padEnd(3, '0'))
+      };
+    }
+    // SS.mmm（分なし）
+    const match2 = normalized.match(/^(\d{1,2})\.(\d{1,3})$/);
+    if (match2) {
+      return {
+        minutes: 0,
+        seconds: parseInt(match2[1]),
+        milliseconds: parseInt(match2[2].padEnd(3, '0'))
+      };
+    }
+    // M:SS（ミリ秒なし）
+    const match3 = normalized.match(/^(\d+):(\d{1,2})$/);
+    if (match3) {
+      return {
+        minutes: parseInt(match3[1]),
+        seconds: parseInt(match3[2]),
+        milliseconds: 0
       };
     }
     return { minutes: 1, seconds: 30, milliseconds: 0 };
@@ -316,15 +358,21 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
         value={focusedIndex === index ? lap.time : (lap.time || '')}
         onChange={(e) => {
           const input = e.target.value;
-          // 数字のみの入力か、既存のフォーマット形式かを判定
+          if (input === '') {
+            updateLapTimeString(index, '');
+            return;
+          }
+          // 数字のみの場合は自動フォーマット
           if (/^\d*$/.test(input)) {
-            // 数字のみの場合は自動フォーマット
             const formatted = formatNumericInput(input);
             updateLapTimeString(index, formatted);
-          } else if (/^(\d+):(\d{2})\.(\d{3})$/.test(input) || input === '') {
-            // 既存のフォーマット形式または空文字の場合はそのまま
-            updateLapTimeString(index, input);
+            return;
           }
+          // 区切り文字付き入力は正規化してパース → フォーマット
+          const normalized = normalizeTimeInput(input);
+          const parsed = parseTimeString(normalized);
+          const formatted = formatTime(parsed.minutes, parsed.seconds, parsed.milliseconds);
+          updateLapTimeString(index, formatted);
         }}
         onFocus={() => {
           setFocusedIndex(index);
@@ -346,7 +394,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
             updateLapTimeString(index, formatTime(lap.minutes || 0, lap.seconds || 0, lap.milliseconds || 0));
           }
         }}
-        placeholder="例: 158423 → 1:58.423"
+        placeholder="例: 158423 / 1:58.423 / 1.58.423"
         className="flex-1"
         onKeyDown={(e) => {
           if (e.key === 'Enter') {

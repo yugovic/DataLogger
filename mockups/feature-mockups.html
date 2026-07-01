@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VELOCITY LOGGER — Feature Mockups P0/P1/P2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class' }
+</script>
+<style>
+  body { background: #0f172a; }
+  .mockup-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .mockup-label {
+    background: linear-gradient(135deg, #2563eb, #1e293b);
+    color: white;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+  }
+  .screen {
+    background: #0f172a;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 11px;
+  }
+  .screen-header {
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; }
+  .badge-blue { background: #2563eb; color: white; }
+  .badge-green { background: #059669; color: white; }
+  .badge-amber { background: #d97706; color: white; }
+  .badge-purple { background: #7c3aed; color: white; }
+  .badge-red { background: #dc2626; color: white; }
+  .badge-gray { background: #475569; color: #cbd5e1; }
+  .chart-bar { border-radius: 2px 2px 0 0; }
+  .btn { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; }
+  .btn-primary { background: #2563eb; color: white; }
+  .btn-success { background: #059669; color: white; }
+  .btn-amber { background: #d97706; color: white; }
+  .btn-ghost { background: #334155; color: #cbd5e1; }
+  .input-field { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 4px 8px; font-size: 10px; color: #e2e8f0; }
+  .section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
+  .grid-bg { background-image: linear-gradient(rgba(51,65,85,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(51,65,85,0.3) 1px, transparent 1px); background-size: 20px 20px; }
+</style>
+</head>
+<body class="text-slate-200 p-8">
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- P0: ビジネス成功の最優先機能                                    -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="mb-12">
+  <div class="flex items-center gap-3 mb-6">
+    <span class="badge badge-red text-sm px-3 py-1">P0</span>
+    <h1 class="text-2xl font-black text-white">最優先機能 — ビジネス成功の基盤</h1>
+  </div>
+  <div class="grid grid-cols-2 gap-6">
+
+    <!-- P0-1: 保存後「比較候補」自動プロンプト -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P0-1: 保存後「比較候補」自動プロンプト</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">セットアップ保存完了</span>
+            <span class="ml-auto text-slate-500 text-[9px]">筑波 / ロードスター</span>
+          </div>
+          <div class="p-3 space-y-3">
+            <!-- 成功トースト -->
+            <div class="bg-green-900/30 border border-green-700/50 rounded-lg p-3 flex items-center gap-2">
+              <span class="text-green-400 text-lg">✓</span>
+              <div>
+                <div class="text-green-300 font-semibold text-xs">保存しました</div>
+                <div class="text-slate-400 text-[10px]">2026-06-19 筑波サーキット</div>
+              </div>
+            </div>
+            <!-- 比較候補プロンプト -->
+            <div class="bg-blue-900/30 border border-blue-700/50 rounded-lg p-3">
+              <div class="text-blue-300 font-semibold text-xs mb-2">📊 比較候補が見つかりました</div>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2">
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-green">自己ベスト</span>
+                    <span class="text-slate-300 text-[10px]">2:01.234 (5/20)</span>
+                  </div>
+                  <span class="text-green-400 font-mono text-xs font-bold">−0.832s</span>
+                </div>
+                <div class="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2">
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-blue">前回</span>
+                    <span class="text-slate-300 text-[10px]">2:02.066 (6/12)</span>
+                  </div>
+                  <span class="text-green-400 font-mono text-xs font-bold">−1.664s</span>
+                </div>
+                <div class="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2">
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-amber">条件近い</span>
+                    <span class="text-slate-300 text-[10px]">2:01.890 (5/5)</span>
+                  </div>
+                  <span class="text-green-400 font-mono text-xs font-bold">−1.488s</span>
+                </div>
+              </div>
+              <div class="flex gap-2 mt-3">
+                <button class="btn btn-primary">比較を見る</button>
+                <button class="btn btn-ghost">後で</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          セットアップ保存後に <code class="text-blue-400">getComparableTraceCandidates()</code> が自動で比較候補を3軸（自己ベスト・前回・条件近い）で提示。ユーザーが比較機能の存在に気づかない問題を解決。
+        </p>
+      </div>
+    </div>
+
+    <!-- P0-2: 成長タイムライン -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P0-2: 成長タイムライン（ベストラップ推移）</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">ダッシュボード</span>
+            <span class="ml-auto text-slate-500 text-[9px]">筑波 / ロードスター</span>
+          </div>
+          <div class="p-3">
+            <div class="section-title mb-2">成長タイムライン</div>
+            <!-- 折れ線グラフ（CSS模擬） -->
+            <div class="bg-slate-900/60 rounded-lg p-3 h-44 relative grid-bg">
+              <svg viewBox="0 0 300 140" class="w-full h-full">
+                <!-- グリッドライン -->
+                <line x1="0" y1="35" x2="300" y2="35" stroke="#334155" stroke-width="0.5" stroke-dasharray="3"/>
+                <line x1="0" y1="70" x2="300" y2="70" stroke="#334155" stroke-width="0.5" stroke-dasharray="3"/>
+                <line x1="0" y1="105" x2="300" y2="105" stroke="#334155" stroke-width="0.5" stroke-dasharray="3"/>
+                <!-- ベストラップ推移ライン -->
+                <polyline points="20,30 60,45 100,55 140,62 180,75 220,85 260,95 280,100"
+                  fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- 目標ライン -->
+                <line x1="0" y1="110" x2="300" y2="110" stroke="#059669" stroke-width="1.5" stroke-dasharray="5,3"/>
+                <text x="280" y="108" fill="#059669" font-size="8">目標 2:00.0</text>
+                <!-- データポイント -->
+                <circle cx="20" cy="30" r="3" fill="#3b82f6"/>
+                <circle cx="60" cy="45" r="3" fill="#3b82f6"/>
+                <circle cx="100" cy="55" r="3" fill="#3b82f6"/>
+                <circle cx="140" cy="62" r="3" fill="#3b82f6"/>
+                <circle cx="180" cy="75" r="3" fill="#3b82f6"/>
+                <circle cx="220" cy="85" r="3" fill="#3b82f6"/>
+                <circle cx="260" cy="95" r="4" fill="#059669" stroke="#fff" stroke-width="1.5"/>
+                <!-- ベストラベル -->
+                <text x="265" y="88" fill="#059669" font-size="8" font-weight="bold">2:00.1!</text>
+                <!-- 軸ラベル -->
+                <text x="10" y="135" fill="#64748b" font-size="7">4月</text>
+                <text x="70" y="135" fill="#64748b" font-size="7">5月</text>
+                <text x="130" y="135" fill="#64748b" font-size="7">6月</text>
+                <text x="190" y="135" fill="#64748b" font-size="7">7月</text>
+                <text x="250" y="135" fill="#64748b" font-size="7">8月</text>
+              </svg>
+            </div>
+            <!-- サマリー -->
+            <div class="grid grid-cols-3 gap-2 mt-3">
+              <div class="bg-slate-800/60 rounded-md p-2 text-center">
+                <div class="text-slate-500 text-[8px]">半年前</div>
+                <div class="text-slate-300 font-mono text-xs">2:05.4</div>
+              </div>
+              <div class="bg-slate-800/60 rounded-md p-2 text-center">
+                <div class="text-slate-500 text-[8px]">改善幅</div>
+                <div class="text-green-400 font-mono text-xs font-bold">−5.3s</div>
+              </div>
+              <div class="bg-green-900/30 border border-green-700/30 rounded-md p-2 text-center">
+                <div class="text-green-500 text-[8px]">現在</div>
+                <div class="text-green-300 font-mono text-xs font-bold">2:00.1</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          Dashboardの既存データ（<code class="text-blue-400">bestByCircuit</code>）を時系列で可視化。echartsでベストラップ推移を描画し、「半年で5秒縮めた」成長実感を提供。
+        </p>
+      </div>
+    </div>
+
+    <!-- P0-3: 初回オンボーディングウィザード -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P0-3: 初回オンボーディングウィザード</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">ようこそ — Step 2/3</span>
+          </div>
+          <div class="p-4">
+            <!-- プログレス -->
+            <div class="flex items-center gap-1 mb-4">
+              <div class="h-1.5 flex-1 bg-blue-500 rounded-full"></div>
+              <div class="h-1.5 flex-1 bg-blue-500 rounded-full"></div>
+              <div class="h-1.5 flex-1 bg-slate-700 rounded-full"></div>
+            </div>
+            <div class="text-center mb-4">
+              <div class="text-3xl mb-2">🏎️</div>
+              <h2 class="text-white font-bold text-sm">あなたの車を教えてください</h2>
+              <p class="text-slate-400 text-[10px] mt-1">セットアップ記録を素早く始めるために使います</p>
+            </div>
+            <!-- 入力フォーム -->
+            <div class="space-y-2">
+              <div>
+                <label class="text-slate-400 text-[9px] block mb-1">メーカー</label>
+                <select class="input-field w-full">
+                  <option>マツダ</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-slate-400 text-[9px] block mb-1">モデル</label>
+                <select class="input-field w-full">
+                  <option>ロードスター (ND)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-slate-400 text-[9px] block mb-1">よく走るサーキット</label>
+                <select class="input-field w-full">
+                  <option>筑波サーキット</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-slate-400 text-[9px] block mb-1">現在のベストラップ（任意）</label>
+                <input class="input-field w-full" placeholder="例: 2:05.000" value="2:05.4">
+              </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+              <button class="btn btn-ghost">戻る</button>
+              <button class="btn btn-primary flex-1">次へ →</button>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          ログイン直後の3ステップウィザード（車種登録→サーキット選択→目標設定）。完了後にDashboardへ遷移し、空状態の離脱を防止。
+        </p>
+      </div>
+    </div>
+
+    <!-- P0-4: 手動販売フロー（最小マネタイズ検証） -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P0-4: 手動販売フロー（最小マネタイズ検証）</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">共有データ詳細</span>
+            <span class="ml-auto text-slate-500 text-[9px]">鈴鹿 / ロードスター</span>
+          </div>
+          <div class="p-3 space-y-3">
+            <!-- プレミアムデータカード -->
+            <div class="bg-slate-800/60 rounded-lg p-3 border border-amber-700/30">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="badge badge-amber">PREMIUM</span>
+                <span class="badge badge-purple">解説つき</span>
+                <span class="badge badge-green">ロガー証憑</span>
+              </div>
+              <h3 class="text-white font-bold text-sm">鈴鹿フルコース・ロードスターND</h3>
+              <div class="text-slate-400 text-[10px] mt-1">ドライバー: T.S (セミプロ) ・ 2026-06-15</div>
+              <div class="flex items-center gap-3 mt-2">
+                <span class="text-slate-300 text-xs">ベストラップ:</span>
+                <span class="text-green-400 font-mono font-bold text-sm">2:18.456</span>
+              </div>
+              <!-- 解説プレビュー -->
+              <div class="bg-slate-900/60 rounded-md p-2 mt-2 border-l-2 border-amber-600">
+                <div class="text-amber-400 text-[9px] font-bold mb-1">📝 解説プレビュー</div>
+                <p class="text-slate-300 text-[10px] leading-relaxed">
+                  130R進入でブレーキングを1マーク早めることで、出口速度が+3km/h向上。
+                  シケインへのアプローチも安定し、最終コーナーで...
+                </p>
+              </div>
+              <!-- 価格・購入 -->
+              <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-700">
+                <div>
+                  <span class="text-slate-400 text-[9px]">価格</span>
+                  <div class="text-amber-400 font-bold text-lg">¥2,000</div>
+                </div>
+                <button class="btn btn-amber text-sm px-4 py-2">🔒 購入する</button>
+              </div>
+            </div>
+            <!-- 購入後の状態 -->
+            <div class="border-t border-slate-700 pt-3">
+              <div class="section-title mb-2">購入後の表示</div>
+              <div class="bg-green-900/20 border border-green-700/30 rounded-md p-2 flex items-center gap-2">
+                <span class="text-green-400">✓</span>
+                <span class="text-green-300 text-[10px]">購入済み — 全データ・解説が閲覧可能です</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          Stripe未実装の状態で「購入」→外部決済リンク→手動開示でH3仮説を検証。PREMIUMバッジで無料共有データとの差別化を視覚化。
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- P1: 次優先機能 — 成長加速                                       -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="mb-12">
+  <div class="flex items-center gap-3 mb-6">
+    <span class="badge badge-amber text-sm px-3 py-1">P1</span>
+    <h1 class="text-2xl font-black text-white">次優先機能 — 成長加速</h1>
+  </div>
+  <div class="grid grid-cols-2 gap-6">
+
+    <!-- P1-1: SNSシェア画像エクスポート -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P1-1: SNSシェア画像エクスポート</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">デブリーフ結果</span>
+          </div>
+          <div class="p-3">
+            <!-- シェアカード画像 -->
+            <div class="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-xl p-4 border border-slate-700 relative overflow-hidden">
+              <!-- ヘッダー -->
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded bg-blue-600 flex items-center justify-center text-white text-[10px] font-black">VL</div>
+                  <span class="text-slate-400 text-[10px]">VELOCITY LOGGER</span>
+                </div>
+                <span class="text-slate-500 text-[9px]">2026.06.19</span>
+              </div>
+              <!-- メインコンテンツ -->
+              <div class="text-center my-4">
+                <div class="text-slate-400 text-[10px] mb-1">筑波サーキット × ロードスターND</div>
+                <div class="text-5xl font-black text-white tracking-tight">2:00.123</div>
+                <div class="mt-2 inline-flex items-center gap-1 bg-green-900/40 rounded-full px-3 py-1">
+                  <span class="text-green-400 text-xs font-bold">↓ −1.8s UPDATE!</span>
+                </div>
+              </div>
+              <!-- ミニデルタTグラフ -->
+              <div class="bg-slate-800/40 rounded-lg p-2 mb-3">
+                <svg viewBox="0 0 200 40" class="w-full h-10">
+                  <polyline points="5,30 25,28 45,25 65,20 85,18 105,15 125,12 145,10 165,8 185,5"
+                    fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="0" y1="35" x2="200" y2="35" stroke="#334155" stroke-width="0.5" stroke-dasharray="2"/>
+                </svg>
+                <div class="text-center text-[8px] text-slate-500">累積タイム差（デルタT）— 緑=速くなった</div>
+              </div>
+              <!-- フッター -->
+              <div class="flex items-center justify-between text-[9px] text-slate-500">
+                <span>自己ベスト更新！</span>
+                <span>velocity-logger.app</span>
+              </div>
+            </div>
+            <!-- シェアボタン -->
+            <div class="flex gap-2 mt-3">
+              <button class="btn btn-primary flex-1">📷 画像を保存</button>
+              <button class="btn btn-ghost">Xに投稿</button>
+              <button class="btn btn-ghost">コピー</button>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          デブリーフ結果をSNSシェア向けカード画像としてエクスポート。ベストラップ更新・デルタTグラフを視覚的にアピールし、口コミ獲得を自動化。
+        </p>
+      </div>
+    </div>
+
+    <!-- P1-2: 共有データのOGP対応 -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P1-2: 共有データのOGP・SEO対応</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">SNSリンクプレビュー</span>
+          </div>
+          <div class="p-3">
+            <!-- X/Twitter風プレビュー -->
+            <div class="bg-slate-800/60 rounded-lg overflow-hidden border border-slate-700">
+              <div class="h-32 bg-gradient-to-br from-blue-900 via-slate-900 to-slate-800 relative flex items-center justify-center">
+                <div class="text-center">
+                  <div class="text-white font-black text-lg">筑波 × ロードスターND</div>
+                  <div class="text-green-400 font-mono text-2xl font-bold mt-1">2:01.234</div>
+                  <div class="flex gap-1 justify-center mt-2">
+                    <span class="badge badge-blue text-[8px]">共有データ</span>
+                    <span class="badge badge-green text-[8px]">ロガー証憑</span>
+                  </div>
+                </div>
+              </div>
+              <div class="p-3">
+                <div class="text-slate-300 text-xs font-semibold">VELOCITY LOGGER — 筑波サーキット マツダ・ロードスターのセットアップデータ</div>
+                <div class="text-slate-500 text-[10px] mt-1">velocity-logger.app/shared/tsukuba-roadster-nd</div>
+              </div>
+            </div>
+            <!-- Google検索プレビュー -->
+            <div class="mt-3">
+              <div class="section-title mb-1">Google検索結果プレビュー</div>
+              <div class="bg-slate-800/40 rounded-md p-2">
+                <div class="text-green-400 text-[10px]">velocity-logger.app › shared › 筑波 › ロードスター</div>
+                <div class="text-blue-400 text-xs font-medium">筑波サーキット × マツダ・ロードスターND セットアップデータ</div>
+                <div class="text-slate-400 text-[10px]">ベストラップ 2:01.234。タイヤ空気圧・サスペンション・アライメント設定を共有。ロガー証憑つき...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          <code class="text-blue-400">/shared/:id</code> ページにOGPメタタグを設定。「サーキット名 × 車種 セットアップ」で検索流入を獲得し、データSEO戦略を実現。
+        </p>
+      </div>
+    </div>
+
+    <!-- P1-3: PWA化（オフライン記録） -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P1-3: PWA化（オフライン記録対応）</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">サーキット現場（オフライン）</span>
+            <span class="ml-auto badge badge-amber text-[8px]">OFFLINE</span>
+          </div>
+          <div class="p-3 space-y-3">
+            <!-- オフラインインジケーター -->
+            <div class="bg-amber-900/30 border border-amber-700/40 rounded-lg p-2 flex items-center gap-2">
+              <span class="text-amber-400 text-sm">📡</span>
+              <div>
+                <div class="text-amber-300 text-xs font-semibold">オフラインモード</div>
+                <div class="text-slate-400 text-[10px]">記録はローカルに保存され、接続時に自動同期します</div>
+              </div>
+            </div>
+            <!-- ローカル保存済みリスト -->
+            <div class="space-y-2">
+              <div class="section-title">ローカル保存済み（同期待ち: 3件）</div>
+              <div class="bg-slate-800/60 rounded-md p-2 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-amber-400 text-[10px]">⏳</span>
+                  <div>
+                    <div class="text-slate-300 text-[10px] font-semibold">走行前エア圧のみ記録</div>
+                    <div class="text-slate-500 text-[9px]">14:32 — 筑波</div>
+                  </div>
+                </div>
+                <span class="badge badge-gray text-[8px]">未同期</span>
+              </div>
+              <div class="bg-slate-800/60 rounded-md p-2 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-amber-400 text-[10px]">⏳</span>
+                  <div>
+                    <div class="text-slate-300 text-[10px] font-semibold">ラップタイム3本</div>
+                    <div class="text-slate-500 text-[9px]">15:05 — 筑波</div>
+                  </div>
+                </div>
+                <span class="badge badge-gray text-[8px]">未同期</span>
+              </div>
+              <div class="bg-slate-800/60 rounded-md p-2 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-amber-400 text-[10px]">⏳</span>
+                  <div>
+                    <div class="text-slate-300 text-[10px] font-semibold">走行後エア圧+サス設定</div>
+                    <div class="text-slate-500 text-[9px]">16:20 — 筑波</div>
+                  </div>
+                </div>
+                <span class="badge badge-gray text-[8px]">未同期</span>
+              </div>
+            </div>
+            <!-- クイック入力 -->
+            <button class="btn btn-primary w-full py-2">＋ クイック記録を追加</button>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          Service Worker + IndexedDBでサーキット現場（電波悪）でも記録可能。接続復帰時にFirestoreへ自動同期。現場で使えない＝在庫が生まれない問題を解決。
+        </p>
+      </div>
+    </div>
+
+    <!-- P1-4: CarSetup.tsxの分割 -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P1-4: CarSetup.tsxの分割（技術的負債解消）</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">リファクタリング前後</span>
+          </div>
+          <div class="p-3 space-y-3">
+            <!-- Before -->
+            <div>
+              <div class="section-title mb-1">Before（1,459行・1ファイル）</div>
+              <div class="bg-red-900/20 border border-red-700/30 rounded-md p-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="badge badge-red text-[8px]">1,459行</span>
+                  <span class="text-red-300 text-[10px] font-mono">CarSetup.tsx</span>
+                </div>
+                <div class="text-slate-400 text-[9px] leading-relaxed">
+                  状態管理 + UI + 保存ロジック + ロガー取込 + 履歴読込 + ドロップダウン + タブ制御...全部1ファイル
+                </div>
+              </div>
+            </div>
+            <!-- After -->
+            <div>
+              <div class="section-title mb-1">After（分割後）</div>
+              <div class="bg-green-900/20 border border-green-700/30 rounded-md p-3 space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="badge badge-green text-[8px]">~200行</span>
+                  <span class="text-green-300 text-[10px] font-mono">CarSetup.tsx</span>
+                  <span class="text-slate-500 text-[9px]">— ルート・ルーティング制御</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="badge badge-green text-[8px]">~150行</span>
+                  <span class="text-green-300 text-[10px] font-mono">useCarSetupForm.ts</span>
+                  <span class="text-slate-500 text-[9px]">— 状態管理</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="badge badge-green text-[8px]">~100行</span>
+                  <span class="text-green-300 text-[10px] font-mono">useSetupPersistence.ts</span>
+                  <span class="text-slate-500 text-[9px]">— 保存・読込</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="badge badge-green text-[8px]">~80行</span>
+                  <span class="text-green-300 text-[10px] font-mono">useTelemetryAttach.ts</span>
+                  <span class="text-slate-500 text-[9px]">— ロガー連携</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="badge badge-green text-[8px]">~300行</span>
+                  <span class="text-green-300 text-[10px] font-mono">CarSetupForm.tsx</span>
+                  <span class="text-slate-500 text-[9px]">— フォームUI</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          hooks層とコンポーネント層への分離。機能追加時のバグリスクを低減し、チーム開発の並行性を向上。TelemetryTraceList.tsx（1,566行）も同様に分割対象。
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- P2: 将来投資機能 — スケール基盤                                 -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="mb-8">
+  <div class="flex items-center gap-3 mb-6">
+    <span class="badge badge-purple text-sm px-3 py-1">P2</span>
+    <h1 class="text-2xl font-black text-white">将来投資機能 — スケール基盤</h1>
+  </div>
+  <div class="grid grid-cols-2 gap-6">
+
+    <!-- P2-1: Stripe Connect本実装 -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P2-1: Stripe Connect本実装（マーケットプレイス決済）</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">データ購入フロー</span>
+          </div>
+          <div class="p-3 space-y-3">
+            <!-- 商品カード -->
+            <div class="bg-slate-800/60 rounded-lg p-3 border border-amber-700/30">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="badge badge-amber">PREMIUM</span>
+                <span class="badge badge-purple">解説つき</span>
+              </div>
+              <h3 class="text-white font-bold text-xs">鈴鹿フル × ロードスターND</h3>
+              <div class="text-green-400 font-mono text-sm font-bold mt-1">2:18.456</div>
+              <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-700">
+                <span class="text-amber-400 font-bold text-base">¥2,000</span>
+                <button class="btn btn-amber">購入する</button>
+              </div>
+            </div>
+            <!-- Stripe決済フロー -->
+            <div class="bg-slate-900/60 rounded-lg p-3">
+              <div class="section-title mb-2">Stripe決済フロー</div>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[8px] text-white font-bold">1</div>
+                  <span class="text-slate-300 text-[10px]">購入ボタンクリック</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[8px] text-white font-bold">2</div>
+                  <span class="text-slate-300 text-[10px]">Stripe Checkout（カード入力）</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[8px] text-white font-bold">3</div>
+                  <span class="text-slate-300 text-[10px]">決済完了 → データ自動開示</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="w-5 h-5 rounded-full bg-green-600 flex items-center justify-center text-[8px] text-white font-bold">4</div>
+                  <span class="text-slate-300 text-[10px]">売り手: ¥1,600 (80%) / プラットフォーム: ¥400 (20%)</span>
+                </div>
+              </div>
+            </div>
+            <!-- 出品ダッシュボード -->
+            <div class="bg-slate-800/40 rounded-md p-2">
+              <div class="section-title mb-1">売り手ダッシュボード</div>
+              <div class="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div class="text-slate-500 text-[8px]">販売数</div>
+                  <div class="text-white font-bold text-sm">12</div>
+                </div>
+                <div>
+                  <div class="text-slate-500 text-[8px]">売上</div>
+                  <div class="text-green-400 font-bold text-sm">¥19,200</div>
+                </div>
+                <div>
+                  <div class="text-slate-500 text-[8px]]">評価</div>
+                  <div class="text-amber-400 font-bold text-sm">★4.8</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          H3検証（手動販売）で支払い意思を確認後、Stripe Connectでマーケットプレイス決済を本実装。売り手80%・プラットフォーム20%の収益分配。
+        </p>
+      </div>
+    </div>
+
+    <!-- P2-2: 売り手プロフィールページ -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P2-2: 売り手プロフィールページ</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">売り手プロフィール</span>
+          </div>
+          <div class="p-3 space-y-3">
+            <!-- プロフィールヘッダー -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg p-4">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">T</div>
+                <div>
+                  <h3 class="text-white font-bold text-sm">T.S — セミプロドライバー</h3>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span class="text-amber-400 text-[10px]">★ 4.8 (24評価)</span>
+                    <span class="badge badge-green text-[8px]">本人確認済み</span>
+                  </div>
+                </div>
+              </div>
+              <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+                鈴鹿・筑波を中心に活動。ロードスターNDワンメイクレース参戦中。
+                データロガー（DigiSpice）を使用した計測とセットアップ解析が専門。
+              </p>
+            </div>
+            <!-- 実績 -->
+            <div class="grid grid-cols-3 gap-2">
+              <div class="bg-slate-800/60 rounded-md p-2 text-center">
+                <div class="text-slate-500 text-[8px]">出品データ</div>
+                <div class="text-white font-bold text-base">8</div>
+              </div>
+              <div class="bg-slate-800/60 rounded-md p-2 text-center">
+                <div class="text-slate-500 text-[8px]">販売数</div>
+                <div class="text-green-400 font-bold text-base">42</div>
+              </div>
+              <div class="bg-slate-800/60 rounded-md p-2 text-center">
+                <div class="text-slate-500 text-[8px]">リピート率</div>
+                <div class="text-blue-400 font-bold text-base">68%</div>
+              </div>
+            </div>
+            <!-- 出品リスト -->
+            <div>
+              <div class="section-title mb-2">出品データ一覧</div>
+              <div class="space-y-2">
+                <div class="bg-slate-800/60 rounded-md p-2 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-amber text-[8px]">PREMIUM</span>
+                    <span class="text-slate-300 text-[10px]">鈴鹿 × ロードスターND</span>
+                  </div>
+                  <span class="text-amber-400 font-bold text-[10px]">¥2,000</span>
+                </div>
+                <div class="bg-slate-800/60 rounded-md p-2 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-blue text-[8px]">FREE</span>
+                    <span class="text-slate-300 text-[10px]">筑波 × ロードスターND</span>
+                  </div>
+                  <span class="text-slate-500 text-[10px]">無料共有</span>
+                </div>
+                <div class="bg-slate-800/60 rounded-md p-2 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-amber text-[8px]">PREMIUM</span>
+                    <span class="text-slate-300 text-[10px]">もてぎ × ロードスターND</span>
+                  </div>
+                  <span class="text-amber-400 font-bold text-[10px]">¥1,500</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          <code class="text-blue-400">profileService.ts</code>のデータを活用した公開プロフィール。売り手の信頼性を実績・評価で可視化し、購入意欲を向上。
+        </p>
+      </div>
+    </div>
+
+    <!-- P2-3: Discord/コミュニティ連携 -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P2-3: Discord/コミュニティ連携</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">コミュニティハブ</span>
+          </div>
+          <div class="p-3 space-y-3">
+            <!-- コミュニティ導線 -->
+            <div class="bg-indigo-900/30 border border-indigo-700/40 rounded-lg p-3">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-indigo-400 text-lg">💬</span>
+                <div>
+                  <div class="text-indigo-300 font-semibold text-xs">Discord連携</div>
+                  <div class="text-slate-400 text-[10px]">車種別チャンネルでデータ共有・質問</div>
+                </div>
+              </div>
+              <button class="btn btn-primary w-full">Discordに参加する</button>
+            </div>
+            <!-- 車種別コミュニティ -->
+            <div>
+              <div class="section-title mb-2">車種別コミュニティ（アプリ内）</div>
+              <div class="space-y-2">
+                <div class="bg-slate-800/60 rounded-md p-2 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[16px]">🚗</span>
+                    <div>
+                      <div class="text-slate-300 text-[10px] font-semibold">ロードスターND</div>
+                      <div class="text-slate-500 text-[9px]">128名 ・ データ 42件</div>
+                    </div>
+                  </div>
+                  <span class="text-green-400 text-[9px]">●</span>
+                </div>
+                <div class="bg-slate-800/60 rounded-md p-2 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[16px]">🏎️</span>
+                    <div>
+                      <div class="text-slate-300 text-[10px] font-semibold">86/BRZ</div>
+                      <div class="text-slate-500 text-[9px]">86名 ・ データ 28件</div>
+                    </div>
+                  </div>
+                  <span class="text-slate-500 text-[9px]">○</span>
+                </div>
+                <div class="bg-slate-800/60 rounded-md p-2 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[16px]">🚙</span>
+                    <div>
+                      <div class="text-slate-300 text-[10px] font-semibold">シビックタイプR</div>
+                      <div class="text-slate-500 text-[9px]">54名 ・ データ 18件</div>
+                    </div>
+                  </div>
+                  <span class="text-slate-500 text-[9px]">○</span>
+                </div>
+              </div>
+            </div>
+            <!-- 最近の投稿 -->
+            <div>
+              <div class="section-title mb-1">最近の話題</div>
+              <div class="bg-slate-800/40 rounded-md p-2 text-[10px] text-slate-400 leading-relaxed">
+                <span class="text-blue-400">@T.S</span> 鈴鹿130Rの進入速度について、前後Gのデータを比較しました...
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          Give-to-Getの相互共有を促進する場として、Discord連携とアプリ内車種別コミュニティを提供。データを起点とした知識循環を加速。
+        </p>
+      </div>
+    </div>
+
+    <!-- P2-4: 解説つきデータ出品UI -->
+    <div class="mockup-card">
+      <div class="mockup-label px-4 py-2 text-sm">P2-4: 解説つきデータ出品UI（売り手向け）</div>
+      <div class="p-4">
+        <div class="screen">
+          <div class="screen-header">
+            <span class="text-blue-400 font-bold text-xs">VL</span>
+            <span class="text-slate-400 text-xs">データ出品画面</span>
+          </div>
+          <div class="p-3 space-y-3">
+            <!-- 出品フォーム -->
+            <div class="space-y-2">
+              <div>
+                <label class="text-slate-400 text-[9px] block mb-1">タイトル</label>
+                <input class="input-field w-full" value="鈴鹿フル × ロードスターND — 130R攻略ガイド">
+              </div>
+              <div>
+                <label class="text-slate-400 text-[9px] block mb-1">価格設定</label>
+                <div class="flex gap-2">
+                  <button class="btn btn-ghost flex-1">無料共有</button>
+                  <button class="btn btn-amber flex-1">有料販売</button>
+                </div>
+              </div>
+              <div>
+                <label class="text-slate-400 text-[9px] block mb-1">価格（円）</label>
+                <input class="input-field w-full" value="¥2,000">
+              </div>
+              <!-- 解説入力 -->
+              <div>
+                <label class="text-slate-400 text-[9px] block mb-1">📝 解説・コーチング</label>
+                <div class="bg-slate-900/60 border border-slate-700 rounded-md p-2 space-y-2">
+                  <div>
+                    <div class="text-amber-400 text-[9px] font-bold mb-1">意図</div>
+                    <textarea class="input-field w-full text-[9px]" rows="2">130R進入でブレーキングを1マーク早めることで出口速度を稼ぐ</textarea>
+                  </div>
+                  <div>
+                    <div class="text-green-400 text-[9px] font-bold mb-1">結果</div>
+                    <textarea class="input-field w-full text-[9px]" rows="2">出口速度+3km/h、最終コーナーへのアプローチも安定</textarea>
+                  </div>
+                  <div>
+                    <div class="text-blue-400 text-[9px] font-bold mb-1">学び</div>
+                    <textarea class="input-field w-full text-[9px]" rows="2">進入速度より出口速度を優先するライン選択が重要</textarea>
+                  </div>
+                </div>
+              </div>
+              <!-- プレビュー -->
+              <div class="bg-slate-800/40 rounded-md p-2">
+                <div class="flex items-center gap-2">
+                  <span class="badge badge-amber text-[8px]">PREMIUM</span>
+                  <span class="badge badge-purple text-[8px]">解説つき</span>
+                  <span class="badge badge-green text-[8px]">ロガー証憑</span>
+                </div>
+                <p class="text-slate-400 text-[9px] mt-1">購入者には上記の解説+全テレメトリデータが開示されます</p>
+              </div>
+              <button class="btn btn-amber w-full py-2">出品する</button>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-400 text-[10px] mt-3 leading-relaxed">
+          売り手が「解説つきプレミアムデータ」を出品するUI。意図・結果・学びの3段落構成で、生データより明確に高付加価値な商品を作れる設計。
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- フッター -->
+<div class="text-center text-slate-500 text-xs mt-8 pb-4">
+  VELOCITY LOGGER — Feature Mockups P0/P1/P2 · Generated 2026-06-19
+</div>
+
+</body>
+</html>

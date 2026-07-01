@@ -1,9 +1,9 @@
 // 基本情報タブコンポーネント
-import React, { useState } from 'react';
-import { AutoComplete, Segmented, Modal, message, Dropdown, Input, Tooltip } from 'antd';
+import React from 'react';
+import { AutoComplete, Modal, message, Dropdown, Tooltip } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import { StepNumber } from '../../common/StepNumber';
-import { calcPressureAdvice, formatAdjust, getWheelTarget, PressureStatus } from '../../../lib/pressureAdvice';
+import { calcPressureAdvice, formatAdjust, getWheelTarget, calcRecommendedCold, PressureStatus } from '../../../lib/pressureAdvice';
 // 余計なボタンは削除し、シンプルなUIに戻す
 
 interface TirePressure {
@@ -54,7 +54,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   targetPressures,
   setTargetPressures,
 }) => {
-  const [tpMode, setTpMode] = useState<'before'|'after'|'compare'>('before');
   const [modal, modalContextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
   const calculatePressureDiff = (before: string, after: string): string => {
@@ -101,7 +100,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
       snapshot = prev; // 直前値を退避（Undo 用）
       return buildCopied(prev, onlyEmpty);
     });
-    setTpMode('compare');
     messageApi.open({
       type: 'success',
       duration: 5,
@@ -149,6 +147,86 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     }
   };
 
+  /** 各輪のセルをレンダリング（2×2グリッド用） */
+  const renderWheelCell = (key: 'fl'|'fr'|'rl'|'rr', label: string) => {
+    const tp = tirePressures[key];
+    const targetNum = getWheelTarget(
+      key,
+      targetPressures.front !== '' ? parseFloat(targetPressures.front) : null,
+      targetPressures.rear !== '' ? parseFloat(targetPressures.rear) : null,
+    );
+    const parsedAfter = tp.after !== '' ? parseInt(tp.after, 10) : null;
+    const afterNum = parsedAfter !== null && !isNaN(parsedAfter) ? parsedAfter : null;
+    const advice = calcPressureAdvice(afterNum, targetNum);
+    const b = parseInt(tp.before, 10);
+    const a = parseInt(tp.after, 10);
+    const hasDiff = !isNaN(b) && !isNaN(a);
+    const d = hasDiff ? a - b : null;
+
+    return (
+      <div key={key} className="border border-blue-200/40 rounded-lg p-2 sm:p-3 space-y-2">
+        <div className="text-center font-semibold dark:text-gray-200">{label}</div>
+        {/* 走行前 */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-gray-500 dark:text-gray-400 w-5 shrink-0">冷</span>
+          <StepNumber
+            value={tp.before !== '' ? parseInt(tp.before, 10) : null}
+            onChange={(n) => setTirePressures(prev => ({
+              ...prev,
+              [key]: {
+                ...prev[key],
+                before: n === null ? '' : String(n),
+                diff: calculatePressureDiff(n === null ? '' : String(n), prev[key].after)
+              }
+            }))}
+            min={50}
+            max={400}
+            step={1}
+            largeStep={5}
+            size="small"
+            inputWidth={56}
+            defaultValue={targetNum ?? 200}
+          />
+        </div>
+        {/* 走行後 */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-gray-500 dark:text-gray-400 w-5 shrink-0">温</span>
+          <StepNumber
+            value={tp.after !== '' ? parseInt(tp.after, 10) : null}
+            onChange={(n) => setTirePressures(prev => ({
+              ...prev,
+              [key]: {
+                ...prev[key],
+                after: n === null ? '' : String(n),
+                diff: calculatePressureDiff(prev[key].before, n === null ? '' : String(n))
+              }
+            }))}
+            min={50}
+            max={400}
+            step={1}
+            largeStep={5}
+            size="small"
+            inputWidth={56}
+            defaultValue={targetNum ?? 200}
+          />
+        </div>
+        {/* 差分 & 目標対比（常時表示） */}
+        <div className="flex justify-between items-center text-sm pt-1 border-t border-blue-200/30">
+          <span className={`text-xs ${hasDiff ? (d! >= 0 ? 'text-red-500' : 'text-blue-400') : 'text-gray-400'}`}>
+            Δ{hasDiff ? (d! >= 0 ? `+${d}` : `${d}`) : '—'}
+          </span>
+          <Tooltip
+            title={advice.adjustBy !== null ? `次走行推奨: ${formatAdjust(advice.adjustBy)}` : '目標温間圧または走行後の実測を入力すると表示されます'}
+          >
+            <span className={`text-xs font-mono ${statusClass[advice.status]}`}>
+              目標{advice.diff !== null ? (advice.diff >= 0 ? `+${advice.diff}` : `${advice.diff}`) : '—'}
+            </span>
+          </Tooltip>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-6 sm:space-y-8">
       {modalContextHolder}
@@ -156,7 +234,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
       {/* タイヤ空気圧とダンパー設定を横並び */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* タイヤ空気圧設定 */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6 relative">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 sm:p-6 relative">
           {/* 車両イメージ - タイヤ空気圧 */}
           <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
             <i className="fas fa-car text-9xl text-gray-400 dark:text-gray-600"></i>
@@ -170,17 +248,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               走行前 → 走行後 (kPa)
             </div>
           </div>
-          {/* セグメント切替 */}
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <Segmented
-              options={[
-                { label: '走行前', value: 'before' },
-                { label: '走行後', value: 'after' },
-                { label: '比較', value: 'compare' },
-              ]}
-              value={tpMode}
-              onChange={(v) => setTpMode(v as any)}
-            />
+          {/* コピー操作 */}
+          <div className="flex justify-end mb-3">
             <Dropdown
               trigger={['click']}
               menu={{
@@ -200,89 +269,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </Dropdown>
           </div>
 
-          <div className="space-y-3">
-            {wheels.map(({key,label}) => {
-              const tp = tirePressures[key];
-              const targetNum = getWheelTarget(
-                key,
-                targetPressures.front !== '' ? parseFloat(targetPressures.front) : null,
-                targetPressures.rear !== '' ? parseFloat(targetPressures.rear) : null,
-              );
-              const parsedAfter = tp.after !== '' ? parseInt(tp.after, 10) : null;
-              const afterNum = parsedAfter !== null && !isNaN(parsedAfter) ? parsedAfter : null;
-              const advice = calcPressureAdvice(afterNum, targetNum);
-
-              return (
-                <div key={key} className="flex items-center justify-between gap-2 py-2 border-b border-blue-200/40 last:border-b-0">
-                  <div className="w-10 text-center font-semibold dark:text-gray-200">{label}</div>
-                  {/* before */}
-                  <div className="flex-1 flex items-center justify-end">
-                    <div style={{ display: tpMode === 'after' ? 'none' : 'inline-flex' }}>
-                      <StepNumber
-                        value={parseInt(tp.before, 10) || 0}
-                        onChange={(n) => setTirePressures(prev => ({
-                          ...prev,
-                          [key]: {
-                            ...prev[key],
-                            before: String(n),
-                            diff: calculatePressureDiff(String(n), prev[key].after)
-                          }
-                        }))}
-                        min={50}
-                        max={400}
-                        step={5}
-                        unit="kPa"
-                        size="small"
-                      />
-                    </div>
-                  </div>
-                  {/* after */}
-                  <div className="flex-1 flex items-center">
-                    <div style={{ display: tpMode === 'before' ? 'none' : 'inline-flex' }}>
-                      <StepNumber
-                        value={parseInt(tp.after, 10) || 0}
-                        onChange={(n) => setTirePressures(prev => ({
-                          ...prev,
-                          [key]: {
-                            ...prev[key],
-                            after: String(n),
-                            diff: calculatePressureDiff(prev[key].before, String(n))
-                          }
-                        }))}
-                        min={50}
-                        max={400}
-                        step={5}
-                        unit="kPa"
-                        size="small"
-                      />
-                    </div>
-                  </div>
-                  {/* delta（走行前後差） */}
-                  <div className="w-14 text-right text-sm">
-                    {tpMode === 'compare' && (
-                      (() => {
-                        const b = parseInt(tp.before, 10);
-                        const a = parseInt(tp.after, 10);
-                        if (isNaN(b) || isNaN(a)) return <span className="text-gray-400">—</span>;
-                        const d = a - b;
-                        const s = d >= 0 ? `+${d}` : `${d}`;
-                        return <span className={d >= 0 ? 'text-red-500' : 'text-blue-400'}>{s}</span>;
-                      })()
-                    )}
-                  </div>
-                  {/* 目標対比（温間実測 − 目標）: 常に表示 */}
-                  <Tooltip
-                    title={advice.adjustBy !== null ? `次走行推奨: ${formatAdjust(advice.adjustBy)}` : '目標温間圧または走行後の実測を入力すると表示されます'}
-                  >
-                    <div className={`w-14 text-right text-sm font-mono ${statusClass[advice.status]}`}>
-                      {advice.diff !== null
-                        ? (advice.diff >= 0 ? `+${advice.diff}` : `${advice.diff}`)
-                        : '—'}
-                    </div>
-                  </Tooltip>
-                </div>
-              );
-            })}
+          {/* 2×2グリッド: 車両配置に対応 (FL FR / RL RR) */}
+          <div className="text-center text-xs text-gray-400 dark:text-gray-500 mb-1">─ フロント ─</div>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            {renderWheelCell('fl', 'FL')}
+            {renderWheelCell('fr', 'FR')}
+          </div>
+          <div className="text-center text-xs text-gray-400 dark:text-gray-500 mb-1">─ リア ─</div>
+          <div className="grid grid-cols-2 gap-3">
+            {renderWheelCell('rl', 'RL')}
+            {renderWheelCell('rr', 'RR')}
           </div>
 
           {/* 目標温間圧入力 */}
@@ -295,33 +291,41 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               </Tooltip>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">フロント (kPa)</label>
-                <Input
-                  value={targetPressures.front}
-                  onChange={(e) => setTargetPressures(prev => ({ ...prev, front: e.target.value }))}
-                  placeholder="例: 200"
-                  size="small"
-                  type="number"
-                  min={0}
-                  max={500}
-                  className="text-center"
-                  suffix={<span className="text-xs text-gray-400">kPa</span>}
-                />
+              <div className="border border-blue-200/40 rounded-lg p-2 sm:p-3 space-y-2">
+                <div className="text-center font-semibold dark:text-gray-200">フロント</div>
+                <div className="flex items-center gap-1">
+                  <span className="w-5 shrink-0" />
+                  <StepNumber
+                    value={targetPressures.front !== '' ? parseInt(targetPressures.front, 10) || null : null}
+                    onChange={(n) => setTargetPressures(prev => ({ ...prev, front: n === null ? '' : String(n) }))}
+                    min={0}
+                    max={500}
+                    step={1}
+                    largeStep={5}
+                    size="small"
+                    inputWidth={56}
+                    placeholder="例: 200"
+                    defaultValue={200}
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">リア (kPa)</label>
-                <Input
-                  value={targetPressures.rear}
-                  onChange={(e) => setTargetPressures(prev => ({ ...prev, rear: e.target.value }))}
-                  placeholder="例: 190"
-                  size="small"
-                  type="number"
-                  min={0}
-                  max={500}
-                  className="text-center"
-                  suffix={<span className="text-xs text-gray-400">kPa</span>}
-                />
+              <div className="border border-blue-200/40 rounded-lg p-2 sm:p-3 space-y-2">
+                <div className="text-center font-semibold dark:text-gray-200">リア</div>
+                <div className="flex items-center gap-1">
+                  <span className="w-5 shrink-0" />
+                  <StepNumber
+                    value={targetPressures.rear !== '' ? parseInt(targetPressures.rear, 10) || null : null}
+                    onChange={(n) => setTargetPressures(prev => ({ ...prev, rear: n === null ? '' : String(n) }))}
+                    min={0}
+                    max={500}
+                    step={1}
+                    largeStep={5}
+                    size="small"
+                    inputWidth={56}
+                    placeholder="例: 190"
+                    defaultValue={200}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -331,7 +335,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <div className="mt-3 pt-3 border-t border-blue-200/40">
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
                 <i className="fas fa-arrow-right text-blue-400"></i>
-                次走行の冷間圧調整推奨
+                次走行の推奨冷間圧
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 {wheels.map(({ key, label }) => {
@@ -344,11 +348,14 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   const parsedAfter2 = tp2.after !== '' ? parseInt(tp2.after, 10) : null;
                   const afterNum2 = parsedAfter2 !== null && !isNaN(parsedAfter2) ? parsedAfter2 : null;
                   const advice = calcPressureAdvice(afterNum2, targetNum);
+                  const parsedBefore2 = tp2.before !== '' ? parseInt(tp2.before, 10) : null;
+                  const beforeNum2 = parsedBefore2 !== null && !isNaN(parsedBefore2) ? parsedBefore2 : null;
+                  const recCold = calcRecommendedCold(beforeNum2, advice.adjustBy);
                   return (
                     <div key={key} className="flex items-center justify-between text-xs py-0.5">
                       <span className="font-medium dark:text-gray-300">{label}:</span>
                       <span className={statusClass[advice.status]}>
-                        {formatAdjust(advice.adjustBy)}
+                        {recCold !== null ? `${recCold} kPa` : formatAdjust(advice.adjustBy)}
                       </span>
                     </div>
                   );

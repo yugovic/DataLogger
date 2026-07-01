@@ -1,7 +1,7 @@
 // メインアプリケーション（認証機能統合版）
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Login } from './components/auth/Login';
 import { SignUp } from './components/auth/SignUp';
@@ -19,13 +19,42 @@ import { TelemetryTraceList } from './components/telemetry/TelemetryTraceList';
 import { SetupCompare } from './components/compare/SetupCompare';
 import { SharedBrowse } from './components/share/SharedBrowse';
 import { SharedSetupDetail } from './components/share/SharedSetupDetail';
+import { OnboardingWizard, checkOnboardingNeeded } from './components/onboarding/OnboardingWizard';
+
+const OnboardingGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser, loading } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    if (!currentUser || loading) return;
+    checkOnboardingNeeded(currentUser.uid).then((needed) => {
+      setShowOnboarding(needed);
+      setChecking(false);
+    });
+  }, [currentUser, loading]);
+
+  if (loading || checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950">
+        <div className="animate-pulse text-slate-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (showOnboarding) {
+    return <OnboardingWizard onComplete={() => setShowOnboarding(false)} />;
+  }
+
+  return <>{children}</>;
+};
 
 const App: React.FC = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
 
   const AuthPage = () => {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-100 px-4 py-10 text-slate-950 dark:bg-slate-950 dark:text-slate-100 flex items-center justify-center">
         {authMode === 'login' ? (
           <Login
             onSuccess={() => window.location.href = '/'}
@@ -52,7 +81,9 @@ const App: React.FC = () => {
               path="/"
               element={
                 <PrivateRoute>
-                  <CarSetup />
+                  <OnboardingGate>
+                    <CarSetup />
+                  </OnboardingGate>
                 </PrivateRoute>
               }
             />

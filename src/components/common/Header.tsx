@@ -148,94 +148,111 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navBaseClass =
+    'group relative inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors whitespace-nowrap';
+  const navActiveClass =
+    'bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.18)] dark:bg-white dark:text-slate-950';
+  const navIdleClass =
+    'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white';
+  const iconButtonClass =
+    'inline-flex h-10 w-10 items-center justify-center rounded-md border border-transparent text-slate-500 transition-colors hover:border-slate-200 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-white';
+  const mobileNavClass =
+    'flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition-colors';
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm py-3 px-4 sm:px-6 flex items-center justify-between relative">
-      <div className="flex items-center">
-        <h1 className="text-xl sm:text-2xl font-bold">
-          <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800 dark:text-gray-200">LOGGER</span>
+    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
+      <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-md bg-slate-950 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)] dark:bg-white dark:text-slate-950">
+          <span className="text-sm font-black tracking-normal">VL</span>
+        </div>
+        <h1 className="min-w-0 text-lg font-black leading-none tracking-normal sm:text-xl">
+          <span className="block text-slate-950 dark:text-white">VELOCITY</span>
+          <span className="block text-[10px] font-bold tracking-[0.24em] text-blue-600 dark:text-blue-400">LOGGER</span>
         </h1>
       </div>
       {/* モバイルハンバーガーボタン */}
       <button
-        className="md:hidden p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+        className={`${iconButtonClass} md:hidden`}
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        aria-label={mobileMenuOpen ? 'メニューを閉じる' : 'メニューを開く'}
       >
         {mobileMenuOpen ? <CloseOutlined style={{ fontSize: '20px' }} /> : <MenuOutlined style={{ fontSize: '20px' }} />}
       </button>
       {/* デスクトップナビゲーション */}
-      <div className="hidden md:flex items-center space-x-4">
+      <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex">
         <button
           aria-label="ダッシュボード"
           onClick={() => navigate('/dashboard')}
-          className={`flex items-center px-3 py-2 ${isActive('/dashboard') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`${navBaseClass} ${isActive('/dashboard') ? navActiveClass : navIdleClass}`}
         >
-          <DashboardOutlined className="mr-2" />
+          <DashboardOutlined />
           ダッシュボード
         </button>
         <button
           aria-label="セットアップ記録"
           onClick={() => navigate('/')}
-          className={`flex items-center px-3 py-2 ${isActive('/') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`${navBaseClass} ${isActive('/') ? navActiveClass : navIdleClass}`}
         >
-          <ToolOutlined className="mr-2" />
+          <ToolOutlined />
           セットアップ記録
         </button>
         <button
           aria-label="履歴一覧"
           onClick={() => navigate('/history')}
-          className={`flex items-center px-3 py-2 ${isActive('/history') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`${navBaseClass} ${isActive('/history') ? navActiveClass : navIdleClass}`}
         >
-          <HistoryOutlined className="mr-2" />
+          <HistoryOutlined />
           履歴一覧
         </button>
         <button
           aria-label="車両管理"
           onClick={() => navigate('/vehicles')}
-          className={`flex items-center px-3 py-2 ${isActive('/vehicles') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`${navBaseClass} ${isActive('/vehicles') ? navActiveClass : navIdleClass}`}
         >
-          <CarOutlined className="mr-2" />
+          <CarOutlined />
           車両管理
         </button>
         <button
           aria-label="走行ログ"
           onClick={() => navigate('/telemetry')}
-          className={`flex items-center px-3 py-2 ${isActiveSection('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`${navBaseClass} ${isActiveSection('/telemetry') ? navActiveClass : navIdleClass}`}
         >
-          <DatabaseOutlined className="mr-2" />
+          <DatabaseOutlined />
           走行ログ
         </button>
         <button
           aria-label="みんなの共有データ"
           onClick={() => navigate('/shared')}
-          className={`flex items-center px-3 py-2 ${isActive('/shared') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md cursor-pointer whitespace-nowrap`}
+          className={`${navBaseClass} ${isActive('/shared') ? navActiveClass : navIdleClass}`}
         >
-          <ExportOutlined className="mr-2" />
+          <ExportOutlined />
           共有データ
         </button>
       </div>
-      <div className="hidden md:flex items-center space-x-4">
+      <div className="hidden items-center gap-2 md:flex">
         <button
-          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer"
+          className={iconButtonClass}
           onClick={toggleDarkMode}
           title={darkMode ? 'ライトモードに切替' : 'ダークモードに切替'}
         >
           {darkMode ? <SunOutlined style={{ fontSize: '20px' }} /> : <MoonOutlined style={{ fontSize: '20px' }} />}
         </button>
-        <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer">
+        <button className={iconButtonClass} title="新規記録">
           <PlusOutlined style={{ fontSize: '20px' }} />
         </button>
-        <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer">
+        <button className={iconButtonClass} title="通知">
           <BellOutlined style={{ fontSize: '20px' }} />
         </button>
         <button
-          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer"
+          className={iconButtonClass}
           onClick={() => setSettingsModal(true)}
+          title="設定"
         >
           <SettingOutlined style={{ fontSize: '20px' }} />
         </button>
         <button
-          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full cursor-pointer"
+          className={iconButtonClass}
           onClick={handleLogout}
           title="ログアウト"
         >
@@ -491,70 +508,71 @@ export const Header: React.FC<HeaderProps> = ({
         </Modal>
       </div>
       {/* モバイルメニュー */}
+      </div>
       {mobileMenuOpen && (
-        <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 shadow-lg border-t border-gray-200 dark:border-gray-700 z-50 md:hidden">
+        <div className="absolute left-0 right-0 top-full z-50 border-b border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-slate-800 dark:bg-slate-950 md:hidden">
           <nav className="flex flex-col p-2">
             <button
               onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}
-              className={`flex items-center px-4 py-3 ${isActive('/dashboard') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+              className={`${mobileNavClass} ${isActive('/dashboard') ? navActiveClass : navIdleClass}`}
             >
               <DashboardOutlined className="mr-3" />
               ダッシュボード
             </button>
             <button
               onClick={() => { navigate('/'); setMobileMenuOpen(false); }}
-              className={`flex items-center px-4 py-3 ${isActive('/') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+              className={`${mobileNavClass} ${isActive('/') ? navActiveClass : navIdleClass}`}
             >
               <ToolOutlined className="mr-3" />
               セットアップ記録
             </button>
             <button
               onClick={() => { navigate('/history'); setMobileMenuOpen(false); }}
-              className={`flex items-center px-4 py-3 ${isActive('/history') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+              className={`${mobileNavClass} ${isActive('/history') ? navActiveClass : navIdleClass}`}
             >
               <HistoryOutlined className="mr-3" />
               履歴一覧
             </button>
             <button
               onClick={() => { navigate('/vehicles'); setMobileMenuOpen(false); }}
-              className={`flex items-center px-4 py-3 ${isActive('/vehicles') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+              className={`${mobileNavClass} ${isActive('/vehicles') ? navActiveClass : navIdleClass}`}
             >
               <CarOutlined className="mr-3" />
               車両管理
             </button>
             <button
               onClick={() => { navigate('/telemetry'); setMobileMenuOpen(false); }}
-              className={`flex items-center px-4 py-3 ${isActiveSection('/telemetry') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+              className={`${mobileNavClass} ${isActiveSection('/telemetry') ? navActiveClass : navIdleClass}`}
             >
               <DatabaseOutlined className="mr-3" />
               走行ログ
             </button>
             <button
               onClick={() => { navigate('/shared'); setMobileMenuOpen(false); }}
-              className={`flex items-center px-4 py-3 ${isActive('/shared') ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-md`}
+              className={`${mobileNavClass} ${isActive('/shared') ? navActiveClass : navIdleClass}`}
             >
               <ExportOutlined className="mr-3" />
               共有データ
             </button>
           </nav>
-          <div className="flex items-center justify-around border-t border-gray-200 dark:border-gray-700 p-3">
+          <div className="flex items-center justify-around border-t border-slate-200 p-3 dark:border-slate-800">
             <button
-              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+              className={iconButtonClass}
               onClick={toggleDarkMode}
             >
               {darkMode ? <SunOutlined style={{ fontSize: '20px' }} /> : <MoonOutlined style={{ fontSize: '20px' }} />}
             </button>
-            <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+            <button className={iconButtonClass}>
               <BellOutlined style={{ fontSize: '20px' }} />
             </button>
             <button
-              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+              className={iconButtonClass}
               onClick={() => { setSettingsModal(true); setMobileMenuOpen(false); }}
             >
               <SettingOutlined style={{ fontSize: '20px' }} />
             </button>
             <button
-              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+              className={iconButtonClass}
               onClick={handleLogout}
             >
               <LogoutOutlined style={{ fontSize: '20px' }} />

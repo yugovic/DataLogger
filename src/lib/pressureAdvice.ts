@@ -94,3 +94,16 @@ export function formatAdjust(adjustBy: number | null): string {
   const sign = adjustBy > 0 ? '+' : '';
   return `冷間を ${sign}${adjustBy} kPa`;
 }
+
+/**
+ * 次走行の推奨冷間圧（絶対値）を計算する。
+ * beforeKPa + adjustBy = beforeKPa + (targetKPa - afterKPa)
+ * beforeKPa または adjustBy が null の場合は null を返す。
+ */
+export function calcRecommendedCold(
+  beforeKPa: number | null,
+  adjustBy: number | null,
+): number | null {
+  if (beforeKPa === null || adjustBy === null) return null;
+  return beforeKPa + adjustBy;
+}

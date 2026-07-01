@@ -17,6 +17,7 @@ import {
   CloudFilled,
   BulbOutlined,
   RiseOutlined,
+  ShareAltOutlined,
 } from '@ant-design/icons';
 import * as echarts from 'echarts';
 import { Header } from './common/Header';
@@ -24,6 +25,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getUserSetups } from '../services/setupService';
 import { CarSetup } from '../types/setup';
+import { downloadShareImage, shareViaWebShare } from '../utils/shareImage';
 
 // ─── Helper functions ───────────────────────────────────────
 
@@ -515,11 +517,13 @@ export const Dashboard: React.FC = () => {
 
   // ─── Render ─────────────────────────────────────────────
 
-  const cardClass = 'bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50';
-  const headingClass = 'text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider';
+  const cardClass = 'bg-white dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-800 shadow-[0_1px_0_rgba(15,23,42,0.04)]';
+  const headingClass = 'text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.18em]';
+  const iconShellClass = 'grid h-9 w-9 place-items-center rounded-md border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950';
+  const statValueClass = 'font-mono text-3xl font-black tracking-normal text-slate-950 dark:text-white';
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
@@ -527,15 +531,66 @@ export const Dashboard: React.FC = () => {
         setCurrentSettingView={setCurrentSettingView}
       />
 
-      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-[1800px] px-3 py-4 sm:px-5 lg:px-6">
         {/* Page title */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-3 mb-1">
-            <DashboardOutlined className="text-xl text-blue-500" />
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">ダッシュボード</h2>
+        <div className="mb-4 overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <span className="grid h-8 w-8 place-items-center rounded-md bg-blue-600 text-white">
+                  <DashboardOutlined />
+                </span>
+                <span className={headingClass}>Operations Overview</span>
+              </div>
+              <h2 className="text-2xl font-black leading-tight tracking-normal text-slate-950 dark:text-white sm:text-3xl">
+                ダッシュボード
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                セットアップ、ラップ、車両、走行ログを横断して次の改善ポイントを判断します。
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <button
+                onClick={() => navigate('/')}
+                className="inline-flex h-10 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+              >
+                記録する
+              </button>
+              <button
+                onClick={() => navigate('/telemetry')}
+                className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-bold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                走行ログ
+              </button>
+            </div>
           </div>
-          <p className="text-gray-500 dark:text-gray-400 ml-8">走行データの統計とサマリー</p>
+          <div className="h-1 bg-[linear-gradient(90deg,#2563eb_0%,#2563eb_22%,#0f172a_22%,#0f172a_44%,#e2e8f0_44%,#e2e8f0_100%)] dark:bg-[linear-gradient(90deg,#3b82f6_0%,#3b82f6_22%,#f8fafc_22%,#f8fafc_44%,#1e293b_44%,#1e293b_100%)]" />
         </div>
+
+        {stats && (
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+              <div className={headingClass}>Latest Session</div>
+              <div className="mt-2 truncate text-sm font-bold text-slate-900 dark:text-white">
+                {stats.recentSessions[0]?.circuit || '未記録'}
+              </div>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+              <div className={headingClass}>Cars</div>
+              <div className="mt-2 font-mono text-lg font-black text-slate-900 dark:text-white">{stats.cars.length}</div>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+              <div className={headingClass}>Best Venue</div>
+              <div className="mt-2 truncate text-sm font-bold text-slate-900 dark:text-white">{stats.overallBest?.circuit || '記録なし'}</div>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+              <div className={headingClass}>Data Depth</div>
+              <div className="mt-2 font-mono text-lg font-black text-slate-900 dark:text-white">
+                {stats.totalSessions > 0 ? `${Math.round(stats.totalLaps / stats.totalSessions)}` : '0'} <span className="text-xs font-bold text-slate-500">laps/session</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-32">
@@ -549,50 +604,50 @@ export const Dashboard: React.FC = () => {
             >
               <button
                 onClick={() => navigate('/')}
-                className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="mt-4 rounded-md bg-slate-950 px-6 py-2 text-sm font-bold text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950"
               >
                 最初のセットアップを記録する
               </button>
             </Empty>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
 
             {/* ─── KPI Cards ─── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className={headingClass}>走行回数</span>
-                  <span className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                    <CalendarOutlined className="text-blue-500" />
+                  <span className={iconShellClass}>
+                    <CalendarOutlined className="text-blue-600 dark:text-blue-400" />
                   </span>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalSessions}</div>
-                <div className="text-xs text-gray-400 mt-1">セッション</div>
+                <div className={statValueClass}>{stats.totalSessions}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">セッション</div>
               </div>
 
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className={headingClass}>総ラップ数</span>
-                  <span className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <span className={iconShellClass}>
                     <FieldTimeOutlined className="text-emerald-500" />
                   </span>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalLaps}</div>
-                <div className="text-xs text-gray-400 mt-1">ラップ</div>
+                <div className={statValueClass}>{stats.totalLaps}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">ラップ</div>
               </div>
 
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className={headingClass}>ベストラップ</span>
-                  <span className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <span className={iconShellClass}>
                     <ThunderboltOutlined className="text-amber-500" />
                   </span>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                <div className={statValueClass}>
                   {stats.overallBest ? secondsToLapTime(stats.overallBest.time) : '---'}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {stats.overallBest ? stats.overallBest.circuit : '記録なし'}
                 </div>
               </div>
@@ -600,14 +655,99 @@ export const Dashboard: React.FC = () => {
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className={headingClass}>サーキット</span>
-                  <span className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                    <EnvironmentOutlined className="text-violet-500" />
+                  <span className={iconShellClass}>
+                    <EnvironmentOutlined className="text-blue-600 dark:text-blue-400" />
                   </span>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.circuits.length}</div>
-                <div className="text-xs text-gray-400 mt-1">コース</div>
+                <div className={statValueClass}>{stats.circuits.length}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">コース</div>
               </div>
             </div>
+
+            {/* ─── Growth Summary (P0-2) + Share (P1-1) ─── */}
+            {stats && stats.lapTrend.length >= 2 && (
+              <div className={`${cardClass} p-5`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <RiseOutlined className="text-emerald-500" />
+                    <span className={headingClass}>成長タイムライン</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const trend = stats.lapTrend;
+                      const last = trend[trend.length - 1];
+                      const first = trend[0];
+                      const delta = first.bestLap - last.bestLap;
+                      const shared = await shareViaWebShare({
+                        circuit: last.circuit,
+                        carModel: setups.find(s => s.circuit === last.circuit && s.lapTimeData?.bestLap)?.carModel ?? '',
+                        bestLap: secondsToLapTime(last.bestLap),
+                        dateLabel: formatDate(last.date),
+                        deltaSeconds: delta,
+                        sessionType: sessionLabel(last.sessionType),
+                      });
+                      if (!shared) {
+                        await downloadShareImage({
+                          circuit: last.circuit,
+                          carModel: setups.find(s => s.circuit === last.circuit && s.lapTimeData?.bestLap)?.carModel ?? '',
+                          bestLap: secondsToLapTime(last.bestLap),
+                          dateLabel: formatDate(last.date),
+                          deltaSeconds: delta,
+                          sessionType: sessionLabel(last.sessionType),
+                        });
+                        message.success('シェア画像をダウンロードしました');
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    <ShareAltOutlined style={{ fontSize: 13 }} />
+                    シェア
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  {(() => {
+                    const trend = stats.lapTrend;
+                    const first = trend[0];
+                    const last = trend[trend.length - 1];
+                    const delta = first.bestLap - last.bestLap;
+                    const improved = delta > 0;
+                    return (
+                      <>
+                        <div className="text-center bg-slate-50 dark:bg-slate-800/40 rounded-lg p-3">
+                          <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">開始時</div>
+                          <div className="mt-1 font-mono text-xl font-black text-slate-700 dark:text-slate-300">
+                            {secondsToLapTime(first.bestLap)}
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {formatDate(first.date)} ・ {first.circuit}
+                          </div>
+                        </div>
+                        <div className={`text-center rounded-lg p-3 ${improved ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50'}`}>
+                          <div className={`text-[10px] font-bold uppercase tracking-wider ${improved ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                            改善幅
+                          </div>
+                          <div className={`mt-1 font-mono text-2xl font-black ${improved ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                            {improved ? '−' : '+'}{Math.abs(delta).toFixed(3)}s
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {trend.length}セッション分
+                          </div>
+                        </div>
+                        <div className="text-center bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-lg p-3">
+                          <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">現在</div>
+                          <div className="mt-1 font-mono text-xl font-black text-emerald-600 dark:text-emerald-400">
+                            {secondsToLapTime(last.bestLap)}
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {formatDate(last.date)} ・ {last.circuit}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
 
             {/* ─── Lap Time Trend (wide) ─── */}
             {lapTrendOption && (

@@ -46,10 +46,21 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold text-center mb-6 dark:text-gray-200">
-        <span className="text-blue-500">VELOCITY</span> <span className="text-gray-800 dark:text-gray-200">LOGGER</span>
-      </h2>
+    <div className="mx-auto w-full max-w-[22rem] overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.10)] dark:border-slate-800 dark:bg-slate-900">
+      <div className="p-6 sm:p-7">
+        <div className="mb-7 flex items-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-md bg-slate-950 text-white dark:bg-white dark:text-slate-950">
+            <span className="text-sm font-black">VL</span>
+          </div>
+          <div>
+            <h2 className="text-xl font-black leading-none text-slate-950 dark:text-white">VELOCITY</h2>
+            <div className="mt-1 text-[10px] font-bold tracking-[0.24em] text-blue-600 dark:text-blue-400">LOGGER</div>
+          </div>
+        </div>
+        <div className="mb-5">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Driver Access</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">ログイン</h3>
+        </div>
       
       <div className="space-y-4">
         <Input
@@ -77,7 +88,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
           block
           loading={loading}
           onClick={handleEmailLogin}
-          className="bg-blue-500 hover:bg-blue-600"
+          className="bg-slate-950 hover:!bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:!bg-slate-200"
         >
           ログイン
         </Button>
@@ -105,6 +116,8 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
           </Button>
         </div>
       </div>
+      </div>
+      <div className="h-1 bg-[linear-gradient(90deg,#2563eb_0%,#2563eb_24%,#0f172a_24%,#0f172a_48%,#e2e8f0_48%,#e2e8f0_100%)] dark:bg-[linear-gradient(90deg,#3b82f6_0%,#3b82f6_24%,#f8fafc_24%,#f8fafc_48%,#1e293b_48%,#1e293b_100%)]" />
     </div>
   );
 };

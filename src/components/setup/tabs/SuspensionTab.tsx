@@ -353,11 +353,11 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
         <div className="grid grid-cols-2 gap-3 sm:gap-4 text-sm">
           <div className="flex items-center gap-2 whitespace-nowrap">
             <span className="text-gray-600 dark:text-gray-400">車高F:</span>
-            <StepNumber value={rideHeightF} onChange={setRideHeightF} min={80} max={150} step={1} unit="mm" size="small" />
+            <StepNumber value={rideHeightF} onChange={(v) => setRideHeightF(v ?? 0)} min={80} max={150} step={1} unit="mm" size="small" />
           </div>
           <div className="flex items-center gap-2 whitespace-nowrap">
             <span className="text-gray-600 dark:text-gray-400">車高R:</span>
-            <StepNumber value={rideHeightR} onChange={setRideHeightR} min={80} max={150} step={1} unit="mm" size="small" />
+            <StepNumber value={rideHeightR} onChange={(v) => setRideHeightR(v ?? 0)} min={80} max={150} step={1} unit="mm" size="small" />
           </div>
           <div className="flex items-center">
             <span className="text-gray-600 dark:text-gray-400 mr-2">ARB F:</span>
@@ -435,9 +435,9 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
             <div className="flex items-center gap-2 sm:gap-4">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ブレーキバイアス</span>
               <div className="flex items-center space-x-2">
-                <StepNumber value={brakeBiasF} onChange={setBrakeBiasF} min={40} max={80} step={1} size="small" />
+                <StepNumber value={brakeBiasF} onChange={(v) => setBrakeBiasF(v ?? 0)} min={40} max={80} step={1} size="small" />
                 <span className="text-gray-500 dark:text-gray-400">:</span>
-                <StepNumber value={brakeBiasR} onChange={setBrakeBiasR} min={20} max={60} step={1} size="small" />
+                <StepNumber value={brakeBiasR} onChange={(v) => setBrakeBiasR(v ?? 0)} min={20} max={60} step={1} size="small" />
               </div>
             </div>
           </div>
@@ -446,12 +446,12 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = () => {
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm">
             <div className="flex items-center space-x-2">
               <span className="text-gray-600 dark:text-gray-400">F走行:</span>
-              <StepNumber value={padKmF} onChange={setPadKmF} min={0} max={5000} step={10} unit="km" size="small" />
+              <StepNumber value={padKmF} onChange={(v) => setPadKmF(v ?? 0)} min={0} max={5000} step={10} unit="km" size="small" />
               <span className="text-gray-500 dark:text-gray-400">km</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-gray-600 dark:text-gray-400">R走行:</span>
-              <StepNumber value={padKmR} onChange={setPadKmR} min={0} max={5000} step={10} unit="km" size="small" />
+              <StepNumber value={padKmR} onChange={(v) => setPadKmR(v ?? 0)} min={0} max={5000} step={10} unit="km" size="small" />
               <span className="text-gray-500 dark:text-gray-400">km</span>
             </div>
           </div>

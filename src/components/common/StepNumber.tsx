@@ -4,14 +4,20 @@ import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 
 interface StepNumberProps {
   value: number | null;
-  onChange: (value: number) => void;
+  onChange: (value: number | null) => void;
   min?: number;
   max?: number;
   step?: number;
+  /** 大きなステップ（指定時のみ ±largeStep ボタンを追加） */
+  largeStep?: number;
   unit?: string; // e.g. 'kPa', 'mm', 'km', 'L'
   size?: 'small' | 'middle' | 'large';
   disabled?: boolean;
   width?: number | string;
+  inputWidth?: number;
+  placeholder?: string;
+  /** 未入力時にボタンを押した際の初期値。指定しない場合は min（さらに未指定なら0） */
+  defaultValue?: number;
 }
 
 export const StepNumber: React.FC<StepNumberProps> = ({
@@ -24,9 +30,15 @@ export const StepNumber: React.FC<StepNumberProps> = ({
   size = 'middle',
   disabled,
   width,
+  inputWidth = 110,
+  placeholder = '——',
+  largeStep,
+  defaultValue,
 }) => {
   const incTimer = useRef<number | null>(null);
   const decTimer = useRef<number | null>(null);
+  const inputRef = useRef<any>(null);
+  const hasLarge = typeof largeStep === 'number' && largeStep > 0;
 
   const clamp = (v: number) => {
     if (min !== undefined && v < min) return min;
@@ -35,8 +47,13 @@ export const StepNumber: React.FC<StepNumberProps> = ({
   };
 
   const stepBy = (delta: number) => {
-    const base = typeof value === 'number' ? value : (min ?? 0);
-    const next = clamp(Number((base + delta).toFixed(6)));
+    if (value === null || value === undefined) {
+      const base = typeof defaultValue === 'number' ? defaultValue : (min ?? 0);
+      const next = clamp(Number((base + delta).toFixed(6)));
+      onChange(next);
+      return;
+    }
+    const next = clamp(Number((value + delta).toFixed(6)));
     if (next !== value) onChange(next);
   };
 
@@ -64,7 +81,22 @@ export const StepNumber: React.FC<StepNumberProps> = ({
   }, []);
 
   return (
-    <div className="flex items-center" style={{ width: width ?? 'auto' }}>
+    <div className="flex items-center flex-wrap" style={{ width: width ?? 'auto' }}>
+      {hasLarge && (
+        <Button
+          size={size}
+          disabled={disabled}
+          onMouseDown={() => startHold(-(largeStep as number))}
+          onMouseUp={stopHold}
+          onMouseLeave={stopHold}
+          onTouchStart={() => startHold(-(largeStep as number))}
+          onTouchEnd={stopHold}
+          className="text-xs"
+          style={{ minWidth: size === 'small' ? 28 : undefined, padding: size === 'small' ? '0 2px' : undefined, fontWeight: 600 }}
+        >
+          −{largeStep}
+        </Button>
+      )}
       <Button
         size={size}
         disabled={disabled}
@@ -76,10 +108,11 @@ export const StepNumber: React.FC<StepNumberProps> = ({
         icon={<MinusOutlined />}
       />
       <InputNumber
+        ref={inputRef}
         value={value as number | null}
         onChange={(v) => {
-          const num = typeof v === 'number' ? v : value ?? 0;
-          onChange(clamp(num));
+          if (v === null) { onChange(null); return; }
+          onChange(clamp(v));
         }}
         min={min}
         max={max}
@@ -87,7 +120,8 @@ export const StepNumber: React.FC<StepNumberProps> = ({
         className="mx-2"
         size={size}
         controls={false}
-        style={{ width: 110 }}
+        style={{ width: inputWidth }}
+        placeholder={placeholder}
         onKeyDown={(e) => {
           if (e.key === 'ArrowUp') stepBy(step);
           if (e.key === 'ArrowDown') stepBy(-step);
@@ -113,6 +147,21 @@ export const StepNumber: React.FC<StepNumberProps> = ({
         onTouchEnd={stopHold}
         icon={<PlusOutlined />}
       />
+      {hasLarge && (
+        <Button
+          size={size}
+          disabled={disabled}
+          onMouseDown={() => startHold(largeStep as number)}
+          onMouseUp={stopHold}
+          onMouseLeave={stopHold}
+          onTouchStart={() => startHold(largeStep as number)}
+          onTouchEnd={stopHold}
+          className="text-xs"
+          style={{ minWidth: size === 'small' ? 28 : undefined, padding: size === 'small' ? '0 2px' : undefined, fontWeight: 600 }}
+        >
+          +{largeStep}
+        </Button>
+      )}
     </div>
   );
 };

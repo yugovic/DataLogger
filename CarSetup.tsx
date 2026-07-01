@@ -1,11 +1,13 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams, useLocation, Link } from 'react-router-dom';
+import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import { AutoComplete, Input, Tabs, message, Modal } from 'antd';
 import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { saveSetup, getUserSetups, getSetup, updateSetup, getSetupsByCarModel } from './src/services/setupService';
+import { getUserVehicles, addVehicle } from './src/services/vehicleService';
+import type { Vehicle } from './src/types/vehicle';
 import type { CarSetup as CarSetupType, KnowledgeNote, LapTime, WeatherType, SetupVisibility, LapTimeSource, LapEvidence, TargetPressures, SetupTelemetryRefs } from './src/types/setup';
 import { toNumberOrNull, toIntOrNull, calcPressureDiff } from './src/lib/units';
 import { checkFirestoreConnection } from './src/utils/initFirestore';
@@ -19,7 +21,8 @@ import type { LapAttachPayload } from './src/components/telemetry/evidence';
 import type { TelemetryImportResult } from './src/components/telemetry/useTelemetryImport';
 import { Header } from './src/components/common/Header';
 import { buildTelemetryTraceFromImport } from './src/lib/telemetry';
-import { saveTelemetryTrace } from './src/services/telemetryTraceService';
+import { saveTelemetryTrace, getComparableTraceCandidates } from './src/services/telemetryTraceService';
+import type { ComparableTraceCandidate } from './src/services/telemetryTraceService';
 import logger from './src/utils/logger';
 interface DropdownState {
 isOpen: boolean;
@@ -48,10 +51,12 @@ const App: React.FC = () => {
 const { currentUser } = useAuth();
 const { id: setupId } = useParams<{ id: string }>();
 const location = useLocation();
+const navigate = useNavigate();
 const searchParams = new URLSearchParams(location.search);
 const copyId = searchParams.get('copy');
 const [isViewMode, setIsViewMode] = useState(false);
 const [, setLoadingSetup] = useState(false);
+const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
 // Firestore接続確認
 useEffect(() => {
@@ -62,6 +67,43 @@ useEffect(() => {
       }
     });
   }
+}, [currentUser]);
+
+// 登録車両を取得（プルダウン候補として使用）
+const migrationRanRef = useRef(false);
+useEffect(() => {
+  if (!currentUser) return;
+  if (migrationRanRef.current) {
+    // 移行済みの場合は車両リスト取得のみ
+    getUserVehicles(currentUser.uid).then(list => setVehicles(list));
+    return;
+  }
+  migrationRanRef.current = true;
+  getUserVehicles(currentUser.uid).then(list => {
+    setVehicles(list);
+    // 既存セットアップに車種があるが、車両管理に未登録の場合は自動登録
+    getUserSetups(currentUser.uid, 100).then(setups => {
+      const setupCarModels = new Set(setups.map(s => s.carModel).filter(Boolean));
+      const vehicleNames = new Set(list.map(v => `${v.make} ${v.model}`));
+      const missing = [...setupCarModels].filter(m => !vehicleNames.has(m!));
+      if (missing.length > 0) {
+        Promise.all(missing.map(name => {
+          const parts = name!.split(' ');
+          const make = parts[0] || 'Unknown';
+          const model = parts.slice(1).join(' ') || 'Unknown';
+          return addVehicle({
+            userId: currentUser.uid,
+            make,
+            model,
+            year: new Date().getFullYear(),
+            isActive: true,
+          }).catch(e => logger.error('Auto-migrate vehicle failed:', e));
+        })).then(() => {
+          getUserVehicles(currentUser.uid).then(updated => setVehicles(updated));
+        });
+      }
+    });
+  }).catch(e => logger.error('Failed to fetch vehicles:', e));
 }, [currentUser]);
 const [isSaving, setIsSaving] = useState(false);
 const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
@@ -92,6 +134,9 @@ const [lapEvidence, setLapEvidence] = useState<LapEvidence | null>(null);
 const [telemetryRefs, setTelemetryRefs] = useState<SetupTelemetryRefs>(emptyTelemetryRefs);
 const [pendingTelemetryResult, setPendingTelemetryResult] = useState<TelemetryImportResult | null>(null);
 const [showTelemetryImport, setShowTelemetryImport] = useState(false);
+const [compareCandidates, setCompareCandidates] = useState<ComparableTraceCandidate[]>([]);
+const [showComparePrompt, setShowComparePrompt] = useState(false);
+const [savedTraceId, setSavedTraceId] = useState<string | null>(null);
 
 // ロガー取込結果をラップタイムへ添付（source='logger' + 証憑メタを保持）
 const handleTelemetryAttach = (payload: LapAttachPayload, result: TelemetryImportResult) => {
@@ -370,6 +415,33 @@ const handleSave = async () => {
       logger.log('Saved setup with ID:', newSetupId);
     }
 
+    // ベストラップ更新チェック（同一サーキットの過去データと比較）
+    if (bestLap) {
+      try {
+        const pastSetups = await getUserSetups(currentUser.uid, 50);
+        const sameCircuitPast = pastSetups.filter(
+          (s) => s.circuit === circuit && s.id !== savedSetupId && s.lapTimeData?.bestLap,
+        );
+        if (sameCircuitPast.length > 0) {
+          const toSeconds = (t: string): number | null => {
+            const parts = t.split(':');
+            if (parts.length === 2) return parseInt(parts[0], 10) * 60 + parseFloat(parts[1]);
+            return parseFloat(t);
+          };
+          const pastBest = Math.min(...sameCircuitPast.map((s) => toSeconds(s.lapTimeData!.bestLap!)!));
+          const currentBest = toSeconds(bestLap)!;
+          const delta = pastBest - currentBest;
+          if (delta > 0) {
+            message.success(`ベストラップ更新（前回比 −${delta.toFixed(3)}s）`, 4);
+          } else if (delta < 0) {
+            message.info(`ベストラップまで +${Math.abs(delta).toFixed(3)}s`, 4);
+          }
+        }
+      } catch {
+        // ベストラップ比較失敗は保存フローに影響させない
+      }
+    }
+
     if (savedSetupId && pendingTelemetryResult && lapSource === 'logger') {
       const trace = buildTelemetryTraceFromImport({
         ownerId: currentUser.uid,
@@ -394,6 +466,21 @@ const handleSave = async () => {
             ? '比較用テレメトリトレースを保存しました'
             : '単独確認用の走行ログを保存しました（比較には完全なNORMALラップが必要です）',
         );
+
+        // P0-1: 保存後に比較候補を自動検索してプロンプト表示
+        if (trace.lap.valid && trace.lap.type === 'NORMAL') {
+          try {
+            const traceWithId = { ...trace, id: traceId, createdAt: new Date(), updatedAt: new Date() } as import('./src/types/telemetryTrace').TelemetryTrace;
+            const candidates = await getComparableTraceCandidates(traceWithId);
+            if (candidates.length > 0) {
+              setCompareCandidates(candidates);
+              setSavedTraceId(traceId);
+              setShowComparePrompt(true);
+            }
+          } catch (e) {
+            logger.error('比較候補の取得に失敗しました:', e);
+          }
+        }
       } else {
         message.warning('走行ログは保存できませんでした（解析できるラップが必要です）');
       }
@@ -955,17 +1042,7 @@ value={carModel}
 onChange={setCarModel}
 className="w-36 sm:w-40"
 disabled={isViewMode}
-options={[
-  { value: 'Honda S2000' },
-  { value: 'Honda Civic Type R' },
-  { value: 'Honda NSX' },
-  { value: 'Mazda RX-7' },
-  { value: 'Mazda MX-5' },
-  { value: 'Toyota GR86' },
-  { value: 'Toyota Supra' },
-  { value: 'Nissan GT-R' },
-  { value: 'Nissan Fairlady Z' }
-]}
+options={[...new Set(vehicles.map(v => `${v.make} ${v.model}`))].map(name => ({ value: name }))}
 variant="borderless"
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 />
@@ -1445,6 +1522,47 @@ onClick={() => handleOptionSelect(option.value)}
 ))}
 </div>
 )}
+
+{/* P0-1: 比較候補プロンプトモーダル */}
+<Modal
+  title="📊 比較候補が見つかりました"
+  open={showComparePrompt}
+  onCancel={() => setShowComparePrompt(false)}
+  footer={[
+    <button key="later" className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => setShowComparePrompt(false)}>
+      後で
+    </button>,
+    <button key="compare" className="px-4 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700" onClick={() => { if (savedTraceId) { const firstCandidateId = compareCandidates[0]?.trace.id; const url = firstCandidateId ? `/telemetry/compare?aTrace=${savedTraceId}&bTrace=${firstCandidateId}` : `/telemetry/compare?aTrace=${savedTraceId}`; navigate(url); } } }>
+      比較を見る
+    </button>,
+  ]}
+>
+  <div className="space-y-2">
+    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+      保存した走行ログと比較できる過去データが見つかりました。
+    </p>
+    {compareCandidates.map((c, i) => (
+      <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-md px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+            c.kind === 'self_best' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' :
+            c.kind === 'previous' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' :
+            'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+          }`}>
+            {c.label}
+          </span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {c.trace.sessionDate.toLocaleDateString('ja-JP')}
+          </span>
+        </div>
+        <span className={`font-mono text-sm font-bold ${c.deltaSeconds < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+          {c.deltaSeconds < 0 ? '−' : '+'}{Math.abs(c.deltaSeconds).toFixed(3)}s
+        </span>
+      </div>
+    ))}
+  </div>
+</Modal>
+
 <footer className="bg-white dark:bg-gray-800 py-6 border-t border-gray-200 dark:border-gray-700">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 <div className="text-center text-sm text-gray-500">

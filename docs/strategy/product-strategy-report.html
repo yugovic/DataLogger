@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VELOCITY LOGGER — Product Strategy Report</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #232733;
+    --border: #2e3347;
+    --text: #e4e6ef;
+    --text-muted: #8b90a5;
+    --accent: #3b82f6;
+    --accent-dim: #2563eb;
+    --accent-glow: rgba(59,130,246,.12);
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,.12);
+    --green-dim: rgba(34,197,94,.12);
+    --amber-dim: rgba(245,158,11,.12);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- NAV ---------- */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(15,17,23,.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex; align-items: center; gap: 1.5rem;
+    height: 56px;
+  }
+  .nav-brand {
+    font-weight: 700; font-size: .95rem; letter-spacing: .04em;
+    color: var(--accent); white-space: nowrap;
+  }
+  .nav-tabs {
+    display: flex; gap: .25rem; overflow-x: auto;
+    scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    padding: .55rem 1rem; border-radius: 6px;
+    font-size: .8rem; font-weight: 500; white-space: nowrap;
+    color: var(--text-muted); cursor: pointer;
+    border: none; background: none; transition: all .15s;
+  }
+  .nav-tab:hover { color: var(--text); background: var(--surface2); }
+  .nav-tab.active { color: var(--accent); background: var(--accent-glow); }
+  .nav-badge {
+    font-size: .65rem; padding: .1rem .4rem; border-radius: 4px;
+    margin-left: .35rem; vertical-align: middle;
+    background: var(--surface2); color: var(--text-muted);
+  }
+
+  /* ---------- CONTENT ---------- */
+  .content { margin-top: 56px; padding: 2.5rem; max-width: 1080px; margin-left: auto; margin-right: auto; }
+  .section { display: none; animation: fadeIn .25s ease; }
+  .section.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- TYPOGRAPHY ---------- */
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: .4rem; letter-spacing: -.01em; }
+  h2 { font-size: 1.2rem; font-weight: 600; margin: 2rem 0 .8rem; color: var(--text); letter-spacing: -.005em; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 .6rem; color: var(--text); }
+  h4 { font-size: .88rem; font-weight: 600; margin: 1rem 0 .4rem; color: var(--text-muted); }
+  p { margin-bottom: .8rem; font-size: .9rem; color: var(--text-muted); }
+  .subtitle { color: var(--text-muted); font-size: .88rem; margin-bottom: 2rem; }
+  .section-badge {
+    display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .06em;
+    padding: .2rem .6rem; border-radius: 4px; margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+
+  /* ---------- CARDS ---------- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.4rem;
+    margin-bottom: 1rem;
+  }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .8rem; }
+  .card-title { font-size: .95rem; font-weight: 600; }
+  .tag {
+    font-size: .7rem; font-weight: 600; padding: .15rem .5rem;
+    border-radius: 4px; letter-spacing: .03em;
+  }
+  .tag-direct { background: var(--red-dim); color: var(--red); }
+  .tag-indirect { background: var(--amber-dim); color: var(--amber); }
+  .tag-high { background: var(--red-dim); color: var(--red); }
+  .tag-medium { background: var(--amber-dim); color: var(--amber); }
+  .tag-low { background: var(--green-dim); color: var(--green); }
+  .tag-blue { background: var(--accent-glow); color: var(--accent); }
+  .tag-green { background: var(--green-dim); color: var(--green); }
+  .tag-proposed { background: var(--amber-dim); color: var(--amber); }
+
+  /* ---------- TABLES ---------- */
+  .table-wrap { overflow-x: auto; margin-bottom: 1.2rem; border-radius: 8px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  th { background: var(--surface2); color: var(--text-muted); font-weight: 600; text-align: left; padding: .65rem .8rem; white-space: nowrap; }
+  td { padding: .6rem .8rem; border-top: 1px solid var(--border); color: var(--text-muted); }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  .cell-full { color: var(--green); font-weight: 600; }
+  .cell-partial { color: var(--amber); font-weight: 600; }
+  .cell-none { color: var(--text-muted); }
+
+  /* ---------- GRID ---------- */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* ---------- STAT ---------- */
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; text-align: center; }
+  .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; }
+
+  /* ---------- POSITIONING MAP ---------- */
+  .positioning-map {
+    position: relative; width: 100%; aspect-ratio: 1.6;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    margin: 1rem 0 1.5rem; overflow: hidden;
+  }
+  .map-axis-x, .map-axis-y {
+    position: absolute; background: var(--border);
+  }
+  .map-axis-x { left: 10%; right: 10%; top: 50%; height: 1px; }
+  .map-axis-y { top: 10%; bottom: 10%; left: 50%; width: 1px; }
+  .map-label {
+    position: absolute; font-size: .7rem; color: var(--text-muted); font-weight: 500;
+  }
+  .map-label-top { top: 4%; left: 50%; transform: translateX(-50%); }
+  .map-label-bottom { bottom: 4%; left: 50%; transform: translateX(-50%); }
+  .map-label-left { left: 3%; top: 50%; transform: translateY(-50%); writing-mode: vertical-rl; text-orientation: mixed; }
+  .map-label-right { right: 3%; top: 50%; transform: translateY(-50%); writing-mode: vertical-rl; text-orientation: mixed; }
+  .map-point {
+    position: absolute; transform: translate(-50%,-50%);
+    padding: .3rem .6rem; border-radius: 6px; font-size: .72rem; font-weight: 600;
+    white-space: nowrap;
+  }
+  .map-point-vl { left: 72%; top: 58%; background: var(--accent); color: #fff; box-shadow: 0 0 16px rgba(59,130,246,.4); z-index: 2; }
+  .map-point-tt { left: 35%; top: 58%; background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .map-point-mr { left: 32%; top: 63%; background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .map-point-cd { left: 40%; top: 30%; background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .map-point-lt { left: 70%; top: 75%; background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .white-space-box {
+    position: absolute; right: 12%; top: 14%; width: 30%; height: 35%;
+    border: 2px dashed var(--accent); border-radius: 8px; opacity: .3;
+  }
+  .white-space-label {
+    position: absolute; right: 14%; top: 16%;
+    font-size: .65rem; color: var(--accent); font-weight: 600; opacity: .6;
+  }
+
+  /* ---------- TREE ---------- */
+  .tree { font-family: 'SF Mono', 'Fira Code', monospace; font-size: .78rem; line-height: 1.9; color: var(--text-muted);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; overflow-x: auto; white-space: pre; margin: 1rem 0; }
+  .tree .highlight { color: var(--accent); font-weight: 700; }
+  .tree .opp { color: var(--amber); font-weight: 600; }
+  .tree .sol { color: var(--green); }
+
+  /* ---------- QUADRANT MAP ---------- */
+  .quadrant {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    margin: 1rem 0;
+  }
+  .quadrant-cell {
+    padding: 1.2rem; border: 1px solid var(--border); min-height: 120px;
+  }
+  .quadrant-cell:nth-child(1) { background: rgba(245,158,11,.04); }
+  .quadrant-cell:nth-child(2) { background: rgba(239,68,68,.04); }
+  .quadrant-cell:nth-child(3) { background: rgba(34,197,94,.04); }
+  .quadrant-cell:nth-child(4) { background: rgba(59,130,246,.04); }
+  .quadrant-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: .6rem; }
+  .quadrant-item { font-size: .8rem; color: var(--text-muted); margin-bottom: .3rem; }
+
+  /* ---------- TIMELINE ---------- */
+  .timeline { position: relative; padding-left: 2rem; margin: 1rem 0; }
+  .timeline::before { content: ''; position: absolute; left: .45rem; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 1.5rem; }
+  .timeline-dot {
+    position: absolute; left: -1.72rem; top: .35rem; width: 10px; height: 10px;
+    border-radius: 50%; border: 2px solid var(--accent); background: var(--bg);
+  }
+  .timeline-dot.done { background: var(--accent); }
+  .timeline-title { font-size: .88rem; font-weight: 600; color: var(--text); }
+  .timeline-desc { font-size: .82rem; color: var(--text-muted); margin-top: .2rem; }
+  .timeline-date { font-size: .72rem; color: var(--text-muted); }
+
+  /* ---------- LISTS ---------- */
+  ul.checklist { list-style: none; padding: 0; }
+  ul.checklist li {
+    padding: .45rem 0; font-size: .85rem; color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; gap: .5rem;
+  }
+  ul.checklist li::before { content: ''; width: 14px; height: 14px; min-width: 14px; margin-top: 3px; border: 1.5px solid var(--border); border-radius: 3px; }
+  .bullet-list { list-style: none; padding: 0; }
+  .bullet-list li { padding: .35rem 0; font-size: .85rem; color: var(--text-muted); padding-left: 1rem; position: relative; }
+  .bullet-list li::before { content: ''; position: absolute; left: 0; top: .7rem; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+
+  .strength-list li::before { background: var(--green); }
+  .weakness-list li::before { background: var(--red); }
+
+  /* ---------- DIVIDER ---------- */
+  .divider { height: 1px; background: var(--border); margin: 2rem 0; }
+
+  /* ---------- FLOW DIAGRAM ---------- */
+  .flow {
+    display: flex; align-items: center; gap: 0; justify-content: center;
+    margin: 1.5rem 0; flex-wrap: wrap;
+  }
+  .flow-step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: .6rem 1rem; font-size: .78rem; font-weight: 600; text-align: center;
+    min-width: 100px;
+  }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; margin: 0 .3rem; }
+  .flow-step.active { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+
+  /* ---------- FOOTER ---------- */
+  .footer {
+    text-align: center; padding: 3rem 2rem; color: var(--text-muted);
+    font-size: .75rem; border-top: 1px solid var(--border); margin-top: 3rem;
+  }
+
+  /* ---------- OVERVIEW HERO ---------- */
+  .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+  @media (max-width: 768px) { .hero-grid { grid-template-columns: 1fr; } }
+  .hero-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1.4rem; display: flex; align-items: flex-start; gap: 1rem;
+  }
+  .hero-icon {
+    width: 40px; height: 40px; min-width: 40px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+  }
+  .hero-icon-blue { background: var(--accent-glow); color: var(--accent); }
+  .hero-icon-green { background: var(--green-dim); color: var(--green); }
+  .hero-icon-amber { background: var(--amber-dim); color: var(--amber); }
+  .hero-icon-red { background: var(--red-dim); color: var(--red); }
+  .hero-title { font-size: .88rem; font-weight: 600; color: var(--text); margin-bottom: .2rem; }
+  .hero-desc { font-size: .8rem; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-brand">VELOCITY LOGGER</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="show('overview')">Overview</button>
+    <button class="nav-tab" onclick="show('competitive')">Competitive<span class="nav-badge">1</span></button>
+    <button class="nav-tab" onclick="show('stakeholder')">Stakeholders<span class="nav-badge">2</span></button>
+    <button class="nav-tab" onclick="show('opportunity')">Opportunity Tree<span class="nav-badge">3</span></button>
+    <button class="nav-tab" onclick="show('solution')">Solution Brief<span class="nav-badge">4</span></button>
+    <button class="nav-tab" onclick="show('adr')">ADR<span class="nav-badge">5</span></button>
+  </div>
+</nav>
+
+<div class="content">
+
+<!-- ============================================================ -->
+<!-- OVERVIEW -->
+<!-- ============================================================ -->
+<div class="section active" id="overview">
+  <span class="section-badge" style="background:var(--accent-glow);color:var(--accent);">Product Strategy Report</span>
+  <h1>VELOCITY LOGGER</h1>
+  <p class="subtitle">データを使ってモータースポーツをより楽しくする &mdash; 2026-06-26</p>
+
+  <div class="grid-3" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+      <div class="stat-value">10-30<span style="font-size:.85rem;">億円</span></div>
+      <div class="stat-label">TAM（日本市場）</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">3-5<span style="font-size:.85rem;">万人</span></div>
+      <div class="stat-label">SAM（ロガー保有者）</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">20<span style="font-size:.85rem;">%</span></div>
+      <div class="stat-label">流動性目標（Go/No-Go）</div>
+    </div>
+  </div>
+
+  <h2>戦略の全体像</h2>
+  <div class="flow">
+    <div class="flow-step">競合分析</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Stakeholders</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-step active">Opportunity Tree</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Solution Brief</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">ADR</div>
+  </div>
+
+  <div class="hero-grid">
+    <div class="hero-card">
+      <div class="hero-icon hero-icon-blue">&#9733;</div>
+      <div>
+        <div class="hero-title">世界初の空白地帯</div>
+        <div class="hero-desc">「深いセットアップ記録 &times; 実車データ売買エコシステム」は世界的に空白。シムでは成立済みだが実車は誰も手をつけていない。</div>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-icon hero-icon-red">&#9888;</div>
+      <div>
+        <div class="hero-title">最大のリスク: 供給不足</div>
+        <div class="hero-desc">在庫がなければ買い手は来ない。アンカー供給者5-10名の確保と Give-to-Get による無料在庫構築が急務。</div>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-icon hero-icon-amber">&#9873;</div>
+      <div>
+        <div class="hero-title">Go/No-Go: H3 検証</div>
+        <div class="hero-desc">「実車データに支払い意思があるか」が事業の分水嶺。購入率5%・リピート30%が成功基準。</div>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-icon hero-icon-green">&#10003;</div>
+      <div>
+        <div class="hero-title">技術決定: Stripe Connect</div>
+        <div class="hero-desc">Standard accounts でダイレクトペイメント。資金移動業を構造的に回避し、単独開発で実装可能。</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>次のアクション（優先順）</h2>
+  <ul class="checklist">
+    <li>アンカー供給者5-10名のリストアップと契約交渉（2026年7月）</li>
+    <li>走行会主催者2-3件への無償提供提案（2026年7月）</li>
+    <li>H3検証の実行 &mdash; アンカーデータの先行販売テスト（2026年8-9月）</li>
+    <li>Stripe Connect 決済基盤の実装（H3検証と並行）</li>
+    <li>デジスパイスメーカーへの CSV/NMEA 商用利用許諾確認（2026年7月）</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- 1. COMPETITIVE ANALYSIS -->
+<!-- ============================================================ -->
+<div class="section" id="competitive">
+  <span class="section-badge" style="background:var(--accent-glow);color:var(--accent);">Step 1 of 5</span>
+  <h1>Competitive Analysis</h1>
+  <p class="subtitle">実車セットアップデータ記録・売買市場 &mdash; 2026-06-26</p>
+
+  <h2>Market Context</h2>
+  <div class="grid-3">
+    <div class="stat-card"><div class="stat-value">~10万人</div><div class="stat-label">日本のサーキット走行層</div></div>
+    <div class="stat-card"><div class="stat-value">2.1万台+</div><div class="stat-label">デジスパイス累計出荷</div></div>
+    <div class="stat-card"><div class="stat-value">$5M</div><div class="stat-label">Track Titan 調達額</div></div>
+  </div>
+
+  <h3>Key Trends</h3>
+  <ul class="bullet-list">
+    <li>GPSロガーの普及 &mdash; アマチュアでも「データ」が手元にある時代</li>
+    <li>シムレーシングで「セットアップ購入」文化が確立済み</li>
+    <li>Track Titan $5M 調達 &mdash; 投資家がモータースポーツデータに関心</li>
+    <li>AI開発コスト低下 &mdash; ニッチ市場でもプロダクト構築が可能に</li>
+  </ul>
+
+  <h2>Competitors</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Competitor</th><th>Type</th><th>Target</th><th>Funding</th></tr>
+      <tr><td><strong>Track Titan</strong></td><td><span class="tag tag-direct">Direct</span></td><td>英語圏トラックデイ層</td><td>$5M (2025/12)</td></tr>
+      <tr><td><strong>MyRaceLab</strong></td><td><span class="tag tag-direct">Direct</span></td><td>英語圏アマチュアレーサー</td><td>ブートストラップ</td></tr>
+      <tr><td><strong>Coach Dave Academy</strong></td><td><span class="tag tag-indirect">Indirect</span></td><td>シムレーサー</td><td>ブートストラップ</td></tr>
+      <tr><td><strong>Laptimizer</strong></td><td><span class="tag tag-indirect">Indirect</span></td><td>英語圏トラックデイ層</td><td>不明</td></tr>
+      <tr><td><strong>Excel / Spreadsheet</strong></td><td><span class="tag tag-indirect">Indirect</span></td><td>全層</td><td>&mdash;</td></tr>
+    </table>
+  </div>
+
+  <h2>Feature Comparison</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Feature</th><th>VELOCITY LOGGER</th><th>Track Titan</th><th>MyRaceLab</th><th>Coach Dave</th><th>Laptimizer</th></tr>
+      <tr><td>セットアップ記録（詳細）</td><td class="cell-full">Full</td><td class="cell-none">None</td><td class="cell-none">None</td><td class="cell-none">None</td><td class="cell-full">Full</td></tr>
+      <tr><td>テレメトリ分析</td><td class="cell-partial">Partial</td><td class="cell-full">Full</td><td class="cell-full">Full</td><td class="cell-partial">Partial</td><td class="cell-none">None</td></tr>
+      <tr><td>デジスパイス対応</td><td class="cell-partial">Partial</td><td class="cell-none">None</td><td class="cell-none">None</td><td class="cell-none">N/A</td><td class="cell-none">None</td></tr>
+      <tr><td>データ売買 C2C</td><td class="cell-partial">Partial</td><td class="cell-none">None</td><td class="cell-none">None</td><td class="cell-full">Full (sim)</td><td class="cell-none">None</td></tr>
+      <tr><td>日本語対応</td><td class="cell-full">Full</td><td class="cell-none">None</td><td class="cell-none">None</td><td class="cell-none">None</td><td class="cell-none">None</td></tr>
+      <tr><td>Give-to-Get共有</td><td class="cell-full">Full</td><td class="cell-none">None</td><td class="cell-none">None</td><td class="cell-none">None</td><td class="cell-none">None</td></tr>
+      <tr><td>比較ビュー</td><td class="cell-full">Full</td><td class="cell-full">Full</td><td class="cell-full">Full</td><td class="cell-none">None</td><td class="cell-partial">Partial</td></tr>
+    </table>
+  </div>
+
+  <h2>Positioning Map</h2>
+  <div class="positioning-map">
+    <div class="map-axis-x"></div>
+    <div class="map-axis-y"></div>
+    <div class="map-label map-label-top">成熟したエコシステム</div>
+    <div class="map-label map-label-bottom">エコシステムなし</div>
+    <div class="map-label map-label-left">浅い記録</div>
+    <div class="map-label map-label-right">深い記録</div>
+    <div class="white-space-box"></div>
+    <div class="white-space-label">White Space</div>
+    <div class="map-point map-point-vl">&#9733; VELOCITY LOGGER</div>
+    <div class="map-point map-point-tt">Track Titan</div>
+    <div class="map-point map-point-mr">MyRaceLab</div>
+    <div class="map-point map-point-cd">Coach Dave (sim)</div>
+    <div class="map-point map-point-lt">Laptimizer</div>
+  </div>
+
+  <h2>Competitor Deep Dives</h2>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Track Titan</span>
+      <span class="tag tag-direct">Direct</span>
+    </div>
+    <p>「モータースポーツのStrava」。英国発、約20万ユーザー、$5M調達済み。</p>
+    <div class="grid-2">
+      <div>
+        <h4>Strengths</h4>
+        <ul class="bullet-list strength-list">
+          <li>$5M調達で開発リソース豊富</li>
+          <li>約20万ユーザーのネットワーク効果</li>
+          <li>テレメトリ分析の完成度が高い</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Weaknesses</h4>
+        <ul class="bullet-list weakness-list">
+          <li>セットアップ記録機能なし</li>
+          <li>データ売買機能なし</li>
+          <li>日本語非対応・デジスパイス非対応</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">MyRaceLab</span>
+      <span class="tag tag-direct">Direct</span>
+    </div>
+    <p>マルチロガー対応テレメトリ分析アプリ。AI分析機能搭載。2-3名のチーム。</p>
+    <div class="grid-2">
+      <div>
+        <h4>Strengths</h4>
+        <ul class="bullet-list strength-list">
+          <li>最多のロガー対応</li>
+          <li>AI分析機能の先行実装</li>
+          <li>モバイルファースト</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Weaknesses</h4>
+        <ul class="bullet-list weakness-list">
+          <li>セットアップ記録なし</li>
+          <li>デジスパイス非対応</li>
+          <li>小規模チームで開発限界あり</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Coach Dave Academy</span>
+      <span class="tag tag-indirect">Indirect</span>
+    </div>
+    <p>シムレーシングのセットアップ販売プラットフォーム。「購入文化」の先駆者。</p>
+    <div class="grid-2">
+      <div>
+        <h4>Strengths</h4>
+        <ul class="bullet-list strength-list">
+          <li>「セットアップ購入」の心理ハードルを下げた実績</li>
+          <li>サブスク＋個別購入の二軸モデル実証済み</li>
+          <li>強固なコミュニティ</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Weaknesses</h4>
+        <ul class="bullet-list weakness-list">
+          <li>シム専用 &mdash; 実車展開なし</li>
+          <li>実車の変数（天候・路温等）のノウハウなし</li>
+          <li>テレメトリ分析は限定的</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2>Gaps & Opportunities</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Gap</th><th>Opportunity</th><th>Value</th><th>Difficulty</th></tr>
+      <tr><td>実車C2C売買が世界に存在しない</td><td>世界初の実車セットアップMP</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-high">High</span></td></tr>
+      <tr><td>日本語&times;デジスパイス対応ツールが皆無</td><td>日本市場の独占的ポジション</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-medium">Med</span></td></tr>
+      <tr><td>記録&times;テレメトリの統合製品なし</td><td>記録＋証憑＝商品規格の基盤</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-medium">Med</span></td></tr>
+      <tr><td>既存ツールは個人完結型</td><td>Give-to-Get相互共有で在庫構築</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-low">Low</span></td></tr>
+    </table>
+  </div>
+
+  <h2>Watch List</h2>
+  <ul class="bullet-list">
+    <li><strong>Track Titan</strong> の日本進出・データ売買参入（四半期監視）</li>
+    <li><strong>Coach Dave Academy</strong> の実車市場参入の兆候</li>
+    <li><strong>デジスパイス</strong> の公式エコシステム開放の動向</li>
+    <li><strong>RaceChrono / Drogger</strong> のマーケットプレイス機能追加リスク</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- 2. STAKEHOLDER SUMMARY -->
+<!-- ============================================================ -->
+<div class="section" id="stakeholder">
+  <span class="section-badge" style="background:var(--green-dim);color:var(--green);">Step 2 of 5</span>
+  <h1>Stakeholder Summary</h1>
+  <p class="subtitle">データマーケットプレイス構築のステークホルダーマップ</p>
+
+  <h2>Influence &times; Interest Map</h2>
+  <div class="quadrant">
+    <div class="quadrant-cell">
+      <div class="quadrant-label" style="color:var(--amber);">Keep Satisfied</div>
+      <div class="quadrant-item" style="font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem;">High Influence / Low Interest</div>
+      <div class="quadrant-item">&bull; デジスパイスメーカー</div>
+    </div>
+    <div class="quadrant-cell">
+      <div class="quadrant-label" style="color:var(--red);">Manage Closely</div>
+      <div class="quadrant-item" style="font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem;">High Influence / High Interest</div>
+      <div class="quadrant-item">&bull; 走行会主催者</div>
+      <div class="quadrant-item">&bull; アンカー供給者（上級ドライバー）</div>
+      <div class="quadrant-item">&bull; プロショップ</div>
+    </div>
+    <div class="quadrant-cell">
+      <div class="quadrant-label" style="color:var(--green);">Monitor</div>
+      <div class="quadrant-item" style="font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem;">Low Influence / Low Interest</div>
+      <div class="quadrant-item">&bull; シムセットアップ勢</div>
+      <div class="quadrant-item">&bull; 海外競合 (Track Titan)</div>
+      <div class="quadrant-item">&bull; サーキット運営会社</div>
+    </div>
+    <div class="quadrant-cell">
+      <div class="quadrant-label" style="color:var(--accent);">Keep Informed</div>
+      <div class="quadrant-item" style="font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem;">Low Influence / High Interest</div>
+      <div class="quadrant-item">&bull; 中級ドライバー（買い手）</div>
+      <div class="quadrant-item">&bull; ビギナードライバー</div>
+    </div>
+  </div>
+
+  <h2>Stakeholder Profiles</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Stakeholder</th><th>Role</th><th>Influence</th><th>Interest</th><th>Alignment</th><th>Key Need</th></tr>
+      <tr><td><strong>走行会主催者</strong></td><td>GTM最重要チャネル</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-green">Supportive</span></td><td>参加者満足度向上</td></tr>
+      <tr><td><strong>アンカー供給者</strong></td><td>初期在庫の核</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-proposed">Neutral</span></td><td>知見の収益化・承認</td></tr>
+      <tr><td><strong>プロショップ</strong></td><td>B2B2Cチャネル</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-medium">Med</span></td><td><span class="tag tag-proposed">Neutral</span></td><td>新商材・顧客接点</td></tr>
+      <tr><td><strong>デジスパイスメーカー</strong></td><td>データ許諾</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-low">Low</span></td><td><span class="tag tag-blue">Unknown</span></td><td>エコシステム価値</td></tr>
+      <tr><td><strong>中級ドライバー</strong></td><td>コアユーザー（買い手）</td><td><span class="tag tag-low">Low</span></td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-green">Supportive</span></td><td>試行錯誤コスト削減</td></tr>
+      <tr><td><strong>ビギナードライバー</strong></td><td>裾野ユーザー</td><td><span class="tag tag-low">Low</span></td><td><span class="tag tag-medium">Med</span></td><td><span class="tag tag-green">Supportive</span></td><td>成長実感</td></tr>
+    </table>
+  </div>
+
+  <h2>Key Relationships</h2>
+  <h3>Dependencies</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>From</th><th>To</th><th>Dependency</th></tr>
+      <tr><td>VELOCITY LOGGER</td><td>デジスパイスメーカー</td><td>データ利用許諾（CSV/NMEA）</td></tr>
+      <tr><td>VELOCITY LOGGER</td><td>走行会主催者</td><td>ユーザー獲得チャネル</td></tr>
+      <tr><td>マーケットプレイス</td><td>アンカー供給者</td><td>初期在庫供給</td></tr>
+      <tr><td>買い手（中級ドライバー）</td><td>アンカー供給者</td><td>購入可能なデータの存在</td></tr>
+    </table>
+  </div>
+
+  <h3>Potential Conflicts</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Parties</th><th>Conflict</th><th>Risk</th></tr>
+      <tr><td>アンカー供給者 vs 買い手</td><td>ノウハウ流出への抵抗 vs データアクセス欲求</td><td><span class="tag tag-high">High</span></td></tr>
+      <tr><td>プロショップ vs オンライン販売</td><td>対面コンサルのカニバリゼーション</td><td><span class="tag tag-medium">Med</span></td></tr>
+      <tr><td>デジスパイスメーカー vs VL</td><td>データ利用範囲の解釈相違</td><td><span class="tag tag-medium">Med</span></td></tr>
+    </table>
+  </div>
+
+  <h2>Risk Mitigation</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Stakeholder</th><th>Concern</th><th>Mitigation</th></tr>
+      <tr><td>アンカー供給者</td><td>ノウハウ流出への抵抗</td><td>匿名販売・限定数販売・売り手価格決定</td></tr>
+      <tr><td>プロショップ</td><td>カニバリゼーション</td><td>ショップ専用出品チャネル・来店誘導連携</td></tr>
+      <tr><td>デジスパイスメーカー</td><td>データ利用への消極姿勢</td><td>CSV/NMEAオープン形式のみ扱う方針を明示</td></tr>
+    </table>
+  </div>
+
+  <h2>Communication Plan</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Stakeholder</th><th>Frequency</th><th>Channel</th><th>Content</th></tr>
+      <tr><td>走行会主催者</td><td>イベント前後</td><td>対面 + メール</td><td>導入提案・利用実績</td></tr>
+      <tr><td>アンカー供給者</td><td>月次</td><td>SNS DM + メール</td><td>販売実績・収益レポート</td></tr>
+      <tr><td>プロショップ</td><td>月次</td><td>対面訪問</td><td>ビジネス提案・収益シミュレーション</td></tr>
+      <tr><td>デジスパイスメーカー</td><td>四半期</td><td>公式メール</td><td>提携提案・利用状況</td></tr>
+      <tr><td>中級ドライバー</td><td>随時</td><td>アプリ内 + Discord</td><td>新機能・Tips</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 3. OPPORTUNITY TREE -->
+<!-- ============================================================ -->
+<div class="section" id="opportunity">
+  <span class="section-badge" style="background:var(--amber-dim);color:var(--amber);">Step 3 of 5</span>
+  <h1>Opportunity Solution Tree</h1>
+  <p class="subtitle">Outcome: 主要5マスで流動性20%達成（12ヶ月）</p>
+
+  <div class="grid-2" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+      <div class="stat-value">20<span style="font-size:.85rem;">%</span></div>
+      <div class="stat-label">流動性目標（出品の30日内売却率）</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">12<span style="font-size:.85rem;">ヶ月</span></div>
+      <div class="stat-label">達成期限（2027-06）</div>
+    </div>
+  </div>
+
+  <h2>Visual Tree</h2>
+  <div class="tree"><span class="highlight">                        [OUTCOME]
+           主要5マスで流動性20%達成</span>
+                          |
+        ┌─────────────────┼─────────────────┐
+        |                 |                 |
+   <span class="opp">[Opp 1]</span>           <span class="opp">[Opp 2]</span>           <span class="opp">[Opp 3]</span>
+   <span class="opp">在庫が足りず</span>       <span class="opp">試行錯誤の</span>        <span class="opp">データの信頼性</span>
+   <span class="opp">比較対象がない</span>      <span class="opp">コストが高い</span>       <span class="opp">が分からない</span>
+        |                 |                 |
+    ┌───┴───┐         ┌───┴───┐         ┌───┴───┐
+    |       |         |       |         |       |
+ <span class="sol">[GtG共有]</span> <span class="sol">[アンカー]</span> <span class="sol">[ロガー証憑]</span> <span class="sol">[比較V]</span> <span class="sol">[レビュー]</span> <span class="sol">[証憑付]</span>
+ <span class="sol">[拡充]</span>   <span class="sol">[契約]</span>     <span class="sol">[連携]</span>     <span class="sol">[ュー]</span>   <span class="sol">[機能]</span>   <span class="sol">[商品規格]</span></div>
+
+  <h2>Opportunity Branches</h2>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Opp 1: 在庫が足りず比較対象がない</span>
+      <span class="tag tag-high">Impact: High</span>
+    </div>
+    <p>中級ドライバーは同じ車種&times;サーキットのデータを見たいが、現状では入手手段がない。マーケットプレイスに在庫がなければ買う理由がない。</p>
+    <div class="grid-2">
+      <div class="card" style="background:var(--surface2);">
+        <h4>Solution 1A: Give-to-Get 拡充</h4>
+        <p>相互性モデルの磨き込みで無料在庫を増やす</p>
+        <p><strong>Effort:</strong> S &mdash; <strong>Test:</strong> 共有率 &ge; 20%</p>
+      </div>
+      <div class="card" style="background:var(--surface2);">
+        <h4>Solution 1B: アンカー供給者契約</h4>
+        <p>プロ/ショップ5-10名と契約し検証済み在庫を確保</p>
+        <p><strong>Effort:</strong> M &mdash; <strong>Test:</strong> 契約率 &ge; 60%</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Opp 2: 試行錯誤のコストが高い</span>
+      <span class="tag tag-high">Impact: High</span>
+    </div>
+    <p>走行1回2-3万円、タイヤ数万円。「次に何を変えれば速くなるか」の手がかりがない。</p>
+    <div class="grid-2">
+      <div class="card" style="background:var(--surface2);">
+        <h4>Solution 2A: ロガー証憑連携</h4>
+        <p>AIM CSV/デジスパイスNMEAとの連携でラップタイム証拠を紐付け</p>
+        <p><strong>Effort:</strong> L &mdash; <strong>Test:</strong> 証憑付きの購入率が2倍以上</p>
+      </div>
+      <div class="card" style="background:var(--surface2);">
+        <h4>Solution 2B: 比較ビュー強化</h4>
+        <p>購入データ vs 自分のデータの差分ハイライト表示</p>
+        <p><strong>Effort:</strong> S &mdash; <strong>Test:</strong> ラップタイム改善率追跡</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Opp 3: データの信頼性が分からない</span>
+      <span class="tag tag-high">Impact: High</span>
+    </div>
+    <p>実車は天候・路温・タイヤ劣化等の変数が多く、他人のデータが自分に合うか不安。</p>
+    <div class="grid-2">
+      <div class="card" style="background:var(--surface2);">
+        <h4>Solution 3A: レビュー・実績表示</h4>
+        <p>購入者レビュー、売り手のベストタイム・評価を公開</p>
+        <p><strong>Effort:</strong> M &mdash; <strong>Test:</strong> レビュー率 &ge; 30%</p>
+      </div>
+      <div class="card" style="background:var(--surface2);">
+        <h4>Solution 3B: 証憑付き商品規格</h4>
+        <p>ラップタイム＋条件をセットにした厳格な商品規格</p>
+        <p><strong>Effort:</strong> M &mdash; <strong>Test:</strong> 証憑付き出品率 &ge; 80%</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Prioritization</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Rank</th><th>Opportunity</th><th>Impact</th><th>Confidence</th><th>Effort</th></tr>
+      <tr><td><strong>1</strong></td><td>在庫不足（比較対象がない）</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-medium">Med</span></td></tr>
+      <tr><td><strong>2</strong></td><td>試行錯誤コストが高い</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-medium">Med</span></td><td><span class="tag tag-high">Large</span></td></tr>
+      <tr><td><strong>3</strong></td><td>データの信頼性不安</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-medium">Med</span></td><td><span class="tag tag-medium">Med</span></td></tr>
+    </table>
+  </div>
+
+  <h2>Experiments (Go/No-Go)</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Solution</th><th>Assumption</th><th>Success Criteria</th><th>Status</th></tr>
+      <tr><td>Give-to-Get拡充</td><td>記録ユーザーの20%が共有する</td><td>共有率 &ge; 20%</td><td><span class="tag tag-blue">Planned</span></td></tr>
+      <tr><td>アンカー供給者契約</td><td>上級ドライバーが出品に同意する</td><td>契約率 &ge; 60%</td><td><span class="tag tag-blue">Planned</span></td></tr>
+      <tr><td>ロガー証憑連携</td><td>証憑が購入動機を高める</td><td>購入率2倍以上</td><td><span class="tag tag-blue">Planned</span></td></tr>
+      <tr style="background:var(--red-dim);">
+        <td><strong>H3 全体検証</strong></td><td><strong>実車データに支払い意思がある</strong></td><td><strong>購入率 &ge; 5%, リピート &ge; 30%</strong></td><td><span class="tag tag-high">Go/No-Go</span></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 4. SOLUTION BRIEF -->
+<!-- ============================================================ -->
+<div class="section" id="solution">
+  <span class="section-badge" style="background:var(--red-dim);color:var(--red);">Step 4 of 5</span>
+  <h1>Solution Brief</h1>
+  <p class="subtitle">実車セットアップデータマーケットプレイス</p>
+
+  <h2>Problem Recap</h2>
+  <div class="card">
+    <p style="font-size:.95rem;color:var(--text);margin:0;">サーキット走行のセットアップは試行錯誤に時間と金がかかる（走行1回2-3万円、タイヤ数万円）。しかし「同じ車種&times;同じサーキットの検証済みセットアップ」にアクセスする手段がない。シムでは売買文化が成立済みだが、実車では世界中に C2C マーケットプレイスが存在しない。</p>
+  </div>
+
+  <h2>Key Features</h2>
+  <div class="grid-2" style="margin-bottom:.5rem;">
+    <div class="card">
+      <h4 style="color:var(--accent);">1. セットアップ記録（無料・無制限）</h4>
+      <p>タイヤ空気圧4輪・サスペンション・アライメント等を詳細に記録。未入力はnull保存。記録の継続が在庫の生産ライン。</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent);">2. Give-to-Get 共有</h4>
+      <p>自分のデータを共有した人だけが他人のデータを閲覧可能。相互性でコールドスタートを解決。</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent);">3. ロガー連携・ラップタイム証憑</h4>
+      <p>AIM CSV / デジスパイス NMEA でラップタイム証拠を紐付け。データの信頼性を証憑で担保。</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent);">4. C2C マーケットプレイス</h4>
+      <p>Stripe Connect で手数料15-20%のみ受領。資金移動業登録を回避。売り手が価格決定。</p>
+    </div>
+  </div>
+  <div class="card" style="max-width:calc(50% - .5rem);">
+    <h4 style="color:var(--accent);">5. 比較ビュー</h4>
+    <p>購入データと自分のデータの差分をハイライト表示。「何を変えれば速くなるか」を視覚化。</p>
+  </div>
+
+  <h2>Success Metrics</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Metric</th><th>Current</th><th>Target</th><th>Timeline</th></tr>
+      <tr><td>主要マスの在庫数</td><td>0件</td><td>100件（10マス&times;10件）</td><td>6ヶ月</td></tr>
+      <tr><td>マーケットプレイス流動性</td><td>N/A</td><td>20%</td><td>12ヶ月</td></tr>
+      <tr><td>MAU</td><td>0</td><td>500人</td><td>6ヶ月</td></tr>
+      <tr><td>有料転換率</td><td>N/A</td><td>2-5%</td><td>18ヶ月</td></tr>
+      <tr><td>MRR</td><td>&yen;0</td><td>&yen;55万</td><td>36ヶ月</td></tr>
+    </table>
+  </div>
+
+  <h2>Trade-offs</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>What We're Not Doing</th><th>Why</th></tr>
+      <tr><td>AI分析・自動セットアップ提案</td><td>機能は堀にならない。データ在庫と流動性が先</td></tr>
+      <tr><td>グローバル展開（多言語）</td><td>流動性はマス単位。日本市場が未証明のまま分散は致命的</td></tr>
+      <tr><td>独自バイナリ(.drk)のパース</td><td>リバースエンジニアリングのリスク回避</td></tr>
+      <tr><td>大型資金調達</td><td>ニッチ市場で大型調達の成長速度はミスマッチ</td></tr>
+    </table>
+  </div>
+
+  <h2>Risks & Mitigations</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr>
+      <tr><td>供給不足</td><td><span class="tag tag-high">High</span></td><td><span class="tag tag-high">High</span></td><td>アンカー5-10名契約 + Give-to-Get</td></tr>
+      <tr><td>H3不成立（支払い意思なし）</td><td><span class="tag tag-medium">Med</span></td><td><span class="tag tag-high">High</span></td><td>最小コストで最優先検証。不成立ならピボット</td></tr>
+      <tr><td>Track Titan日本進出</td><td><span class="tag tag-low">Low</span></td><td><span class="tag tag-high">High</span></td><td>日本語&times;デジスパイス&times;サーキットDBで参入障壁</td></tr>
+      <tr><td>データ品質不信</td><td><span class="tag tag-medium">Med</span></td><td><span class="tag tag-high">High</span></td><td>ラップタイム証憑必須 + レビュー</td></tr>
+    </table>
+  </div>
+
+  <h2>Next Steps</h2>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-date">2026年7月</div>
+      <div class="timeline-title">アンカー供給者の確保</div>
+      <div class="timeline-desc">上級ドライバー5-10名をリストアップ、レベニューシェア条件で契約交渉</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-date">2026年7月</div>
+      <div class="timeline-title">走行会主催者への提案</div>
+      <div class="timeline-desc">2-3件の走行会で無償提供を開始</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-date">2026年7月</div>
+      <div class="timeline-title">デジスパイスメーカーへのコンタクト</div>
+      <div class="timeline-desc">CSV/NMEAデータの商用利用許諾確認</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-date">2026年8-9月</div>
+      <div class="timeline-title">H3 検証の実行</div>
+      <div class="timeline-desc">アンカー供給データの先行販売テスト（手動OK）。購入率5%・リピート30%が基準</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-date">H3並行</div>
+      <div class="timeline-title">Stripe Connect 決済基盤の実装</div>
+      <div class="timeline-desc">Phase 1 マーケットプレイスの技術基盤構築</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 5. ADR -->
+<!-- ============================================================ -->
+<div class="section" id="adr">
+  <span class="section-badge" style="background:var(--green-dim);color:var(--green);">Step 5 of 5</span>
+  <h1>ADR-001</h1>
+  <p class="subtitle">Stripe Connect によるC2Cデータ売買決済基盤の採用</p>
+
+  <div class="card" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+    <span class="tag tag-proposed" style="font-size:.8rem;padding:.3rem .8rem;">Proposed</span>
+    <span style="font-size:.85rem;color:var(--text-muted);">2026-06-26 &mdash; Deciders: 創業者</span>
+  </div>
+
+  <h2>Context</h2>
+  <div class="grid-3" style="margin-bottom:1rem;">
+    <div class="card">
+      <h4 style="color:var(--amber);">Business</h4>
+      <ul class="bullet-list" style="font-size:.82rem;">
+        <li>資金移動業の登録を回避したい</li>
+        <li>単価 &yen;500-3,000 の少額決済</li>
+        <li>ブートストラップ &mdash; 初期費用最小化</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent);">Technical</h4>
+      <ul class="bullet-list" style="font-size:.82rem;">
+        <li>単独開発（バス係数1）</li>
+        <li>React + Firebase スタック</li>
+        <li>Phase 2 サブスクにも同一基盤</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--red);">Legal</h4>
+      <ul class="bullet-list" style="font-size:.82rem;">
+        <li>C2C代金の一時預かり = 資金移動業リスク</li>
+        <li>Stripe Connect ダイレクトペイメントで回避可能</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Decision</h2>
+  <div class="card" style="border-left:3px solid var(--accent);">
+    <p style="font-size:.95rem;color:var(--text);margin:0;">
+      <strong>Stripe Connect（Standard accounts）</strong> をC2Cデータ売買の決済基盤として採用する。
+      買い手&rarr;売り手にダイレクトペイメント、プラットフォームは <code style="background:var(--surface2);padding:.1rem .4rem;border-radius:3px;font-size:.85rem;">application_fee_amount</code> で手数料（15-20%）のみ徴収。
+    </p>
+  </div>
+
+  <h2>Consequences</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h4 style="color:var(--green);">Positive</h4>
+      <ul class="bullet-list strength-list" style="font-size:.82rem;">
+        <li>資金移動業を構造的に回避</li>
+        <li>Stripe SDK の成熟度 &mdash; 単独開発でも実装可能</li>
+        <li>グローバル対応 &mdash; 海外展開時も同一基盤</li>
+        <li>Stripe Billing で Phase 2 サブスクにスムーズに移行</li>
+        <li>売り手が自分のダッシュボードで売上確認可能</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--red);">Negative</h4>
+      <ul class="bullet-list weakness-list" style="font-size:.82rem;">
+        <li>Standard account のKYCが売り手の離脱ポイント</li>
+        <li>Stripe一本化によるプラットフォーム依存</li>
+        <li>基本手数料3.6%が少額決済の利益を圧迫</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Alternatives Considered</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Alternative</th><th>Verdict</th><th>Reason</th></tr>
+      <tr>
+        <td><strong>自前決済（銀行振込+手動分配）</strong></td>
+        <td><span class="tag tag-high">Rejected</span></td>
+        <td>手動運用が単独体制で持続不可能。資金移動業リスクあり。H3手動テストのみに使用可</td>
+      </tr>
+      <tr>
+        <td><strong>PAY.JP Marketplace</strong></td>
+        <td><span class="tag tag-high">Rejected</span></td>
+        <td>Marketplace API のドキュメント・事例がStripeに比べ少ない。海外展開時の対応不明</td>
+      </tr>
+      <tr>
+        <td><strong>Stripe Connect（Express）</strong></td>
+        <td><span class="tag tag-high">Rejected</span></td>
+        <td>売り手が自分のダッシュボードを持てず透明性が低い。売り手の信頼が生命線</td>
+      </tr>
+    </table>
+  </div>
+
+  <h2>References</h2>
+  <ul class="bullet-list">
+    <li>BUSINESS_PLAN.md &mdash; 収益モデル・法務リスク分析</li>
+    <li>docs/data-marketplace-business-analysis.md &mdash; 法的リスク評価</li>
+    <li>Stripe Connect documentation &mdash; ダイレクトペイメントの資金フロー</li>
+    <li>資金決済法 &mdash; 資金移動業の定義と該当要件</li>
+  </ul>
+</div>
+
+</div><!-- .content -->
+
+<div class="footer">
+  VELOCITY LOGGER &mdash; Product Strategy Report &mdash; Generated 2026-06-26<br>
+  pm-skills workflow: product-strategy
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
