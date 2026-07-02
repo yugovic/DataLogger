@@ -3,7 +3,7 @@
 // ベストラップ更新や成長記録を 1200x630px のカード画像として描画し、
 // PNG ダウンロードまたは Web Share API でシェアする。
 
-import { buildSpecCardView } from '../lib/specCardView';
+import { buildSpecCardView, splitCarModel } from '../lib/specCardView';
 import type { PublicVehicleProfile } from '../lib/vehicleProfilePublic';
 import type { HighlightBadge } from '../lib/sessionHighlights';
 import { HIGHLIGHT_BADGE_LABELS } from '../lib/sessionHighlights';
@@ -208,7 +208,49 @@ export async function generateShareImage(data: ShareCardData): Promise<string> {
   });
 }
 
-/** マシンスペックカード画像を Canvas に描画し、PNG Blob を返す */
+// スペックカードの改造度テーマ（SpecCard.tsx の levelTheme と同期）
+const SPEC_CARD_LEVEL_COLORS = {
+  NORMAL: { field: '#E7E5E4', dot: '#78716C' },
+  LIGHT: { field: '#BAE6FD', dot: '#0EA5E9' },
+  MIDDLE: { field: '#DDD6FE', dot: '#8B5CF6' },
+  FULL: { field: '#FCD34D', dot: '#F59E0B' },
+} as const;
+
+/** ピルチップを描画し、次のチップの開始x座標を返す */
+const drawPill = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  text: string,
+  dotColor?: string,
+): number => {
+  const padX = 18;
+  const height = 40;
+  ctx.font = 'bold 18px sans-serif';
+  const dotSpace = dotColor ? 18 : 0;
+  const width = ctx.measureText(text).width + padX * 2 + dotSpace;
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+  ctx.strokeStyle = 'rgba(28, 25, 23, 0.16)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, height / 2);
+  ctx.fill();
+  ctx.stroke();
+
+  if (dotColor) {
+    ctx.fillStyle = dotColor;
+    ctx.beginPath();
+    ctx.arc(x + padX + 4, y + height / 2, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#292524';
+  ctx.fillText(text, x + padX + dotSpace, y + 26);
+  return x + width + 10;
+};
+
+/** マシンスペックカード画像を Canvas に描画し、PNG Blob を返す（ライト基調・改造度カラー） */
 export async function generateSpecCardImage(data: SpecCardImageData): Promise<Blob> {
   const W = 1200;
   const H = 630;
@@ -219,108 +261,90 @@ export async function generateSpecCardImage(data: SpecCardImageData): Promise<Bl
   if (!ctx) throw new Error('Canvas context not available');
 
   const view = buildSpecCardView(data.profile);
+  const theme = SPEC_CARD_LEVEL_COLORS[view.modLevel];
+  const { maker, model } = splitCarModel(data.carModel);
 
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#0f172a');
-  bg.addColorStop(0.52, '#1e293b');
-  bg.addColorStop(1, '#020617');
-  ctx.fillStyle = bg;
+  // ── ベース（ライト） ──
+  ctx.fillStyle = '#FAFAF9';
   ctx.fillRect(0, 0, W, H);
 
-  const accent = ctx.createLinearGradient(0, 0, W, 0);
-  accent.addColorStop(0, '#2563eb');
-  accent.addColorStop(0.45, '#38bdf8');
-  accent.addColorStop(1, '#0f172a');
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, 0, W, 8);
+  // ── 改造度カラーフィールド（上部バンド） ──
+  ctx.fillStyle = theme.field;
+  ctx.fillRect(0, 0, W, 150);
 
-  ctx.fillStyle = '#3b82f6';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.fillText('VELOCITY LOGGER', 60, 58);
-
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = 'bold 42px sans-serif';
-  ctx.fillText(truncateCanvasText(ctx, data.carModel, W - 120), 60, 122);
-
-  if (data.ownerLabel) {
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '18px sans-serif';
-    ctx.fillText(truncateCanvasText(ctx, `オーナー: ${data.ownerLabel}`, W - 120), 60, 154);
-  }
-
-  const badgeColor = {
-    NORMAL: '#64748b',
-    LIGHT: '#2563eb',
-    MIDDLE: '#7c3aed',
-    FULL: '#d97706',
-  }[view.modLevel];
-  ctx.fillStyle = badgeColor;
-  ctx.fillRect(60, 184, 220, 42);
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = 'bold 20px sans-serif';
-  ctx.fillText(view.modLevelLabel, 80, 212);
-
+  // フィールド上のピルチップ: 改造度・タイヤ区分・申告スペック
+  let pillX = 60;
+  pillX = drawPill(ctx, pillX, 55, view.modLevelLabel, theme.dot);
   if (view.tireClassLabel) {
-    ctx.fillStyle = '#1d4ed8';
-    ctx.fillRect(300, 184, 250, 42);
-    ctx.fillStyle = '#dbeafe';
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillText(view.tireClassLabel, 320, 212);
+    pillX = drawPill(ctx, pillX, 55, view.tireClassLabel);
   }
-
-  let specY = 280;
-  ctx.fillStyle = '#64748b';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.fillText('DECLARED SPEC', 60, specY - 28);
   view.specItems.forEach((item) => {
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 30px monospace';
-    ctx.fillText(item.value, 60, specY);
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText(`${item.label} / ${item.notice}`, 60, specY + 24);
-    specY += 78;
+    pillX = drawPill(ctx, pillX, 55, `${item.value}（${item.notice}）`);
   });
 
-  const listX = 610;
-  let listY = 200;
-  ctx.fillStyle = '#64748b';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.fillText('MODIFICATIONS', listX, 160);
+  // ── 車名（二段タイポ） ──
+  const titleY = 232;
+  if (maker) {
+    ctx.fillStyle = '#A8A29E';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(maker.toUpperCase(), 60, titleY - 44);
+  }
+  ctx.fillStyle = '#1C1917';
+  ctx.font = '900 64px sans-serif';
+  ctx.fillText(truncateCanvasText(ctx, model, W - 120), 60, titleY);
+
+  if (data.ownerLabel) {
+    ctx.fillStyle = '#A8A29E';
+    ctx.font = '17px sans-serif';
+    ctx.fillText(truncateCanvasText(ctx, `オーナー: ${data.ownerLabel}`, W - 120), 60, titleY + 32);
+  }
+
+  // ── 改造リスト（カテゴリ×パーツの明細表・2カラム） ──
+  const listTop = 310;
+  const colWidth = (W - 120 - 40) / 2;
+  const maxRowsPerCol = 5;
 
   if (view.modificationGroups.length === 0) {
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 28px sans-serif';
-    ctx.fillText('ノーマル車両', listX, listY);
+    ctx.fillStyle = '#A8A29E';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('ノーマル車両 — 改造申告はありません', 60, listTop + 10);
   } else {
-    const maxItems = 8;
     const rows = view.modificationGroups.flatMap((group) =>
       group.items.map((item) => ({
         category: group.label,
-        text: item.maker ? `${item.partName} / ${item.maker}` : item.partName,
+        text: item.maker ? `${item.partName}  ${item.maker}` : item.partName,
       })),
     );
-    rows.slice(0, maxItems).forEach((row) => {
-      ctx.fillStyle = '#93c5fd';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText(row.category, listX, listY);
-      ctx.fillStyle = '#e2e8f0';
-      ctx.font = '20px sans-serif';
-      ctx.fillText(truncateCanvasText(ctx, row.text, W - listX - 70), listX, listY + 28);
-      listY += 62;
+    const maxItems = maxRowsPerCol * 2;
+    rows.slice(0, maxItems).forEach((row, index) => {
+      const col = Math.floor(index / maxRowsPerCol);
+      const rowY = listTop + (index % maxRowsPerCol) * 46;
+      const rowX = 60 + col * (colWidth + 40);
+
+      ctx.fillStyle = '#A8A29E';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText(row.category, rowX, rowY);
+      ctx.fillStyle = '#292524';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText(truncateCanvasText(ctx, row.text, colWidth - 120), rowX + 110, rowY);
     });
     if (rows.length > maxItems) {
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '18px sans-serif';
-      ctx.fillText(`他${rows.length - maxItems}件`, listX, listY);
+      ctx.fillStyle = '#A8A29E';
+      ctx.font = '17px sans-serif';
+      ctx.fillText(`他${rows.length - maxItems}件`, 60, listTop + maxRowsPerCol * 46 + 8);
     }
   }
 
-  ctx.fillStyle = '#1e293b';
-  ctx.fillRect(0, H - 60, W, 60);
-  ctx.fillStyle = '#475569';
-  ctx.font = '13px sans-serif';
-  ctx.fillText('VELOCITY LOGGER — マシンスペックカード', 60, H - 25);
+  // ── フッターストリップ（ダーク）: 左=カテゴリ数 / 右=透かし（ブランド＋URL） ──
+  ctx.fillStyle = '#1C1917';
+  ctx.fillRect(0, H - 64, W, 64);
+  ctx.fillStyle = '#A8A29E';
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(
+    view.modificationCategoryCount > 0 ? view.compactSummary : 'ノーマル車両',
+    60,
+    H - 26,
+  );
   drawWatermark(ctx, { shareUrl: data.shareUrl });
 
   return createPngBlob(canvas);

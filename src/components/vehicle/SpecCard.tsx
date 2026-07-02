@@ -1,5 +1,5 @@
 import React from 'react';
-import { buildSpecCardView } from '../../lib/specCardView';
+import { buildSpecCardView, splitCarModel } from '../../lib/specCardView';
 import type { PublicVehicleProfile } from '../../lib/vehicleProfilePublic';
 import type { ModLevel } from '../../lib/modLevel';
 
@@ -8,115 +8,157 @@ interface SpecCardProps {
   profile: PublicVehicleProfile;
   variant: 'full' | 'compact';
   ownerLabel?: string | null;
+  /** 車両写真（所有者ビューのみ。共有スナップショットには含めない） */
+  photoUrl?: string | null;
 }
 
-const badgeClass: Record<ModLevel, string> = {
-  NORMAL: 'bg-slate-500/20 text-slate-200 border-slate-400/40',
-  LIGHT: 'bg-blue-500/20 text-blue-100 border-blue-300/50',
-  MIDDLE: 'bg-violet-500/20 text-violet-100 border-violet-300/50',
-  FULL: 'bg-amber-400/20 text-amber-100 border-amber-300/60',
+// シグネチャ: 改造度がカードの色になる（装飾ではなく情報としての色）
+// NORMAL=素地グレー / LIGHT=スカイ / MIDDLE=バイオレット / FULL=ゴールド
+const levelTheme: Record<ModLevel, { field: string; dot: string; chip: string }> = {
+  NORMAL: {
+    field: 'bg-stone-200',
+    dot: 'bg-stone-500',
+    chip: 'bg-stone-500/10 text-stone-700 border-stone-400/60',
+  },
+  LIGHT: {
+    field: 'bg-sky-200',
+    dot: 'bg-sky-500',
+    chip: 'bg-sky-500/10 text-sky-800 border-sky-500/50',
+  },
+  MIDDLE: {
+    field: 'bg-violet-200',
+    dot: 'bg-violet-500',
+    chip: 'bg-violet-500/10 text-violet-800 border-violet-500/50',
+  },
+  FULL: {
+    field: 'bg-amber-300',
+    dot: 'bg-amber-500',
+    chip: 'bg-amber-500/15 text-amber-900 border-amber-500/60',
+  },
 };
+
+/** ピルチップ（ライト面の上に置く共通スタイル） */
+const Pill: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-900/15 bg-white/85 px-2.5 py-1 text-[11px] font-bold leading-none text-stone-800 shadow-sm">
+    {children}
+  </span>
+);
 
 export const SpecCard: React.FC<SpecCardProps> = ({
   carModel,
   profile,
   variant,
   ownerLabel = null,
+  photoUrl = null,
 }) => {
   const view = buildSpecCardView(profile);
+  const theme = levelTheme[view.modLevel];
+  const { maker, model } = splitCarModel(carModel);
 
   if (variant === 'compact') {
     return (
-      <div className="rounded-md border border-blue-300/25 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 px-3 py-2 text-slate-100 shadow-sm dark:border-blue-300/25">
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-5">
-          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 font-semibold ${badgeClass[view.modLevel]}`}>
-            {view.modLevelLabel}
+      <div className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1.5 dark:border-stone-700 dark:bg-stone-800/70">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${theme.dot}`} />
+        <span className="text-[11px] font-bold leading-none text-stone-700 dark:text-stone-200">
+          {view.modLevelLabel}
+        </span>
+        {view.tireClassLabel && (
+          <span className="text-[11px] font-semibold leading-none text-stone-500 dark:text-stone-400">
+            {view.tireClassLabel}
           </span>
-          {view.tireClassLabel && (
-            <span className="inline-flex items-center rounded-full bg-blue-400/15 px-2 py-0.5 text-blue-100">
-              {view.tireClassLabel}
-            </span>
-          )}
-          {view.modificationCategoryCount > 0 && (
-            <span className="text-slate-300">{view.compactSummary}</span>
-          )}
-        </div>
+        )}
+        {view.modificationCategoryCount > 0 && (
+          <span className="text-[11px] leading-none text-stone-400 dark:text-stone-500">
+            {view.compactSummary}
+          </span>
+        )}
       </div>
     );
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-blue-300/25 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-slate-100 shadow-lg dark:border-blue-300/25">
-      <div className="h-1.5 bg-gradient-to-r from-blue-600 via-blue-400 to-slate-900" />
-      <div className="p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-blue-300">
-              MACHINE SPEC CARD
-            </div>
-            <h3 className="mt-1 break-words text-xl font-bold leading-tight text-slate-50 sm:text-2xl">
-              {carModel}
-            </h3>
-            {ownerLabel && (
-              <div className="mt-1 text-xs text-slate-400">
-                オーナー: {ownerLabel}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass[view.modLevel]}`}>
-              {view.modLevelLabel}
-            </span>
-            {view.tireClassLabel && (
-              <span className="inline-flex items-center rounded-full bg-blue-400/15 px-3 py-1 text-xs font-semibold text-blue-100">
-                {view.tireClassLabel}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {view.specItems.length > 0 && (
-          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {view.specItems.map((item) => (
-              <div key={item.key} className="rounded-md border border-slate-700/80 bg-slate-950/40 px-3 py-2">
-                <div className="text-[11px] text-slate-400">{item.label}</div>
-                <div className="mt-0.5 flex flex-wrap items-baseline gap-2">
-                  <span className="font-mono text-lg font-bold text-slate-50">{item.value}</span>
-                  <span className="rounded bg-amber-300/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100">
-                    {item.notice}
-                  </span>
-                </div>
-              </div>
-            ))}
+    <section className="overflow-hidden rounded-3xl bg-stone-50 text-stone-900 shadow-lg ring-1 ring-stone-900/10 dark:ring-white/10">
+      {/* ── 改造度カラーフィールド（写真＋チップ） ── */}
+      <div className={`${theme.field} px-5 pt-5 pb-4`}>
+        {photoUrl && (
+          <div className="mb-4 overflow-hidden rounded-2xl">
+            <img
+              src={photoUrl}
+              alt={carModel}
+              loading="lazy"
+              className="h-44 w-full object-cover sm:h-52"
+            />
           </div>
         )}
-
-        <div className="mt-4">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-            MODIFICATIONS
-          </div>
-          {view.modificationGroups.length === 0 ? (
-            <div className="rounded-md border border-slate-700/80 bg-slate-950/40 px-3 py-3 text-sm text-slate-300">
-              ノーマル車両
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {view.modificationGroups.map((group) => (
-                <div key={group.category} className="rounded-md border border-slate-700/80 bg-slate-950/35 px-3 py-3">
-                  <div className="mb-2 text-xs font-semibold text-blue-200">{group.label}</div>
-                  <ul className="space-y-1.5">
-                    {group.items.map((item, index) => (
-                      <li key={`${group.category}-${item.partName}-${index}`} className="text-sm text-slate-100">
-                        {item.partName}
-                        {item.maker && <span className="ml-2 text-xs text-slate-400">{item.maker}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Pill>
+            <span className={`h-1.5 w-1.5 rounded-full ${theme.dot}`} />
+            {view.modLevelLabel}
+          </Pill>
+          {view.tireClassLabel && <Pill>{view.tireClassLabel}</Pill>}
+          {view.specItems.map((item) => (
+            <Pill key={item.key}>
+              <span className="font-mono">{item.value}</span>
+              <span className="font-medium text-stone-400">{item.notice}</span>
+            </Pill>
+          ))}
         </div>
+      </div>
+
+      {/* ── 車名（二段タイポ） ── */}
+      <div className="px-5 pt-4">
+        {maker && (
+          <div className="text-xs font-bold uppercase tracking-[0.22em] text-stone-400">
+            {maker}
+          </div>
+        )}
+        <h3 className="break-words text-3xl font-black leading-none tracking-tight text-stone-900 sm:text-4xl">
+          {model}
+        </h3>
+        {ownerLabel && (
+          <div className="mt-1.5 text-xs font-medium text-stone-400">
+            オーナー: {ownerLabel}
+          </div>
+        )}
+      </div>
+
+      {/* ── 改造リスト（カテゴリ×パーツの明細表） ── */}
+      <div className="px-5 pb-5 pt-4">
+        {view.modificationGroups.length === 0 ? (
+          <p className="text-sm font-medium text-stone-400">
+            ノーマル車両 — 改造申告はありません
+          </p>
+        ) : (
+          <dl className="divide-y divide-stone-200">
+            {view.modificationGroups.map((group) => (
+              <div key={group.category} className="grid grid-cols-[5.5rem_1fr] gap-3 py-2.5 first:pt-0 last:pb-0">
+                <dt className="pt-0.5 text-[11px] font-bold leading-4 tracking-wide text-stone-400">
+                  {group.label}
+                </dt>
+                <dd className="min-w-0 space-y-1">
+                  {group.items.map((item, index) => (
+                    <div key={`${group.category}-${item.partName}-${index}`} className="text-sm font-semibold leading-5 text-stone-800">
+                      {item.partName}
+                      {item.maker && (
+                        <span className="ml-1.5 text-xs font-medium text-stone-400">{item.maker}</span>
+                      )}
+                    </div>
+                  ))}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </div>
+
+      {/* ── フッターストリップ ── */}
+      <div className="flex items-center justify-between bg-stone-900 px-5 py-2.5">
+        <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-stone-300">
+          Velocity Logger
+        </span>
+        <span className="text-[11px] font-semibold text-stone-400">
+          {view.modificationCategoryCount > 0 ? view.compactSummary : 'ノーマル車両'}
+        </span>
       </div>
     </section>
   );

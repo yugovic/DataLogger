@@ -30,6 +30,17 @@ export interface SpecCardView {
   compactSummary: string;
 }
 
+/** carModel を「メーカー / モデル」の二段タイポに分解する（先頭語をメーカー扱い） */
+export function splitCarModel(carModel: string): { maker: string | null; model: string } {
+  const trimmed = carModel.trim();
+  const spaceIndex = trimmed.indexOf(' ');
+  if (spaceIndex <= 0) return { maker: null, model: trimmed };
+  return {
+    maker: trimmed.slice(0, spaceIndex),
+    model: trimmed.slice(spaceIndex + 1).trim() || trimmed,
+  };
+}
+
 export function buildSpecCardView(profile: PublicVehicleProfile): SpecCardView {
   const groupMap = new Map<ModCategory, SpecCardModificationItem[]>();
 
