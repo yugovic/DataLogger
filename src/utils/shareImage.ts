@@ -23,6 +23,8 @@ export interface SpecCardImageData {
   profile: PublicVehicleProfile;
   ownerLabel?: string | null;
   shareUrl?: string;
+  /** 車両写真（data URL）。所有者が共有操作したときのみ渡す */
+  photoUrl?: string | null;
 }
 
 export type SpecCardShareResult = 'shared' | 'unsupported' | 'cancelled';
@@ -210,11 +212,20 @@ export async function generateShareImage(data: ShareCardData): Promise<string> {
 
 // スペックカードの改造度テーマ（SpecCard.tsx の levelTheme と同期）
 const SPEC_CARD_LEVEL_COLORS = {
-  NORMAL: { field: '#E7E5E4', dot: '#78716C' },
-  LIGHT: { field: '#BAE6FD', dot: '#0EA5E9' },
-  MIDDLE: { field: '#DDD6FE', dot: '#8B5CF6' },
-  FULL: { field: '#FCD34D', dot: '#F59E0B' },
+  NORMAL: { field: '#E7E5E4', dot: '#78716C', heroInk: 'rgba(87, 83, 78, 0.35)' },
+  LIGHT: { field: '#BAE6FD', dot: '#0EA5E9', heroInk: 'rgba(3, 105, 161, 0.30)' },
+  MIDDLE: { field: '#DDD6FE', dot: '#8B5CF6', heroInk: 'rgba(109, 40, 217, 0.30)' },
+  FULL: { field: '#FCD34D', dot: '#F59E0B', heroInk: 'rgba(180, 83, 9, 0.35)' },
 } as const;
+
+/** data URL から画像を読み込む（失敗時は reject） */
+const loadCardImage = (src: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to load card photo'));
+    img.src = src;
+  });
 
 /** ピルチップを描画し、次のチップの開始x座標を返す */
 const drawPill = (
@@ -250,10 +261,14 @@ const drawPill = (
   return x + width + 10;
 };
 
-/** マシンスペックカード画像を Canvas に描画し、PNG Blob を返す（ライト基調・改造度カラー） */
+/**
+ * マシンスペックカード画像を Canvas に描画し、PNG Blob を返す。
+ * 実物トレカと同じ縦型（900×1260）・写真ドミナント・低情報密度。
+ * 改造明細は載せない（Web側カードの裏面で見る想定）。
+ */
 export async function generateSpecCardImage(data: SpecCardImageData): Promise<Blob> {
-  const W = 1200;
-  const H = 630;
+  const W = 900;
+  const H = 1260;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -263,87 +278,118 @@ export async function generateSpecCardImage(data: SpecCardImageData): Promise<Bl
   const view = buildSpecCardView(data.profile);
   const theme = SPEC_CARD_LEVEL_COLORS[view.modLevel];
   const { maker, model } = splitCarModel(data.carModel);
+  const margin = 56;
+  const heroH = Math.round(H * 0.56);
+  const footerH = 96;
 
-  // ── ベース（ライト） ──
+  // ── ベース（ライト台紙） ──
   ctx.fillStyle = '#FAFAF9';
   ctx.fillRect(0, 0, W, H);
 
-  // ── 改造度カラーフィールド（上部バンド） ──
+  // ── ヒーロー: 写真 or 改造度カラー地＋スピードライン＋ゴーストタイポ ──
   ctx.fillStyle = theme.field;
-  ctx.fillRect(0, 0, W, 150);
+  ctx.fillRect(0, 0, W, heroH);
 
-  // フィールド上のピルチップ: 改造度・タイヤ区分・申告スペック
-  let pillX = 60;
-  pillX = drawPill(ctx, pillX, 55, view.modLevelLabel, theme.dot);
-  if (view.tireClassLabel) {
-    pillX = drawPill(ctx, pillX, 55, view.tireClassLabel);
-  }
-  view.specItems.forEach((item) => {
-    pillX = drawPill(ctx, pillX, 55, `${item.value}（${item.notice}）`);
-  });
-
-  // ── 車名（二段タイポ） ──
-  const titleY = 232;
-  if (maker) {
-    ctx.fillStyle = '#A8A29E';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(maker.toUpperCase(), 60, titleY - 44);
-  }
-  ctx.fillStyle = '#1C1917';
-  ctx.font = '900 64px sans-serif';
-  ctx.fillText(truncateCanvasText(ctx, model, W - 120), 60, titleY);
-
-  if (data.ownerLabel) {
-    ctx.fillStyle = '#A8A29E';
-    ctx.font = '17px sans-serif';
-    ctx.fillText(truncateCanvasText(ctx, `オーナー: ${data.ownerLabel}`, W - 120), 60, titleY + 32);
-  }
-
-  // ── 改造リスト（カテゴリ×パーツの明細表・2カラム） ──
-  const listTop = 310;
-  const colWidth = (W - 120 - 40) / 2;
-  const maxRowsPerCol = 5;
-
-  if (view.modificationGroups.length === 0) {
-    ctx.fillStyle = '#A8A29E';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText('ノーマル車両 — 改造申告はありません', 60, listTop + 10);
-  } else {
-    const rows = view.modificationGroups.flatMap((group) =>
-      group.items.map((item) => ({
-        category: group.label,
-        text: item.maker ? `${item.partName}  ${item.maker}` : item.partName,
-      })),
-    );
-    const maxItems = maxRowsPerCol * 2;
-    rows.slice(0, maxItems).forEach((row, index) => {
-      const col = Math.floor(index / maxRowsPerCol);
-      const rowY = listTop + (index % maxRowsPerCol) * 46;
-      const rowX = 60 + col * (colWidth + 40);
-
-      ctx.fillStyle = '#A8A29E';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.fillText(row.category, rowX, rowY);
-      ctx.fillStyle = '#292524';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText(truncateCanvasText(ctx, row.text, colWidth - 120), rowX + 110, rowY);
-    });
-    if (rows.length > maxItems) {
-      ctx.fillStyle = '#A8A29E';
-      ctx.font = '17px sans-serif';
-      ctx.fillText(`他${rows.length - maxItems}件`, 60, listTop + maxRowsPerCol * 46 + 8);
+  let photo: HTMLImageElement | null = null;
+  if (data.photoUrl) {
+    try {
+      photo = await loadCardImage(data.photoUrl);
+    } catch {
+      photo = null; // 読み込み失敗時はタイポグラフィにフォールバック
     }
   }
 
-  // ── フッターストリップ（ダーク）: 左=カテゴリ数 / 右=透かし（ブランド＋URL） ──
+  if (photo) {
+    // cover クロップでヒーロー領域に描画
+    const scale = Math.max(W / photo.width, heroH / photo.height);
+    const drawW = photo.width * scale;
+    const drawH = photo.height * scale;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, heroH);
+    ctx.clip();
+    ctx.drawImage(photo, (W - drawW) / 2, (heroH - drawH) / 2, drawW, drawH);
+    ctx.restore();
+  } else {
+    // 斜めのスピードライン
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, heroH);
+    ctx.clip();
+    ctx.translate(W / 2, heroH / 2);
+    ctx.rotate((-25 * Math.PI) / 180);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    const span = Math.max(W, heroH) * 1.5;
+    for (let x = -span; x < span; x += 44) {
+      ctx.fillRect(x, -span, 10, span * 2);
+    }
+    ctx.restore();
+
+    // ゴーストタイポ（モデル名を大きく）
+    ctx.save();
+    ctx.fillStyle = theme.heroInk;
+    ctx.font = 'italic 900 104px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(truncateCanvasText(ctx, model.toUpperCase(), W - margin * 2), W / 2, heroH / 2 + 36);
+    ctx.restore();
+  }
+
+  // 台紙への馴染ませフェード
+  const fade = ctx.createLinearGradient(0, heroH - 70, 0, heroH);
+  fade.addColorStop(0, 'rgba(250, 250, 249, 0)');
+  fade.addColorStop(1, 'rgba(250, 250, 249, 0.85)');
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, heroH - 70, W, 70);
+
+  // ── ピルチップ（3つまで: 改造度・タイヤ区分・出力申告値） ──
+  let pillX = margin;
+  const pillY = heroH + 36;
+  pillX = drawPill(ctx, pillX, pillY, view.modLevelLabel, theme.dot);
+  if (view.tireClassLabel) {
+    pillX = drawPill(ctx, pillX, pillY, view.tireClassLabel);
+  }
+  const powerItem = view.specItems.find((item) => item.key === 'powerPs');
+  if (powerItem) {
+    drawPill(ctx, pillX, pillY, `${powerItem.value}（${powerItem.notice}）`);
+  }
+
+  // ── 車名（二段タイポ） ──
+  let titleY = heroH + 150;
+  if (maker) {
+    ctx.fillStyle = '#A8A29E';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText(maker.toUpperCase(), margin, titleY);
+    titleY += 66;
+  } else {
+    titleY += 30;
+  }
   ctx.fillStyle = '#1C1917';
-  ctx.fillRect(0, H - 64, W, 64);
+  ctx.font = '900 68px sans-serif';
+  ctx.fillText(truncateCanvasText(ctx, model, W - margin * 2), margin, titleY);
+
+  if (data.ownerLabel) {
+    ctx.fillStyle = '#A8A29E';
+    ctx.font = '20px sans-serif';
+    ctx.fillText(
+      truncateCanvasText(ctx, `オーナー: ${data.ownerLabel}`, W - margin * 2),
+      margin,
+      titleY + 44,
+    );
+  }
+
+  // ── フッターストリップ（ダーク）: 左=サマリー / 右=透かし（ブランド＋URL） ──
+  ctx.fillStyle = '#1C1917';
+  ctx.fillRect(0, H - footerH, W, footerH);
   ctx.fillStyle = '#D6D3D1';
-  ctx.font = 'bold 15px sans-serif';
+  ctx.font = 'bold 20px sans-serif';
+  const totalModItems = view.modificationGroups.reduce(
+    (sum, group) => sum + group.items.length,
+    0,
+  );
   ctx.fillText(
-    view.modificationCategoryCount > 0 ? view.compactSummary : 'ノーマル車両',
-    60,
-    H - 26,
+    totalModItems > 0 ? `改造申告 ${totalModItems}件・${view.compactSummary}` : 'ノーマル車両',
+    margin,
+    H - footerH / 2 + 8,
   );
   drawWatermark(ctx, { shareUrl: data.shareUrl });
 

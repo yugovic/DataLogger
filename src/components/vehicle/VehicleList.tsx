@@ -116,6 +116,7 @@ export const VehicleList: React.FC = () => {
       carModel: `${vehicle.make} ${vehicle.model}`,
       profile: toPublicVehicleProfile(vehicle.profile),
       ownerLabel: currentUser?.displayName ?? null,
+      photoUrl: vehicle.photoURL || null,
     };
 
     try {
