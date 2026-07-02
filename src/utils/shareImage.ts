@@ -338,7 +338,7 @@ export async function generateSpecCardImage(data: SpecCardImageData): Promise<Bl
   // ── フッターストリップ（ダーク）: 左=カテゴリ数 / 右=透かし（ブランド＋URL） ──
   ctx.fillStyle = '#1C1917';
   ctx.fillRect(0, H - 64, W, 64);
-  ctx.fillStyle = '#A8A29E';
+  ctx.fillStyle = '#D6D3D1';
   ctx.font = 'bold 15px sans-serif';
   ctx.fillText(
     view.modificationCategoryCount > 0 ? view.compactSummary : 'ノーマル車両',

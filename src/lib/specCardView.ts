@@ -30,15 +30,24 @@ export interface SpecCardView {
   compactSummary: string;
 }
 
+/** メーカー名として意味を持たない先頭語（大文字小文字問わず一致） */
+const NON_MAKER_PREFIXES = new Set(['other', 'その他']);
+
 /** carModel を「メーカー / モデル」の二段タイポに分解する（先頭語をメーカー扱い） */
 export function splitCarModel(carModel: string): { maker: string | null; model: string } {
   const trimmed = carModel.trim();
   const spaceIndex = trimmed.indexOf(' ');
   if (spaceIndex <= 0) return { maker: null, model: trimmed };
-  return {
-    maker: trimmed.slice(0, spaceIndex),
-    model: trimmed.slice(spaceIndex + 1).trim() || trimmed,
-  };
+
+  const maker = trimmed.slice(0, spaceIndex);
+  const model = trimmed.slice(spaceIndex + 1).trim() || trimmed;
+
+  // 「Other」「その他」はメーカー名として無意味なので眉に表示しない
+  if (NON_MAKER_PREFIXES.has(maker.toLowerCase())) {
+    return { maker: null, model };
+  }
+
+  return { maker, model };
 }
 
 export function buildSpecCardView(profile: PublicVehicleProfile): SpecCardView {

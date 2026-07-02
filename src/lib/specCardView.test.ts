@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSpecCardView } from './specCardView';
+import { buildSpecCardView, splitCarModel } from './specCardView';
 import type { PublicVehicleProfile } from './vehicleProfilePublic';
 
 const profile = (overrides: Partial<PublicVehicleProfile> = {}): PublicVehicleProfile => ({
@@ -66,5 +66,23 @@ describe('buildSpecCardView', () => {
     const view = buildSpecCardView(profile());
 
     expect(view.compactSummary).toBe('ノーマル車両');
+  });
+});
+
+describe('splitCarModel', () => {
+  it('通常の「メーカー モデル」を分解すること', () => {
+    expect(splitCarModel('Honda S2000')).toEqual({ maker: 'Honda', model: 'S2000' });
+  });
+
+  it('単語1つの場合はメーカーなし扱いにすること', () => {
+    expect(splitCarModel('GR86')).toEqual({ maker: null, model: 'GR86' });
+  });
+
+  it('先頭語が Other の場合はメーカーを表示しないこと', () => {
+    expect(splitCarModel('Other S3')).toEqual({ maker: null, model: 'S3' });
+  });
+
+  it('先頭語が その他 の場合もメーカーを表示しないこと', () => {
+    expect(splitCarModel('その他 S3')).toEqual({ maker: null, model: 'S3' });
   });
 });

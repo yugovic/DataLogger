@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { buildSpecCardView, splitCarModel } from '../../lib/specCardView';
 import type { PublicVehicleProfile } from '../../lib/vehicleProfilePublic';
 import type { ModLevel } from '../../lib/modLevel';
@@ -44,6 +44,9 @@ const Pill: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </span>
 );
 
+/** 明細の折りたたみ表示件数（超えたら8件目以降のカテゴリグループごと畳む） */
+const VISIBLE_MODIFICATION_ITEM_LIMIT = 8;
+
 export const SpecCard: React.FC<SpecCardProps> = ({
   carModel,
   profile,
@@ -51,9 +54,30 @@ export const SpecCard: React.FC<SpecCardProps> = ({
   ownerLabel = null,
   photoUrl = null,
 }) => {
+  const [modsExpanded, setModsExpanded] = useState(false);
   const view = buildSpecCardView(profile);
   const theme = levelTheme[view.modLevel];
   const { maker, model } = splitCarModel(carModel);
+
+  // 合計件数が上限を超える最初のカテゴリグループで区切る（グループの途中では切らない）
+  let modsCutIndex = view.modificationGroups.length;
+  let visibleItemCount = 0;
+  for (let i = 0; i < view.modificationGroups.length; i++) {
+    const groupItemCount = view.modificationGroups[i].items.length;
+    if (visibleItemCount + groupItemCount > VISIBLE_MODIFICATION_ITEM_LIMIT) {
+      // 先頭グループ単独で上限超過しても明細が0件にならないよう最低1グループは表示する
+      modsCutIndex = Math.max(i, 1);
+      break;
+    }
+    visibleItemCount += groupItemCount;
+  }
+  const hasCollapsibleMods = modsCutIndex < view.modificationGroups.length;
+  const hiddenModCount = view.modificationGroups
+    .slice(modsCutIndex)
+    .reduce((sum, group) => sum + group.items.length, 0);
+  const visibleModGroups = modsExpanded || !hasCollapsibleMods
+    ? view.modificationGroups
+    : view.modificationGroups.slice(0, modsCutIndex);
 
   if (variant === 'compact') {
     return (
@@ -129,34 +153,45 @@ export const SpecCard: React.FC<SpecCardProps> = ({
             ノーマル車両 — 改造申告はありません
           </p>
         ) : (
-          <dl className="divide-y divide-stone-200">
-            {view.modificationGroups.map((group) => (
-              <div key={group.category} className="grid grid-cols-[5.5rem_1fr] gap-3 py-2.5 first:pt-0 last:pb-0">
-                <dt className="pt-0.5 text-[11px] font-bold leading-4 tracking-wide text-stone-400">
-                  {group.label}
-                </dt>
-                <dd className="min-w-0 space-y-1">
-                  {group.items.map((item, index) => (
-                    <div key={`${group.category}-${item.partName}-${index}`} className="text-sm font-semibold leading-5 text-stone-800">
-                      {item.partName}
-                      {item.maker && (
-                        <span className="ml-1.5 text-xs font-medium text-stone-400">{item.maker}</span>
-                      )}
-                    </div>
-                  ))}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <>
+            <dl className="divide-y divide-stone-200">
+              {visibleModGroups.map((group) => (
+                <div key={group.category} className="grid grid-cols-[5.5rem_1fr] gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <dt className="pt-0.5 text-[11px] font-bold leading-4 tracking-wide text-stone-400">
+                    {group.label}
+                  </dt>
+                  <dd className="min-w-0 space-y-1">
+                    {group.items.map((item, index) => (
+                      <div key={`${group.category}-${item.partName}-${index}`} className="min-w-0 break-words text-sm font-semibold leading-5 text-stone-800">
+                        {item.partName}
+                        {item.maker && (
+                          <span className="ml-1.5 text-xs font-medium text-stone-400">{item.maker}</span>
+                        )}
+                      </div>
+                    ))}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {hasCollapsibleMods && (
+              <button
+                type="button"
+                onClick={() => setModsExpanded((prev) => !prev)}
+                className="mt-3 text-xs font-bold text-stone-500 underline decoration-stone-300 underline-offset-2 transition-colors hover:text-stone-700"
+              >
+                {modsExpanded ? '折りたたむ' : `他${hiddenModCount}件の申告を表示`}
+              </button>
+            )}
+          </>
         )}
       </div>
 
       {/* ── フッターストリップ ── */}
       <div className="flex items-center justify-between bg-stone-900 px-5 py-2.5">
-        <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-stone-300">
+        <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-stone-200">
           Velocity Logger
         </span>
-        <span className="text-[11px] font-semibold text-stone-400">
+        <span className="text-[11px] font-semibold text-stone-300">
           {view.modificationCategoryCount > 0 ? view.compactSummary : 'ノーマル車両'}
         </span>
       </div>

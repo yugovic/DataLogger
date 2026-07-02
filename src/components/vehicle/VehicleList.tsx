@@ -139,6 +139,38 @@ export const VehicleList: React.FC = () => {
     fetchVehicles();
   };
 
+  // Card.actions は各項目が均等幅(1/n)になるため、横並びボタンだとラベルがはみ出して重なる。
+  // アイコン＋小ラベルの縦積みで各列に収める。
+  const renderCardAction = (
+    icon: React.ReactNode,
+    label: string,
+    onClick: () => void,
+    danger = false,
+  ) => (
+    <div
+      key={label}
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick();
+        }
+      }}
+      className={`flex flex-col items-center justify-center gap-1 px-1 transition-colors ${
+        danger
+          ? 'text-red-500 hover:text-red-400'
+          : 'text-gray-500 dark:text-gray-400 hover:text-blue-500'
+      }`}
+    >
+      <span className="text-base leading-none">{icon}</span>
+      <span className="text-[11px] leading-none whitespace-nowrap">{label}</span>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
@@ -220,19 +252,12 @@ export const VehicleList: React.FC = () => {
                 onClick={() => handleEditVehicle(vehicle)}
                 cover={
                   vehicle.photoURL ? (
-                    <>
-                      {console.log('Debug - Vehicle photo URL:', vehicle.photoURL?.substring(0, 100))}
-                      <img 
-                        alt={`${vehicle.make} ${vehicle.model}`} 
-                        src={vehicle.photoURL}
-                        loading="lazy"
-                        className="h-48 object-cover"
-                        onError={() => {
-                          console.error('Debug - Image load error for vehicle:', vehicle.id);
-                          console.error('Debug - Failed URL:', vehicle.photoURL?.substring(0, 100));
-                        }}
-                      />
-                    </>
+                    <img
+                      alt={`${vehicle.make} ${vehicle.model}`}
+                      src={vehicle.photoURL}
+                      loading="lazy"
+                      className="h-48 object-cover"
+                    />
                   ) : (
                     <div className="h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                       <CarOutlined style={{ fontSize: 48, color: '#999' }} />
@@ -240,50 +265,17 @@ export const VehicleList: React.FC = () => {
                   )
                 }
                 actions={[
-                  (vehicle.profile?.modifications.length ?? 0) > 0 && vehicle.id ? (
-                    <Button
-                      key="journal"
-                      type="text"
-                      icon={<BookOutlined />}
-                      onClick={(e) => { e.stopPropagation(); navigate(`/vehicles/${vehicle.id}/journal`); }}
-                    >
-                      ジャーナル
-                    </Button>
-                  ) : null,
-                  vehicle.profile && vehicle.id ? (
-                    <Button
-                      key="spec-card"
-                      type="text"
-                      icon={<ExperimentOutlined />}
-                      onClick={(e) => { e.stopPropagation(); toggleSpecCard(vehicle.id as string); }}
-                    >
-                      カード
-                    </Button>
-                  ) : null,
-                  vehicle.profile ? (
-                    <Button
-                      type="text"
-                      icon={<DownloadOutlined />}
-                      onClick={(e) => { e.stopPropagation(); handleSaveSpecCard(vehicle); }}
-                    >
-                      保存
-                    </Button>
-                  ) : null,
-                  <Button
-                    type="text"
-                    icon={<EditOutlined />}
-                    onClick={(e) => { e.stopPropagation(); handleEditVehicle(vehicle); }}
-                  >
-                    編集
-                  </Button>,
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => { e.stopPropagation(); handleDeleteVehicle(vehicle); }}
-                  >
-                    削除
-                  </Button>,
+                  (vehicle.profile?.modifications.length ?? 0) > 0 && vehicle.id
+                    ? renderCardAction(<BookOutlined />, 'ジャーナル', () => navigate(`/vehicles/${vehicle.id}/journal`))
+                    : null,
+                  vehicle.profile && vehicle.id
+                    ? renderCardAction(<ExperimentOutlined />, 'カード', () => toggleSpecCard(vehicle.id as string))
+                    : null,
+                  vehicle.profile
+                    ? renderCardAction(<DownloadOutlined />, '保存', () => handleSaveSpecCard(vehicle))
+                    : null,
+                  renderCardAction(<EditOutlined />, '編集', () => handleEditVehicle(vehicle)),
+                  renderCardAction(<DeleteOutlined />, '削除', () => handleDeleteVehicle(vehicle), true),
                 ].filter(Boolean)}
               >
                 <Card.Meta
