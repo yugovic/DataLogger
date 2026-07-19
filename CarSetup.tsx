@@ -1042,134 +1042,149 @@ return (
 <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 {/* セッション情報バー */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 mb-6">
-<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-<div className="flex flex-wrap items-center gap-2 sm:gap-4">
-<div className="text-sm sm:text-base text-gray-800 dark:text-gray-200 font-medium">
-  {isViewMode ? (
-    <span>{sessionDate.toLocaleDateString('ja-JP')} {sessionDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
-  ) : (
-    <input
-      type="datetime-local"
-      value={toLocalDatetimeInput(sessionDate)}
-      onChange={(e) => setSessionDate(e.target.value ? new Date(e.target.value) : new Date())}
-      className="bg-transparent border-0 border-b border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 text-sm focus:outline-none focus:border-blue-400"
-    />
-  )}
-</div>
-<div className="flex items-center">
-<i className="fas fa-map-marker-alt text-gray-500 dark:text-gray-400 mr-2"></i>
-<span className="text-red-500 mr-1 text-sm" title="必須">*</span>
-<AutoComplete
-  value={circuit}
-  onChange={setCircuit}
-  className="border-0 shadow-none"
-  disabled={isViewMode}
-  options={[
-    { value: '鈴鹿サーキット' },
-    { value: '富士スピードウェイ' },
-    { value: 'ツインリンクもてぎ' },
-    { value: '岡山国際サーキット' },
-    { value: 'オートポリス' }
-  ]}
-  style={{ width: 150 }}
-/>
-</div>
-</div>
-<div className="flex flex-wrap items-center gap-2 sm:gap-4">
-<div className="flex items-center gap-2">
-<Select
-value={selectedVehicleId ?? ''}
-onChange={handleRegisteredVehicleSelect}
-className="w-36 sm:w-44"
-disabled={isViewMode}
-options={[
-  { value: '', label: '選択しない' },
-  ...vehicles
-    .filter((vehicle) => vehicle.id)
-    .map((vehicle) => ({
-      value: vehicle.id as string,
-      label: `${vehicle.make} ${vehicle.model}`,
-    })),
-]}
-/>
-<span className="text-red-500 mr-1 text-sm" title="必須">*</span>
-<AutoComplete
-value={carModel}
-onChange={(value) => {
-  setCarModel(value);
-  setSelectedVehicleId(null);
-}}
-className="w-36 sm:w-40"
-disabled={isViewMode}
-options={[...new Set(vehicles.map(v => `${v.make} ${v.model}`))].map(name => ({ value: name }))}
-variant="borderless"
-suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
-/>
-</div>
-<AutoComplete
-value={driver}
-onChange={setDriver}
-placeholder="ドライバー名"
-className="w-28 sm:w-32"
-disabled={isViewMode}
-options={driver ? [{ value: driver }] : []}
-variant="borderless"
-suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
-/>
-<AutoComplete
-value={sessionType === 'practice' ? '練習走行' : sessionType === 'qualifying' ? '予選' : 'レース'}
-onChange={(value) => {
-  if (value === '練習走行') setSessionType('practice');
-  else if (value === '予選') setSessionType('qualifying');
-  else if (value === 'レース') setSessionType('race');
-}}
-className="w-28 sm:w-32"
-disabled={isViewMode}
-options={[
-  { value: '練習走行' },
-  { value: '予選' },
-  { value: 'レース' }
-]}
-variant="borderless"
-suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
-/>
-</div>
-{isViewMode ? (
-  <div className="flex items-center gap-2">
-    <button
-      className="flex items-center bg-green-100 dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800 text-green-700 dark:text-green-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm"
-      onClick={() => setIsViewMode(false)}
-    >
-      <i className="fas fa-edit mr-1 sm:mr-2"></i>
-      編集
-    </button>
-    <button
-      className="flex items-center bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm"
-      onClick={() => {
-        window.location.href = '/';
-      }}
-    >
-      <i className="fas fa-copy mr-1 sm:mr-2"></i>
-      <span className="hidden sm:inline">コピーして新規作成</span>
-      <span className="sm:hidden">コピー</span>
-    </button>
-  </div>
-) : (
-  <button
-    onClick={handleInheritFromPrevious}
-    disabled={isInheriting}
-    title="同一車種の前回セットアップから、タイヤ銘柄・サスペンション・アライメントを引き継ぎます（空気圧の実測値・天候・ラップタイムは引き継ぎません）"
-    className={`flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm self-start sm:self-auto ${isInheriting ? 'opacity-50 cursor-not-allowed' : ''}`}
-  >
-    {isInheriting ? (
-      <i className="fas fa-spinner fa-spin mr-2"></i>
+{/* フィールドグリッド */}
+<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+  {/* 日時 */}
+  <div className="col-span-2 sm:col-span-1">
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">日時</p>
+    {isViewMode ? (
+      <span className="block text-sm text-gray-800 dark:text-gray-200 font-medium py-1">
+        {sessionDate.toLocaleDateString('ja-JP')} {sessionDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+      </span>
     ) : (
-      <i className="fas fa-bolt mr-2"></i>
+      <input
+        type="datetime-local"
+        value={toLocalDatetimeInput(sessionDate)}
+        onChange={(e) => setSessionDate(e.target.value ? new Date(e.target.value) : new Date())}
+        className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm px-2 py-1.5 focus:outline-none focus:border-blue-400 dark:focus:border-blue-500"
+      />
     )}
-    <span className="hidden sm:inline">前回のセットアップから引き継ぐ</span>
-    <span className="sm:hidden">引き継ぐ</span>
-  </button>
-)}
+  </div>
+  {/* サーキット */}
+  <div>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+      サーキット <span className="text-red-500">*</span>
+    </p>
+    <AutoComplete
+      value={circuit}
+      onChange={setCircuit}
+      className="w-full"
+      disabled={isViewMode}
+      options={[
+        { value: '鈴鹿サーキット' },
+        { value: '富士スピードウェイ' },
+        { value: 'ツインリンクもてぎ' },
+        { value: '岡山国際サーキット' },
+        { value: 'オートポリス' }
+      ]}
+    />
+  </div>
+  {/* 登録車両 */}
+  <div>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">登録車両</p>
+    <Select
+      value={selectedVehicleId ?? ''}
+      onChange={handleRegisteredVehicleSelect}
+      className="w-full"
+      disabled={isViewMode}
+      options={[
+        { value: '', label: '選択しない' },
+        ...vehicles
+          .filter((vehicle) => vehicle.id)
+          .map((vehicle) => ({
+            value: vehicle.id as string,
+            label: `${vehicle.make} ${vehicle.model}`,
+          })),
+      ]}
+    />
+  </div>
+  {/* 車種 */}
+  <div>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+      車種 <span className="text-red-500">*</span>
+    </p>
+    <AutoComplete
+      value={carModel}
+      onChange={(value) => {
+        setCarModel(value);
+        setSelectedVehicleId(null);
+      }}
+      className="w-full"
+      placeholder="車種名"
+      disabled={isViewMode}
+      options={[...new Set(vehicles.map(v => `${v.make} ${v.model}`))].map(name => ({ value: name }))}
+    />
+  </div>
+  {/* ドライバー名 */}
+  <div>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">ドライバー名</p>
+    <AutoComplete
+      value={driver}
+      onChange={setDriver}
+      placeholder="ドライバー名"
+      className="w-full"
+      disabled={isViewMode}
+      options={driver ? [{ value: driver }] : []}
+    />
+  </div>
+  {/* セッション種別 */}
+  <div>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">セッション種別</p>
+    <AutoComplete
+      value={sessionType === 'practice' ? '練習走行' : sessionType === 'qualifying' ? '予選' : 'レース'}
+      onChange={(value) => {
+        if (value === '練習走行') setSessionType('practice');
+        else if (value === '予選') setSessionType('qualifying');
+        else if (value === 'レース') setSessionType('race');
+      }}
+      className="w-full"
+      disabled={isViewMode}
+      options={[
+        { value: '練習走行' },
+        { value: '予選' },
+        { value: 'レース' }
+      ]}
+    />
+  </div>
+</div>
+{/* アクションボタン行 */}
+<div className="mt-3 flex flex-wrap justify-end gap-2">
+  {isViewMode ? (
+    <>
+      <button
+        className="flex items-center bg-green-100 dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800 text-green-700 dark:text-green-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm"
+        onClick={() => setIsViewMode(false)}
+      >
+        <i className="fas fa-edit mr-1 sm:mr-2"></i>
+        編集
+      </button>
+      <button
+        className="flex items-center bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm"
+        onClick={() => {
+          window.location.href = '/';
+        }}
+      >
+        <i className="fas fa-copy mr-1 sm:mr-2"></i>
+        <span className="hidden sm:inline">コピーして新規作成</span>
+        <span className="sm:hidden">コピー</span>
+      </button>
+    </>
+  ) : (
+    <button
+      onClick={handleInheritFromPrevious}
+      disabled={isInheriting}
+      title="同一車種の前回セットアップから、タイヤ銘柄・サスペンション・アライメントを引き継ぎます（空気圧の実測値・天候・ラップタイムは引き継ぎません）"
+      className={`flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm ${isInheriting ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+      {isInheriting ? (
+        <i className="fas fa-spinner fa-spin mr-2"></i>
+      ) : (
+        <i className="fas fa-bolt mr-2"></i>
+      )}
+      <span className="hidden sm:inline">前回のセットアップから引き継ぐ</span>
+      <span className="sm:hidden">引き継ぐ</span>
+    </button>
+  )}
 </div>
 {!isViewMode && (
   <div className="mt-2 text-xs text-gray-400 dark:text-gray-500">

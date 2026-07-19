@@ -56,6 +56,15 @@ export const PublicShareLanding: React.FC = () => {
     };
   }, [shareId]);
 
+  useEffect(() => {
+    if (!share) return;
+    const prev = document.title;
+    document.title = `${share.summary.circuit} のベストラップ | VELOCITY LOGGER`;
+    return () => {
+      document.title = prev;
+    };
+  }, [share]);
+
   const trackCta = () => {
     void trackEvent('public_share_cta_clicked', { shareId });
   };
@@ -108,7 +117,7 @@ export const PublicShareLanding: React.FC = () => {
           <div className="text-xs font-semibold uppercase tracking-[0.32em] text-blue-300">
             VELOCITY LOGGER
           </div>
-          <h1 className="mt-5 break-words text-4xl font-black leading-tight text-slate-50 sm:text-5xl">
+          <h1 className="mt-5 break-words text-2xl font-black leading-tight text-slate-50 sm:text-3xl lg:text-4xl xl:text-5xl">
             {summary.circuit}
           </h1>
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-400">
@@ -131,7 +140,22 @@ export const PublicShareLanding: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-8">
+          <ul className="mt-8 space-y-2 text-sm text-slate-400">
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0 text-blue-400">›</span>
+              タイヤ空気圧・サスセットアップを走行ごとに記録
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0 text-blue-400">›</span>
+              ラップタイムと改造履歴の推移を可視化
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0 text-blue-400">›</span>
+              スペックカードで愛車の仕様を共有
+            </li>
+          </ul>
+
+          <div className="mt-6">
             <Link
               to="/auth"
               onClick={trackCta}

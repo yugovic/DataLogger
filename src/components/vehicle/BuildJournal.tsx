@@ -437,37 +437,70 @@ const ModificationEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'mod' }
   </div>
 );
 
-const SessionEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'session' }> }> = ({ event }) => (
-  <div>
-    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-      <span className="inline-flex items-center gap-1">
-        <CalendarOutlined />
-        {formatDate(event.date)}
-      </span>
-      <span className="inline-flex items-center gap-1">
-        <EnvironmentOutlined />
-        {event.session.circuit}
-      </span>
-      {event.isCircuitBest && (
-        <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-          <TrophyOutlined />
-          ベスト更新
+const SessionEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'session' }> }> = ({ event }) => {
+  const navigate = useNavigate();
+  const setupId = event.session.setupId;
+  const canNavigate = setupId.length > 0;
+
+  const handleClick = () => {
+    if (canNavigate) navigate(`/setup/${setupId}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (canNavigate && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      navigate(`/setup/${setupId}`);
+    }
+  };
+
+  return (
+    <div
+      role={canNavigate ? 'button' : undefined}
+      tabIndex={canNavigate ? 0 : undefined}
+      onClick={canNavigate ? handleClick : undefined}
+      onKeyDown={canNavigate ? handleKeyDown : undefined}
+      className={canNavigate ? 'group cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-blue-500 hover:opacity-80 transition-opacity' : undefined}
+      aria-label={canNavigate ? `セットアップ詳細を開く（${event.session.circuit} ${formatDate(event.date)}）` : undefined}
+    >
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <span className="inline-flex items-center gap-1">
+          <CalendarOutlined />
+          {formatDate(event.date)}
         </span>
-      )}
+        <span className="inline-flex items-center gap-1">
+          <EnvironmentOutlined />
+          {event.session.circuit}
+        </span>
+        {event.isCircuitBest && (
+          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+            <TrophyOutlined />
+            ベスト更新
+          </span>
+        )}
+        {canNavigate && (
+          <span className="ml-auto inline-flex items-center gap-1 text-blue-500 opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 dark:text-blue-400 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100">
+            詳細 →
+          </span>
+        )}
+      </div>
+      <div className="mt-1 font-mono text-lg font-black tabular-nums text-slate-900 dark:text-slate-100">
+        {event.session.bestLapSeconds !== null ? formatLapSeconds(event.session.bestLapSeconds) : 'ベストラップ未入力'}
+      </div>
     </div>
-    <div className="mt-1 font-mono text-lg font-black tabular-nums text-slate-900 dark:text-slate-100">
-      {event.session.bestLapSeconds !== null ? formatLapSeconds(event.session.bestLapSeconds) : 'ベストラップ未入力'}
-    </div>
-  </div>
-);
+  );
+};
 
 const ImpactCard: React.FC<{
   impact: ModImpact;
   modification: ModificationEntry | undefined;
 }> = ({ impact, modification }) => (
   <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
-    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm font-bold text-slate-900 dark:text-slate-100">
-      <span>{modification?.partName ?? '改造'} 導入後、{impact.circuit}:</span>
+    {/* 主情報: パーツ名・サーキット */}
+    <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+      {modification?.partName ?? '改造'} 導入後、{impact.circuit}
+    </div>
+    {/* 主情報: 導入前後のベストラップ変化 */}
+    <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
       <span className="font-mono text-base font-black tabular-nums text-slate-900 dark:text-slate-100">
         {formatLapSeconds(impact.beforeBestSeconds)}
       </span>
@@ -475,15 +508,15 @@ const ImpactCard: React.FC<{
       <span className="font-mono text-base font-black tabular-nums text-slate-900 dark:text-slate-100">
         {formatLapSeconds(impact.afterBestSeconds)}
       </span>
-      <span className="text-slate-500 dark:text-slate-400">（</span>
-      <span className={`font-mono text-sm font-black tabular-nums ${impact.deltaSeconds < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+      <span className={`font-mono text-lg font-black tabular-nums ${impact.deltaSeconds < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
         {formatSignedSeconds(impact.deltaSeconds)}秒
       </span>
-      <span className="text-slate-500 dark:text-slate-400">）</span>
     </div>
+    {/* 従情報: 金額換算（参考） */}
     {impact.yenPerSecond !== null && (
-      <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-sm font-bold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+      <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
         <DollarOutlined />
+        <span className="text-blue-400 dark:text-blue-500">参考</span>
         約{formatYen(impact.yenPerSecond)}/秒
       </div>
     )}

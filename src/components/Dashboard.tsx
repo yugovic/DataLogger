@@ -71,9 +71,9 @@ const weatherIcon = (condition: string) => {
 
 const sessionLabel = (t: string) => {
   switch (t) {
-    case 'practice': return 'Practice';
-    case 'qualifying': return 'Qualifying';
-    case 'race': return 'Race';
+    case 'practice': return '練習走行';
+    case 'qualifying': return '予選';
+    case 'race': return 'レース';
     default: return t;
   }
 };
@@ -354,9 +354,9 @@ export const Dashboard: React.FC = () => {
         label: { show: false },
         emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
         data: [
-          { value: practice, name: 'Practice', itemStyle: { color: '#10b981' } },
-          { value: qualifying, name: 'Qualifying', itemStyle: { color: '#8b5cf6' } },
-          { value: race, name: 'Race', itemStyle: { color: '#ef4444' } },
+          { value: practice, name: '練習走行', itemStyle: { color: '#10b981' } },
+          { value: qualifying, name: '予選', itemStyle: { color: '#8b5cf6' } },
+          { value: race, name: 'レース', itemStyle: { color: '#ef4444' } },
         ].filter(d => d.value > 0),
       }],
     };
@@ -586,23 +586,23 @@ export const Dashboard: React.FC = () => {
         {stats && (
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div className={headingClass}>Latest Session</div>
+              <div className={headingClass}>最終走行</div>
               <div className="mt-2 truncate text-sm font-bold text-slate-900 dark:text-white">
                 {stats.recentSessions[0]?.circuit || '未記録'}
               </div>
             </div>
             <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div className={headingClass}>Cars</div>
+              <div className={headingClass}>登録車両</div>
               <div className="mt-2 font-mono text-lg font-black text-slate-900 dark:text-white">{stats.cars.length}</div>
             </div>
             <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div className={headingClass}>Best Venue</div>
+              <div className={headingClass}>ベスト会場</div>
               <div className="mt-2 truncate text-sm font-bold text-slate-900 dark:text-white">{stats.overallBest?.circuit || '記録なし'}</div>
             </div>
             <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div className={headingClass}>Data Depth</div>
+              <div className={headingClass}>データ蓄積</div>
               <div className="mt-2 font-mono text-lg font-black text-slate-900 dark:text-white">
-                {stats.totalSessions > 0 ? `${Math.round(stats.totalLaps / stats.totalSessions)}` : '0'} <span className="text-xs font-bold text-slate-500">laps/session</span>
+                {stats.totalSessions > 0 ? `${Math.round(stats.totalLaps / stats.totalSessions)}` : '0'} <span className="text-xs font-bold text-slate-500">周/回</span>
               </div>
             </div>
           </div>
@@ -689,12 +689,18 @@ export const Dashboard: React.FC = () => {
                       <RiseOutlined className="text-emerald-500" />
                       <span className={headingClass}>成長タイムライン</span>
                     </div>
-                    <label className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                    <label className="mt-2 flex items-start gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                       <Checkbox
                         checked={includePublicLinkInGrowthShare}
                         onChange={(event) => setIncludePublicLinkInGrowthShare(event.target.checked)}
+                        className="mt-0.5 shrink-0"
                       />
-                      公開リンクを発行して画像に含める
+                      <span>
+                        公開リンクを発行して画像に含める
+                        <span className="mt-0.5 block font-normal text-slate-400 dark:text-slate-500">
+                          発行すると誰でも閲覧できる公開ページが作られます。履歴ページの「公開リンク管理」からいつでも削除できます。
+                        </span>
+                      </span>
                     </label>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -755,7 +761,7 @@ export const Dashboard: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 gap-4 mb-4 sm:grid-cols-3">
                   {(() => {
                     const trend = stats.lapTrend;
                     const first = trend[0];
@@ -824,13 +830,13 @@ export const Dashboard: React.FC = () => {
                   <div ref={sessionDistRef} className="w-full h-48" />
                   <div className="flex justify-center gap-4 mt-2">
                     {stats.sessionTypes.practice > 0 && (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400">Practice {stats.sessionTypes.practice}</span>
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400">練習走行 {stats.sessionTypes.practice}</span>
                     )}
                     {stats.sessionTypes.qualifying > 0 && (
-                      <span className="text-xs text-violet-600 dark:text-violet-400">Qualifying {stats.sessionTypes.qualifying}</span>
+                      <span className="text-xs text-violet-600 dark:text-violet-400">予選 {stats.sessionTypes.qualifying}</span>
                     )}
                     {stats.sessionTypes.race > 0 && (
-                      <span className="text-xs text-red-600 dark:text-red-400">Race {stats.sessionTypes.race}</span>
+                      <span className="text-xs text-red-600 dark:text-red-400">レース {stats.sessionTypes.race}</span>
                     )}
                   </div>
                 </div>

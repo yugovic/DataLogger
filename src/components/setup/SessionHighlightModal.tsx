@@ -5,8 +5,8 @@
 // null 保存原則: bestLap がない走行ではこのモーダル自体を表示しない。
 
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, message } from 'antd';
-import { DownloadOutlined, ShareAltOutlined, LinkOutlined } from '@ant-design/icons';
+import { Modal, Button, Checkbox, message } from 'antd';
+import { DownloadOutlined, ShareAltOutlined } from '@ant-design/icons';
 import type { SessionHighlight } from '../../lib/sessionHighlights';
 import { HIGHLIGHT_BADGE_LABELS } from '../../lib/sessionHighlights';
 import { generateHighlightImage } from '../../utils/shareImage';
@@ -39,8 +39,21 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
   highlight,
   savedSetup,
 }) => {
+  const webShareSupported = typeof navigator !== 'undefined' && 'share' in navigator;
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [activeAction, setActiveAction] = useState<'share' | 'download' | null>(null);
+  const [includePublicLink, setIncludePublicLink] = useState(false);
+  // 一度発行した shareId を保持し、チェックONのまま再操作しても二重発行しない
+  const [cachedShareId, setCachedShareId] = useState<string | null>(null);
+
+  // モーダルが閉じたらキャッシュをリセット
+  useEffect(() => {
+    if (!open) {
+      setCachedShareId(null);
+      setIncludePublicLink(false);
+    }
+  }, [open]);
 
   // モーダル表示の計測（開いたときに1回だけ発火）
   useEffect(() => {
@@ -65,11 +78,31 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
     shareUrl,
   });
 
+  /**
+   * 公開リンクを取得する（既に発行済みなら cachedShareId を再利用）。
+   * URL を返す。
+   */
+  const resolveShareUrl = async (): Promise<string> => {
+    const shareId = cachedShareId ?? await createPublicShare(savedSetup);
+    if (!cachedShareId) {
+      setCachedShareId(shareId);
+    }
+    return `${window.location.origin}/s/${shareId}`;
+  };
+
   // ── 画像を保存（ダウンロード） ───────────────────────────
   const handleDownload = async () => {
     setIsGenerating(true);
+    setActiveAction('download');
     try {
-      const blob = await generateHighlightImage(buildImageData());
+      let shareUrl: string | undefined;
+      if (includePublicLink) {
+        setIsPublishing(true);
+        shareUrl = await resolveShareUrl();
+        setIsPublishing(false);
+      }
+
+      const blob = await generateHighlightImage(buildImageData(shareUrl));
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -78,11 +111,26 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+
       void trackEvent('session_highlight_image_saved', { circuit: highlight.circuit });
+      if (shareUrl) {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          message.success('公開リンクをコピーしました（URLが画像に焼き込まれています）', 4);
+        } catch {
+          message.success(`公開リンクを発行しました: ${shareUrl}`, 5);
+        }
+        void trackEvent('session_highlight_shared', {
+          circuit: highlight.circuit,
+          method: 'public_link',
+        });
+      }
     } catch {
       message.error('画像の生成に失敗しました');
+      setIsPublishing(false);
     } finally {
       setIsGenerating(false);
+      setActiveAction(null);
     }
   };
 
@@ -93,8 +141,16 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
       return;
     }
     setIsGenerating(true);
+    setActiveAction('share');
     try {
-      const blob = await generateHighlightImage(buildImageData());
+      let shareUrl: string | undefined;
+      if (includePublicLink) {
+        setIsPublishing(true);
+        shareUrl = await resolveShareUrl();
+        setIsPublishing(false);
+      }
+
+      const blob = await generateHighlightImage(buildImageData(shareUrl));
       const file = new File([blob], 'velocity-logger-highlight.png', { type: 'image/png' });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -106,7 +162,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
           });
           void trackEvent('session_highlight_shared', {
             circuit: highlight.circuit,
-            method: 'web_share',
+            method: includePublicLink ? 'public_link' : 'web_share',
           });
         } catch (error) {
           // ユーザーがキャンセルした場合は何もしない
@@ -125,47 +181,14 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
       }
     } catch {
       message.error('共有に失敗しました');
+      setIsPublishing(false);
     } finally {
       setIsGenerating(false);
+      setActiveAction(null);
     }
   };
 
-  // ── 公開リンクを発行してURL入り画像を生成 ────────────────
-  const handlePublishAndShare = async () => {
-    setIsPublishing(true);
-    try {
-      // WP-5 の createPublicShare を再利用（既存リンクがあれば同一 ID を返す）
-      const shareId = await createPublicShare(savedSetup);
-      const shareUrl = `${window.location.origin}/share/${shareId}`;
-
-      const blob = await generateHighlightImage(buildImageData(shareUrl));
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `velocity-logger-highlight-${highlight.circuit}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-      // URLをクリップボードにもコピー
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        message.success('公開リンクをコピーしました（URLが画像に焼き込まれています）', 4);
-      } catch {
-        message.success(`公開リンクを発行しました: ${shareUrl}`, 5);
-      }
-
-      void trackEvent('session_highlight_shared', {
-        circuit: highlight.circuit,
-        method: 'public_link',
-      });
-    } catch {
-      message.error('公開リンクの発行に失敗しました');
-    } finally {
-      setIsPublishing(false);
-    }
-  };
+  const isBusy = isGenerating || isPublishing;
 
   return (
     <Modal
@@ -173,7 +196,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
       onCancel={onClose}
       title={null}
       footer={null}
-      width={560}
+      width="min(560px, 92vw)"
       className="session-highlight-modal"
       centered
     >
@@ -195,7 +218,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
 
         {/* ベストラップ（最大表示） */}
         <div className="mb-4">
-          <p className="text-4xl font-bold text-emerald-400 dark:text-emerald-400 font-mono">
+          <p className="text-4xl font-bold text-emerald-400 dark:text-emerald-400 font-mono break-all">
             {highlight.bestLap}
           </p>
           <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">BEST LAP</p>
@@ -223,25 +246,30 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
         )}
       </div>
 
-      {/* アクションボタン */}
-      <div className="mt-5 flex flex-col gap-3">
-        <Button
-          icon={<DownloadOutlined />}
-          onClick={handleDownload}
-          loading={isGenerating && !isPublishing}
-          disabled={isPublishing}
-          className="w-full"
-          size="large"
-        >
-          画像を保存
-        </Button>
+      {/* 公開リンクオプション */}
+      <div className="mt-4">
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+          <Checkbox
+            checked={includePublicLink}
+            onChange={(e) => setIncludePublicLink(e.target.checked)}
+            disabled={isBusy}
+          />
+          公開リンクを発行して画像に含める
+        </label>
+        <p className="mt-1 ml-6 text-xs text-slate-500 dark:text-slate-400">
+          発行すると、このセッションの概要ページを誰でも閲覧できるようになります
+        </p>
+      </div>
 
-        {typeof navigator !== 'undefined' && 'share' in navigator && (
+      {/* アクションボタン */}
+      <div className="mt-4 flex flex-col gap-3">
+        {webShareSupported && (
           <Button
+            type="primary"
             icon={<ShareAltOutlined />}
             onClick={handleShare}
-            loading={isGenerating && !isPublishing}
-            disabled={isPublishing}
+            loading={isBusy && activeAction === 'share'}
+            disabled={isBusy}
             className="w-full"
             size="large"
           >
@@ -250,15 +278,15 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
         )}
 
         <Button
-          type="primary"
-          icon={<LinkOutlined />}
-          onClick={handlePublishAndShare}
-          loading={isPublishing}
-          disabled={isGenerating && !isPublishing}
+          type={webShareSupported ? undefined : 'primary'}
+          icon={<DownloadOutlined />}
+          onClick={handleDownload}
+          loading={isBusy && activeAction === 'download'}
+          disabled={isBusy}
           className="w-full"
           size="large"
         >
-          公開リンクを発行して共有
+          画像を保存
         </Button>
 
         <Button

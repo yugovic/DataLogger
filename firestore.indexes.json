@@ -12,7 +12,8 @@
           "fieldPath": "date",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "setups",
@@ -30,7 +31,8 @@
           "fieldPath": "date",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "setups",
@@ -44,7 +46,8 @@
           "fieldPath": "date",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "setups",
@@ -62,7 +65,8 @@
           "fieldPath": "date",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "setups",
@@ -80,7 +84,8 @@
           "fieldPath": "date",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "setups",
@@ -102,7 +107,8 @@
           "fieldPath": "date",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "vehicles",
@@ -116,7 +122,8 @@
           "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     }
   ],
   "fieldOverrides": []
