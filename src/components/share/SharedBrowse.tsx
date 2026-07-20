@@ -11,7 +11,7 @@ import { Spin, Empty, Select, Button, message } from 'antd';
 import { LoadingOutlined, TeamOutlined, ShareAltOutlined, FilterOutlined, CloseOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserProfile } from '../../services/profileService';
+import { hasSharingEntitlement, recomputeSharingActive } from '../../services/profileService';
 import { getSharedSetups } from '../../services/setupService';
 import { CarSetup } from '../../types/setup';
 import { Header } from '../common/Header';
@@ -45,9 +45,14 @@ export const SharedBrowse: React.FC = () => {
       if (!currentUser) return;
       setGateLoading(true);
       try {
-        const profile = await getUserProfile(currentUser.uid);
-        setSharingActive(profile.sharingActive);
-        if (profile.sharingActive) {
+        // 旧sharingActive方式からの移行: entitlementがまだ無い既存ユーザーは、
+        // 本人のsharedセットアップ実体から安全に再生成する。
+        const existingEntitlement = await hasSharingEntitlement(currentUser.uid);
+        const entitled = existingEntitlement
+          ? true
+          : await recomputeSharingActive(currentUser.uid);
+        setSharingActive(entitled);
+        if (entitled) {
           // 選択肢生成のため一度だけ無フィルタで取得
           const all = await getSharedSetups(currentUser.uid, {}, 60);
           setAllShared(all);

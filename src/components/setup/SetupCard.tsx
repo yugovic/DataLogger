@@ -1,12 +1,18 @@
 import React from 'react';
-import { Card, Tag, Tooltip, Checkbox } from 'antd';
-import { CalendarOutlined, CarOutlined, EnvironmentOutlined, EditOutlined, CopyOutlined, SwapOutlined, UserOutlined, DashboardOutlined } from '@ant-design/icons';
+import { Card, Tag, Tooltip, Checkbox, Modal, message } from 'antd';
+import { CalendarOutlined, CarOutlined, EnvironmentOutlined, EditOutlined, CopyOutlined, SwapOutlined, UserOutlined, DashboardOutlined, DeleteOutlined } from '@ant-design/icons';
 import { CarSetup } from '../../types/setup';
-import { pressureSummary } from '../../lib/setupFields';
+import { displayValue, pressureSummary } from '../../lib/setupFields';
+import { buildCopyPath } from '../../lib/setupNavigation';
 import { ShareToggle } from '../share/ShareToggle';
 import { SharedBadge, AnonymizedBadge, LoggerEvidenceBadge } from '../share/ShareBadges';
 import { PublicShareButton } from '../share/PublicShareButton';
 import { isShared, hasLoggerEvidence } from '../share/shareUtils';
+import { deleteSetup } from '../../services/setupService';
+import { normalizeWeather } from '../../lib/weather';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext';
+import { formatDateTime } from '../../i18n/formatters';
 
 interface SetupCardProps {
   setup: CarSetup;
@@ -24,6 +30,8 @@ interface SetupCardProps {
   shareable?: boolean;
   /** 共有状態が変わったときに親へ通知（一覧のローカル更新用） */
   onVisibilityChanged?: (id: string, next: { visibility: 'private' | 'shared'; anonymized: boolean }) => void;
+  /** 削除成功時に親へ通知（一覧からカードを消すため） */
+  onDeleted?: (id: string) => void;
 }
 
 export const SetupCard: React.FC<SetupCardProps> = ({
@@ -35,52 +43,74 @@ export const SetupCard: React.FC<SetupCardProps> = ({
   hasPrevious = false,
   shareable = false,
   onVisibilityChanged,
+  onDeleted,
 }) => {
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const { t } = useTranslation();
+  const { locale } = useLocale();
 
   const getSessionTypeLabel = (type: string) => {
     switch (type) {
       case 'practice':
-        return { label: '練習走行', color: 'blue' };
+        return { label: t('common.sessionType.practice'), color: 'blue' };
       case 'qualifying':
-        return { label: '予選', color: 'orange' };
+        return { label: t('common.sessionType.qualifying'), color: 'orange' };
       case 'race':
-        return { label: 'レース', color: 'red' };
+        return { label: t('common.sessionType.race'), color: 'red' };
       default:
-        return { label: '不明', color: 'default' };
+        return { label: t('common.sessionType.unknown'), color: 'default' };
     }
   };
 
   const getWeatherIcon = (condition: string) => {
-    switch (condition) {
-      case '晴れ':
+    switch (normalizeWeather(condition)) {
+      case 'sunny':
         return '☀️';
-      case '曇り':
+      case 'cloudy':
         return '☁️';
-      case '雨':
+      case 'wet':
         return '🌧️';
-      case 'ウェット':
-        return '🌧️';
-      case 'フルウェット':
+      case 'full_wet':
         return '⛈️';
       default:
         return '🌤️';
     }
   };
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!setup.id) return;
+    const shared = isShared(setup);
+    Modal.confirm({
+      title: t('history.card.delete.title'),
+      content: (
+        <div>
+          <p>{t('history.card.delete.content')}</p>
+          {shared && <p className="text-red-500">{t('history.card.delete.shared')}</p>}
+        </div>
+      ),
+      okText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteSetup(setup.id as string);
+          message.success(t('history.card.delete.success'));
+          onDeleted?.(setup.id as string);
+        } catch {
+          message.error(t('history.card.delete.error'));
+        }
+      },
+    });
+  };
+
   const sessionType = getSessionTypeLabel(setup.sessionType);
+  const recordedAdjustments = (setup.adjustmentValues ?? []).filter(
+    (entry) => entry.value !== null && entry.value !== '',
+  );
   const knowledgeItems = [
-    { label: '意図', value: setup.knowledge?.intention },
-    { label: '結果', value: setup.knowledge?.result },
-    { label: '学び', value: setup.knowledge?.learning }
+    { label: t('history.card.knowledge.intention'), value: setup.knowledge?.intention },
+    { label: t('history.card.knowledge.result'), value: setup.knowledge?.result },
+    { label: t('history.card.knowledge.learning'), value: setup.knowledge?.learning }
   ]
     .map((item) => ({ ...item, value: item.value?.trim() }))
     .filter((item) => item.value);
@@ -110,7 +140,7 @@ export const SetupCard: React.FC<SetupCardProps> = ({
             <div>
               <div className="flex items-center text-gray-600 dark:text-gray-400 mb-1">
                 <CalendarOutlined className="mr-2" />
-                <span className="text-sm dark:text-gray-300">{formatDate(setup.date)}</span>
+                <span className="text-sm dark:text-gray-300">{formatDateTime(setup.date, locale)}</span>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <Tag color={sessionType.color} className="!mr-0">{sessionType.label}</Tag>
@@ -131,7 +161,7 @@ export const SetupCard: React.FC<SetupCardProps> = ({
               </>
             )}
             {hasPrevious && setup.id && (
-              <Tooltip title="前回と比較">
+              <Tooltip title={t('history.card.actions.comparePrevious')}>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -143,7 +173,7 @@ export const SetupCard: React.FC<SetupCardProps> = ({
                 </button>
               </Tooltip>
             )}
-            <Tooltip title="編集">
+            <Tooltip title={t('common.edit')}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -154,17 +184,27 @@ export const SetupCard: React.FC<SetupCardProps> = ({
                 <EditOutlined style={{ fontSize: '16px' }} />
               </button>
             </Tooltip>
-            <Tooltip title="コピーして新規作成">
+            <Tooltip title={t('history.card.actions.copy')}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.location.href = `/?copy=${setup.id}`;
+                  window.location.href = buildCopyPath(setup.id as string);
                 }}
                 className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-md transition-colors"
               >
                 <CopyOutlined style={{ fontSize: '16px' }} />
               </button>
             </Tooltip>
+            <div className="ml-1 pl-1 border-l border-gray-200 dark:border-gray-700">
+              <Tooltip title={t('common.delete')}>
+                <button
+                  onClick={handleDelete}
+                  className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors"
+                >
+                  <DeleteOutlined style={{ fontSize: '16px' }} />
+                </button>
+              </Tooltip>
+            </div>
           </div>
         </div>
 
@@ -196,8 +236,23 @@ export const SetupCard: React.FC<SetupCardProps> = ({
         {/* 主要数値サマリー: 温間後空気圧範囲（kPa） */}
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/60 px-3 py-1.5 rounded-md">
           <DashboardOutlined className="mr-2" />
-          <span>温間後 {pressureSummary(setup)} kPa</span>
+          <span>{t('history.card.hotPressure', { value: pressureSummary(setup) })}</span>
         </div>
+
+        {recordedAdjustments.length > 0 && (
+          <div className="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-700/60 dark:text-gray-300">
+            <span className="mr-2 font-semibold">{t('history.card.setup')}</span>
+            {recordedAdjustments.slice(0, 3).map((entry, index) => (
+              <span key={entry.definitionId}>
+                {index > 0 ? ' / ' : ''}
+                {entry.label} {displayValue(entry.value, entry.unit)}
+              </span>
+            ))}
+            {recordedAdjustments.length > 3 && (
+              <span className="ml-2 text-gray-400">{t('history.card.moreItems', { count: recordedAdjustments.length - 3 })}</span>
+            )}
+          </div>
+        )}
 
         {/* コンディション情報 */}
         <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-md">
@@ -208,13 +263,14 @@ export const SetupCard: React.FC<SetupCardProps> = ({
             </span>
           </div>
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            {setup.tireInfo.brand || '—'} {setup.tireInfo.compound || ''}
+            {setup.tireInfo.tireSetCode ? `${setup.tireInfo.tireSetCode} / ` : ''}
+            {setup.tireInfo.productName || setup.tireInfo.brand || '—'} {setup.tireInfo.compound || ''}
           </span>
         </div>
 
         {knowledgeItems.length > 0 && (
           <div className="border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
-            <div className="text-[10px] uppercase tracking-[0.4em] text-gray-400 dark:text-gray-500 mb-2">知見メモ</div>
+            <div className="text-[10px] uppercase tracking-[0.4em] text-gray-400 dark:text-gray-500 mb-2">{t('history.card.knowledge.title')}</div>
             <div className="space-y-2">
               {knowledgeItems.map((item) => (
                 <div key={item.label} className="flex items-start gap-2">

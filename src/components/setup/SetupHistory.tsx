@@ -11,9 +11,11 @@ import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { setupsToCsv, csvFileName, downloadCsv } from '../../lib/csv';
 import logger from '../../utils/logger';
+import { useTranslation } from 'react-i18next';
 
 export const SetupHistory: React.FC = () => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [setups, setSetups] = useState<CarSetup[]>([]);
@@ -52,8 +54,7 @@ export const SetupHistory: React.FC = () => {
       } catch (error: any) {
         console.error('Error fetching setups:', error);
         const errorMessage = error?.code === 'permission-denied' 
-          ? 'アクセス権限がありません。再度ログインしてください' 
-          : `履歴データの取得に失敗しました: ${error?.message || 'エラーが発生しました'}`;
+          ? t('history.errors.permission') : t('history.errors.load');
         message.error(errorMessage);
       } finally {
         setLoading(false);
@@ -61,7 +62,7 @@ export const SetupHistory: React.FC = () => {
     };
 
     fetchSetups();
-  }, [currentUser]);
+  }, [currentUser, t]);
 
   // フィルター変更時にURL/ローカルへ保存
   useEffect(() => {
@@ -188,7 +189,7 @@ export const SetupHistory: React.FC = () => {
   const handleCompareWithPrevious = (id: string) => {
     const prevId = previousIdByCurrent.get(id);
     if (!prevId) {
-      message.info('比較できる前回の同一車種データがありません');
+      message.info(t('history.errors.noPrevious'));
       return;
     }
     // a = 前回（古い） / b = 今回（新しい）
@@ -240,19 +241,25 @@ export const SetupHistory: React.FC = () => {
     );
   };
 
+  // 削除成功時の一覧ローカル更新（再フェッチ不要）
+  const handleDeleted = (id: string) => {
+    setSetups((prev) => prev.filter((s) => s.id !== id));
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
+  };
+
   // CSVエクスポート（現在のフィルタ結果を出力）
   const handleExportCsv = () => {
     if (filteredSetups.length === 0) {
-      message.warning('出力するデータがありません');
+      message.warning(t('history.csv.empty'));
       return;
     }
     try {
       const csv = setupsToCsv(filteredSetups);
       downloadCsv(csv, csvFileName());
-      message.success(`${filteredSetups.length}件をCSVに出力しました`);
+      message.success(t('history.csv.success', { count: filteredSetups.length }));
     } catch (error) {
       logger.error('CSV export error:', error);
-      message.error('CSV出力に失敗しました');
+      message.error(t('history.csv.error'));
     }
   };
 
@@ -277,8 +284,8 @@ export const SetupHistory: React.FC = () => {
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">走行履歴</h2>
-            <p className="text-gray-600 dark:text-gray-400">過去の走行データとセットアップ情報を確認できます</p>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">{t('history.title')}</h2>
+            <p className="text-gray-600 dark:text-gray-400">{t('history.description')}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -286,13 +293,13 @@ export const SetupHistory: React.FC = () => {
               type={compareMode ? 'primary' : 'default'}
               onClick={toggleCompareMode}
             >
-              {compareMode ? '比較を終了' : 'カードを選んで比較'}
+              {t(compareMode ? 'history.compare.end' : 'history.compare.select')}
             </Button>
             <Button icon={<DownloadOutlined />} onClick={handleExportCsv}>
-              CSVエクスポート
+              {t('history.csv.action')}
             </Button>
             <Button icon={<TeamOutlined />} onClick={() => navigate('/shared')}>
-              みんなの共有データ
+              {t('history.shared')}
             </Button>
           </div>
         </div>
@@ -301,14 +308,14 @@ export const SetupHistory: React.FC = () => {
         {compareMode && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
             <span className="text-sm text-blue-700 dark:text-blue-300">
-              比較する2枚のカードを選択してください（{selectedIds.length}/2）
+              {t('history.compare.instruction', { count: selectedIds.length })}
             </span>
             <Button
               type="primary"
               disabled={selectedIds.length !== 2}
               onClick={handleCompareSelected}
             >
-              選択した2件を比較する
+              {t('history.compare.action')}
             </Button>
           </div>
         )}
@@ -319,7 +326,7 @@ export const SetupHistory: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
           <div className="flex items-center mb-4">
             <FilterOutlined className="mr-2 text-gray-600 dark:text-gray-400" />
-            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">フィルター</h3>
+            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('history.filters.title')}</h3>
             {hasActiveFilters && (
               <Button
                 size="small"
@@ -328,20 +335,20 @@ export const SetupHistory: React.FC = () => {
                 onClick={clearFilters}
                 className="ml-auto"
               >
-                クリア
+                {t('history.filters.clear')}
               </Button>
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">年月</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('history.filters.month')}</label>
               <DatePicker
                 picker="month"
                 value={filterMonth}
                 onChange={setFilterMonth}
-                placeholder="年月を選択"
+                placeholder={t('history.filters.monthPlaceholder')}
                 className="w-full"
-                format="YYYY年MM月"
+                format={t('history.filters.monthFormat')}
                 cellRender={(date, info) => {
                   if (info.type !== 'month') return info.originNode;
                   const monthKey = dayjs(date).format('YYYY-MM');
@@ -356,25 +363,25 @@ export const SetupHistory: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">セッションタイプ</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('history.filters.session')}</label>
               <Select
                 value={filterSessionType}
                 onChange={setFilterSessionType}
-                placeholder="選択してください"
+                placeholder={t('common.select')}
                 className="w-full"
                 allowClear
               >
-                <Select.Option value="practice">練習走行 ({sessionTypeCounts.practice})</Select.Option>
-                <Select.Option value="qualifying">予選 ({sessionTypeCounts.qualifying})</Select.Option>
-                <Select.Option value="race">レース ({sessionTypeCounts.race})</Select.Option>
+                <Select.Option value="practice">{t('common.sessionType.practice')} ({sessionTypeCounts.practice})</Select.Option>
+                <Select.Option value="qualifying">{t('common.sessionType.qualifying')} ({sessionTypeCounts.qualifying})</Select.Option>
+                <Select.Option value="race">{t('common.sessionType.race')} ({sessionTypeCounts.race})</Select.Option>
               </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">サーキット</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.circuit')}</label>
               <Select
                 value={filterCircuit}
                 onChange={setFilterCircuit}
-                placeholder="選択してください"
+                placeholder={t('common.select')}
                 className="w-full"
                 allowClear
                 showSearch
@@ -387,11 +394,11 @@ export const SetupHistory: React.FC = () => {
               </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">車種</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('history.filters.vehicle')}</label>
               <Select
                 value={filterCarModel}
                 onChange={setFilterCarModel}
-                placeholder="選択してください"
+                placeholder={t('common.select')}
                 className="w-full"
                 allowClear
                 showSearch
@@ -412,9 +419,9 @@ export const SetupHistory: React.FC = () => {
               description={
                 <span className="text-gray-500 dark:text-gray-400">
                   {setups.length === 0 ? (
-                    <>まだ走行データがありません<br />新しいセットアップを記録してください</>
+                    <>{t('history.empty.noData')}<br />{t('history.empty.create')}</>
                   ) : (
-                    <>条件に一致するデータが見つかりません<br />フィルター条件を変更してください</>
+                    <>{t('history.empty.noMatch')}<br />{t('history.empty.changeFilters')}</>
                   )}
                 </span>
               }
@@ -423,8 +430,8 @@ export const SetupHistory: React.FC = () => {
         ) : (
           <>
             <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              {filteredSetups.length}件のデータ
-              {hasActiveFilters && ` （全{setups.length}件中）`}
+              {t('history.resultCount', { count: filteredSetups.length })}
+              {hasActiveFilters && t('history.totalCount', { count: setups.length })}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSetups.map((setup) => (
@@ -438,6 +445,7 @@ export const SetupHistory: React.FC = () => {
                   hasPrevious={setup.id ? previousIdByCurrent.has(setup.id) : false}
                   shareable={!compareMode}
                   onVisibilityChanged={handleVisibilityChanged}
+                  onDeleted={handleDeleted}
                 />
               ))}
             </div>

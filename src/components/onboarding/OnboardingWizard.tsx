@@ -15,11 +15,14 @@ import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { getUserSetups } from '../../services/setupService';
 import { getUserVehicles } from '../../services/vehicleService';
+import { useTranslation } from 'react-i18next';
+import { trackEvent } from '../../lib/analytics';
 
 type Step = 0 | 1 | 2 | 3;
 
 export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>(0);
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +47,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
   const handleSaveVehicle = async (): Promise<boolean> => {
     if (!currentUser) return false;
     if (!make || !model) {
-      message.warning('メーカーとモデルを入力してください');
+      message.warning(t('onboarding.errors.makeModelRequired'));
       return false;
     }
     try {
@@ -59,7 +62,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
       });
       return true;
     } catch (_e) {
-      message.error('車両の保存に失敗しました');
+      message.error(t('onboarding.errors.vehicleSave'));
       return false;
     } finally {
       setLoading(false);
@@ -92,10 +95,11 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
         },
         { merge: true },
       );
-      message.success('オンボーディングが完了しました');
+      message.success(t('onboarding.completed'));
+      void trackEvent('onboarding_completed', { skipped: false });
       onComplete();
     } catch (_e) {
-      message.error('保存に失敗しました。もう一度お試しください');
+      message.error(t('onboarding.errors.save'));
     } finally {
       setLoading(false);
     }
@@ -112,6 +116,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
     } catch (_e) {
       // silent
     }
+    void trackEvent('onboarding_completed', { skipped: true });
     onComplete();
   };
 
@@ -132,11 +137,11 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-950 dark:text-white">VELOCITY LOGGER</h2>
-              <div className="text-[10px] font-bold tracking-[0.24em] text-blue-600 dark:text-blue-400">セットアップへようこそ</div>
+              <div className="text-[10px] font-bold tracking-[0.24em] text-blue-600 dark:text-blue-400">{t('onboarding.welcome')}</div>
             </div>
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
-            3ステップで初期設定を完了しましょう。スキップも可能です。
+            {t('onboarding.intro')}
           </p>
         </div>
 
@@ -157,9 +162,9 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             ))}
           </div>
           <div className="mt-2 flex justify-between text-[10px] font-bold text-slate-400">
-            <span className={step >= 0 ? 'text-blue-600 dark:text-blue-400' : ''}>車両登録</span>
-            <span className={step >= 1 ? 'text-blue-600 dark:text-blue-400' : ''}>ホームサーキット</span>
-            <span className={step >= 2 ? 'text-blue-600 dark:text-blue-400' : ''}>目標設定</span>
+            <span className={step >= 0 ? 'text-blue-600 dark:text-blue-400' : ''}>{t('onboarding.progress.vehicle')}</span>
+            <span className={step >= 1 ? 'text-blue-600 dark:text-blue-400' : ''}>{t('onboarding.progress.circuit')}</span>
+            <span className={step >= 2 ? 'text-blue-600 dark:text-blue-400' : ''}>{t('onboarding.progress.goal')}</span>
           </div>
         </div>
 
@@ -169,14 +174,14 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <CarOutlined className="text-blue-500" />
-                <span className={headingClass}>Step 1: 車両登録</span>
+                <span className={headingClass}>{t('onboarding.vehicle.title')}</span>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                走行する車両を登録してください。後で追加・編集できます。
+                {t('onboarding.vehicle.description')}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">メーカー</label>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">{t('onboarding.vehicle.make')}</label>
                   <Input
                     placeholder="Honda, Toyota..."
                     value={make}
@@ -185,7 +190,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">モデル</label>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">{t('onboarding.vehicle.model')}</label>
                   <Input
                     placeholder="S2000, GR86..."
                     value={model}
@@ -194,7 +199,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">年式</label>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">{t('onboarding.vehicle.year')}</label>
                   <Input
                     placeholder="2005"
                     value={year}
@@ -203,7 +208,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">駆動方式</label>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">{t('onboarding.vehicle.drivetrain')}</label>
                   <Select
                     placeholder="FR, FF, AWD..."
                     value={drivetrain || undefined}
@@ -227,13 +232,13 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <EnvironmentOutlined className="text-blue-500" />
-                <span className={headingClass}>Step 2: ホームサーキット</span>
+                <span className={headingClass}>{t('onboarding.circuit.title')}</span>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                よく走るサーキットを選択してください。ダッシュボードの初期表示に使用します。
+                {t('onboarding.circuit.description')}
               </p>
               <Select
-                placeholder="サーキットを選択"
+                placeholder={t('onboarding.circuit.placeholder')}
                 value={homeCircuit}
                 onChange={setHomeCircuit}
                 size="large"
@@ -250,16 +255,16 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <AimOutlined className="text-blue-500" />
-                <span className={headingClass}>Step 3: 目標設定</span>
+                <span className={headingClass}>{t('onboarding.goal.title')}</span>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                このシーズンの目標を選択してください。
+                {t('onboarding.goal.description')}
               </p>
               <div className="space-y-2">
                 {[
-                  { value: 'record', label: 'まずは記録を始める', desc: '走行データを蓄積して傾向を把握したい' },
-                  { value: 'laptime', label: 'ベストラップ更新', desc: 'タイムアタックで自己ベストを更新したい' },
-                  { value: 'consistency', label: 'ラップの一貫性向上', desc: 'ばらつきを減らして安定したラップを出したい' },
+                  { value: 'record', label: t('onboarding.goal.options.record.label'), desc: t('onboarding.goal.options.record.description') },
+                  { value: 'laptime', label: t('onboarding.goal.options.laptime.label'), desc: t('onboarding.goal.options.laptime.description') },
+                  { value: 'consistency', label: t('onboarding.goal.options.consistency.label'), desc: t('onboarding.goal.options.consistency.description') },
                 ].map((opt) => (
                   <button
                     key={opt.value}
@@ -284,7 +289,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
               </div>
               {goalType === 'laptime' && (
                 <div className="pt-2">
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">目標ラップタイム</label>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">{t('onboarding.goal.targetLapTime')}</label>
                   <Input
                     placeholder="1:23.456"
                     value={targetLapTime}
@@ -299,9 +304,9 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
           {step === 3 && (
             <div className="text-center py-8 space-y-4">
               <CheckCircleOutlined className="text-5xl text-emerald-500" />
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">準備完了！</h3>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">{t('onboarding.ready.title')}</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 max-w-sm mx-auto">
-                最初のセットアップを記録して、走行データの蓄積を始めましょう。
+                {t('onboarding.ready.description')}
               </p>
             </div>
           )}
@@ -313,7 +318,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             onClick={handleSkip}
             className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
           >
-            スキップ
+            {t('onboarding.actions.skip')}
           </button>
           <div className="flex items-center gap-2">
             {step > 0 && step < 3 && (
@@ -321,7 +326,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
                 onClick={prev}
                 className="px-4 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
               >
-                戻る
+                {t('onboarding.actions.back')}
               </button>
             )}
             {step < 2 && (
@@ -329,7 +334,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
                 onClick={next}
                 className="px-4 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 inline-flex items-center gap-1"
               >
-                次へ <RightOutlined style={{ fontSize: 11 }} />
+                {t('onboarding.actions.next')} <RightOutlined style={{ fontSize: 11 }} />
               </button>
             )}
             {step === 2 && (
@@ -337,7 +342,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
                 onClick={() => { setStep(3); }}
                 className="px-4 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 inline-flex items-center gap-1"
               >
-                確認 <RightOutlined style={{ fontSize: 11 }} />
+                {t('onboarding.actions.review')} <RightOutlined style={{ fontSize: 11 }} />
               </button>
             )}
             {step === 3 && (
@@ -346,7 +351,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
                 disabled={loading}
                 className="px-6 py-2 rounded-md bg-emerald-600 text-sm font-bold text-white hover:bg-emerald-700"
               >
-                {loading ? '保存中...' : '始める'}
+                {loading ? t('common.saving') : t('onboarding.actions.start')}
               </button>
             )}
           </div>

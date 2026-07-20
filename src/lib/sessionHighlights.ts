@@ -5,6 +5,7 @@
 
 import type { CarSetup } from '../types/setup';
 import { lapTimeToMs } from './setupFields';
+import { isWetWeather } from './weather';
 
 // ─── 型定義 ────────────────────────────────────────────────
 
@@ -106,8 +107,7 @@ export function computeSessionHighlight(
 
   // RAIN_SESSION: weather.condition が 'ウェット' または 'フルウェット'
   // null / 未入力の場合はバッジを付けない（推定しない）
-  const condition = current.weather.condition;
-  if (condition === 'ウェット' || condition === 'フルウェット') {
+  if (isWetWeather(current.weather.condition)) {
     badges.push('RAIN_SESSION');
   }
 

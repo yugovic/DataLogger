@@ -28,6 +28,8 @@ import { getUserSetups } from '../services/setupService';
 import { createPublicShare } from '../services/publicShareService';
 import { CarSetup } from '../types/setup';
 import { downloadShareImage, shareViaWebShare } from '../utils/shareImage';
+import { normalizeWeather } from '../lib/weather';
+import { useTranslation } from 'react-i18next';
 
 // ─── Helper functions ───────────────────────────────────────
 
@@ -60,11 +62,11 @@ const formatDate = (d: Date) => {
 };
 
 const weatherIcon = (condition: string) => {
-  switch (condition) {
-    case '晴れ': return <SunOutlined className="text-orange-400" />;
-    case '曇り': return <CloudFilled className="text-gray-400" />;
-    case 'ウェット': return <CloudOutlined className="text-blue-400" />;
-    case 'フルウェット': return <CloudOutlined className="text-blue-600" />;
+  switch (normalizeWeather(condition)) {
+    case 'sunny': return <SunOutlined className="text-orange-400" />;
+    case 'cloudy': return <CloudFilled className="text-gray-400" />;
+    case 'wet': return <CloudOutlined className="text-blue-400" />;
+    case 'full_wet': return <CloudOutlined className="text-blue-600" />;
     default: return <CloudOutlined />;
   }
 };
@@ -120,6 +122,7 @@ const useChart = (
 // ─── Main Component ─────────────────────────────────────────
 
 export const Dashboard: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { darkMode } = useTheme();
@@ -185,7 +188,8 @@ export const Dashboard: React.FC = () => {
     const weatherCounts: Record<string, number> = {};
     setups.forEach(s => {
       if (s.weather?.condition) {
-        weatherCounts[s.weather.condition] = (weatherCounts[s.weather.condition] || 0) + 1;
+        const condition = normalizeWeather(s.weather.condition);
+        if (condition) weatherCounts[condition] = (weatherCounts[condition] || 0) + 1;
       }
     });
 
@@ -365,10 +369,10 @@ export const Dashboard: React.FC = () => {
   const weatherDistOption = useMemo<echarts.EChartsOption | null>(() => {
     if (!stats?.weatherCounts || Object.keys(stats.weatherCounts).length === 0) return null;
     const colorMap: Record<string, string> = {
-      '晴れ': '#f59e0b',
-      '曇り': '#9ca3af',
-      'ウェット': '#3b82f6',
-      'フルウェット': '#1d4ed8',
+      sunny: '#f59e0b',
+      cloudy: '#9ca3af',
+      wet: '#3b82f6',
+      full_wet: '#1d4ed8',
     };
     return {
       backgroundColor: 'transparent',
@@ -381,12 +385,12 @@ export const Dashboard: React.FC = () => {
         emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
         data: Object.entries(stats.weatherCounts).map(([name, value]) => ({
           value,
-          name,
+          name: t(`weather.${name}`),
           itemStyle: { color: colorMap[name] || '#6b7280' },
         })),
       }],
     };
-  }, [stats, darkMode]);
+  }, [stats, darkMode, t]);
 
   const monthlyActivityOption = useMemo<echarts.EChartsOption | null>(() => {
     if (!stats?.monthlyCounts || Object.keys(stats.monthlyCounts).length === 0) return null;
@@ -469,7 +473,7 @@ export const Dashboard: React.FC = () => {
   const tirePressureOption = useMemo<echarts.EChartsOption | null>(() => {
     if (!stats) return null;
     const { tirePressureAvg } = stats;
-    const positions = ['FL', 'FR', 'RL', 'RR'] as const;
+    const positions: string[] = ['FL', 'FR', 'RL', 'RR'];
     const keys = ['fl', 'fr', 'rl', 'rr'] as const;
     const hasTireData = keys.some(k => tirePressureAvg[k].count > 0);
     if (!hasTireData) return null;
@@ -852,7 +856,7 @@ export const Dashboard: React.FC = () => {
                   <div className="flex justify-center gap-3 mt-2">
                     {Object.entries(stats.weatherCounts).map(([w, c]) => (
                       <span key={w} className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                        {weatherIcon(w)} {w} {c}
+                        {weatherIcon(w)} {t(`weather.${w}`)} {c}
                       </span>
                     ))}
                   </div>

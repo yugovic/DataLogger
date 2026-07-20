@@ -17,12 +17,14 @@ import { Header } from '../common/Header';
 import {
   buildCompareSections,
   displayValue,
-  sessionTypeLabel,
+  resolveCompareSections,
+  sessionTypeTranslationKey,
 } from '../../lib/setupFields';
 import { SharedBadge, AnonymizedBadge, LoggerEvidenceBadge } from './ShareBadges';
 import { hasLoggerEvidence } from './shareUtils';
 import logger from '../../utils/logger';
 import { SpecCard } from '../vehicle/SpecCard';
+import { useTranslation } from 'react-i18next';
 
 const formatDate = (date: Date): string => {
   const d = date instanceof Date ? date : new Date(date);
@@ -30,6 +32,7 @@ const formatDate = (date: Date): string => {
 };
 
 export const SharedSetupDetail: React.FC = () => {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -42,7 +45,7 @@ export const SharedSetupDetail: React.FC = () => {
   // 自分の同一車種データがあれば「自分のデータと比較」導線を出す
   const [myComparableId, setMyComparableId] = useState<string | null>(null);
 
-  const sections = buildCompareSections();
+  const sections = resolveCompareSections(buildCompareSections(setup ? [setup] : []), t);
 
   useEffect(() => {
     const load = async () => {
@@ -150,7 +153,7 @@ export const SharedSetupDetail: React.FC = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{setup.circuit}</h2>
           <div className="mt-1 text-gray-600 dark:text-gray-400 text-sm">
-            {setup.carModel} ・ {sessionTypeLabel(setup.sessionType)} ・ {formatDate(setup.date)}
+            {setup.carModel} ・ {t(sessionTypeTranslationKey(setup.sessionType))} ・ {formatDate(setup.date)}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
             <span className="text-gray-700 dark:text-gray-300">

@@ -1,14 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Switch, Button, Tabs, message, Divider, Upload, DatePicker, Tag } from 'antd';
 import { CarOutlined, PlusOutlined, LoadingOutlined, DeleteOutlined, StopOutlined, UndoOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import { estimateModLevel, MOD_LEVEL_LABELS } from '../../lib/modLevel';
+import { estimateModLevel } from '../../lib/modLevel';
 import { vehicleProfileSchema } from '../../schemas/vehicleProfileSchema';
 import { addVehicle, updateVehicle, generateDefaultSetupConfig } from '../../services/vehicleService';
 import { MOD_CATEGORY_LABELS, TIRE_CLASS_LABELS, Vehicle, VehicleProfile } from '../../types/vehicle';
+import type { SetupAdjustmentDefinition } from '../../types/vehicle';
+import {
+  ADJUSTMENT_GROUP_LABELS,
+  ADJUSTMENT_POSITION_LABELS,
+  ADJUSTMENT_VALUE_TYPE_LABELS,
+  normalizeAdjustmentDefinitions,
+} from '../../lib/setupAdjustments';
 import { useAuth } from '../../contexts/AuthContext';
 import type { UploadFile } from 'antd/es/upload/interface';
+import { useTranslation } from 'react-i18next';
 // Cloud Storageは使わず、FirestoreにBase64(Data URL)で保存します
+
+const MAX_SOURCE_IMAGE_BYTES = 20 * 1024 * 1024;
+// Firestore ドキュメントの 1 MiB 制限と Base64 の約 4/3 倍の膨張を考慮し、
+// 車両画像は他フィールド分の余裕を残した 400 KiB 以下にする。
+const TARGET_IMAGE_BYTES = 400 * 1024;
 
 interface ProfileFormModification {
   id?: string;
@@ -107,6 +120,12 @@ interface VehicleModalProps {
 
 export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, vehicle }) => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
+  const modCategoryOptions = useMemo(() => Object.keys(MOD_CATEGORY_LABELS).map((value) => ({ value, label: t(`vehicle.labels.modCategory.${value}`) })), [t]);
+  const tireClassOptions = useMemo(() => Object.keys(TIRE_CLASS_LABELS).map((value) => ({ value, label: t(`vehicle.labels.tireClass.${value}`) })), [t]);
+  const adjustmentGroupOptions = useMemo(() => Object.keys(ADJUSTMENT_GROUP_LABELS).map((value) => ({ value, label: t(`vehicle.labels.adjustmentGroup.${value}`) })), [t]);
+  const adjustmentPositionOptions = useMemo(() => Object.keys(ADJUSTMENT_POSITION_LABELS).map((value) => ({ value, label: t(`vehicle.labels.adjustmentPosition.${value}`) })), [t]);
+  const adjustmentValueTypeOptions = useMemo(() => Object.keys(ADJUSTMENT_VALUE_TYPE_LABELS).map((value) => ({ value, label: t(`vehicle.labels.adjustmentValueType.${value}`) })), [t]);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
@@ -161,7 +180,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
   };
 
   // 目標サイズ以下になるまで数回圧縮
-  const makeDataUrlUnder = async (file: File, targetBytes = 500 * 1024) => {
+  const makeDataUrlUnder = async (file: File, targetBytes = TARGET_IMAGE_BYTES) => {
     const attempts: Array<{ dim: number; q: number }> = [
       { dim: 1600, q: 0.75 },
       { dim: 1280, q: 0.7 },
@@ -228,7 +247,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
 
     // 画像アップロード中は保存をブロック
     if (uploading) {
-      message.loading('画像をアップロード中です。完了までお待ちください…');
+      message.loading(t('vehicle.modal.image.uploading'));
       return;
     }
 
@@ -237,11 +256,11 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
       // photoURLを確実に含める
       const photoURL = form.getFieldValue('photoURL') || values.photoURL || '';
 
-      // Data URLの場合は0.5MB（≈512,000B）超過をブロック
+      // Data URL は Firestore ドキュメント容量に余裕を残すため 400 KiB 超過をブロック
       if (typeof photoURL === 'string' && photoURL.startsWith('data:')) {
         const approx = estimateBase64Bytes(photoURL);
-        if (approx > 500 * 1024) {
-          message.error('画像サイズが大きすぎます（0.5MB以下にしてください）');
+        if (approx > TARGET_IMAGE_BYTES) {
+          message.error(t('vehicle.modal.image.tooLarge'));
           setLoading(false);
           return;
         }
@@ -259,14 +278,21 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
           .join(' / ');
         form.setFields([{ name: ['profile'], errors: [errorMessage] }]);
         setActiveTab('profile');
-        message.error('プロフィールの入力内容を確認してください');
+        message.error(t('vehicle.modal.errors.profile'));
         setLoading(false);
         return;
       }
 
       const shouldSaveProfile = hasProfileContent(profileValidation.data) || vehicle?.profile !== undefined;
+      const normalizedDefinitions = normalizeAdjustmentDefinitions(
+        values.setupConfig?.adjustmentDefinitions as SetupAdjustmentDefinition[] | undefined,
+      );
       const vehicleData = {
         ...values,
+        setupConfig: {
+          ...values.setupConfig,
+          adjustmentDefinitions: normalizedDefinitions,
+        },
         photoURL,
         userId: currentUser.uid,
         ...(shouldSaveProfile ? { profile: profileValidation.data } : {}),
@@ -279,15 +305,15 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
 
       if (vehicle?.id) {
         await updateVehicle(vehicle.id, vehicleData);
-        message.success('車両情報を更新しました');
+        message.success(t('vehicle.modal.success.updated'));
       } else {
         await addVehicle(vehicleData);
-        message.success('車両を追加しました');
+        message.success(t('vehicle.modal.success.created'));
       }
       onClose();
     } catch (error) {
       console.error('Error saving vehicle:', error);
-      message.error(error instanceof Error ? error.message : '保存に失敗しました');
+      message.error(t('vehicle.modal.errors.save'));
     } finally {
       setLoading(false);
     }
@@ -296,10 +322,10 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
   const requestClose = () => {
     if (isDirty) {
       Modal.confirm({
-        title: '未保存の変更があります',
-        content: '変更を破棄して閉じますか？',
-        okText: '破棄',
-        cancelText: 'キャンセル',
+        title: t('common.unsaved.title'),
+        content: t('vehicle.modal.unsaved.content'),
+        okText: t('vehicle.modal.unsaved.discard'),
+        cancelText: t('common.cancel'),
         onOk: () => onClose(),
       });
     } else {
@@ -312,7 +338,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
       title={
         <div className="flex items-center">
           <CarOutlined className="mr-2" />
-          {vehicle ? '車両を編集' : '車両を追加'}
+          {t(vehicle ? 'vehicle.modal.title.edit' : 'vehicle.modal.title.add')}
         </div>
       }
       open={visible}
@@ -335,16 +361,16 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
           items={[
             {
               key: 'basic',
-              label: '基本情報',
+              label: t('vehicle.modal.tabs.basic'),
               children: (
                 <>
             <div className="grid grid-cols-2 gap-4">
               <Form.Item
                 name="make"
-                label="メーカー"
-                rules={[{ required: true, message: 'メーカーを入力してください' }]}
+                label={t('vehicle.modal.fields.make')}
+                rules={[{ required: true, message: t('vehicle.modal.validation.make') }]}
               >
-                <Select placeholder="選択してください">
+                <Select placeholder={t('common.select')}>
                   <Select.Option value="Honda">Honda</Select.Option>
                   <Select.Option value="Toyota">Toyota</Select.Option>
                   <Select.Option value="Nissan">Nissan</Select.Option>
@@ -352,22 +378,22 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   <Select.Option value="Subaru">Subaru</Select.Option>
                   <Select.Option value="Mitsubishi">Mitsubishi</Select.Option>
                   <Select.Option value="Suzuki">Suzuki</Select.Option>
-                  <Select.Option value="Other">その他</Select.Option>
+                  <Select.Option value="Other">{t('common.other')}</Select.Option>
                 </Select>
               </Form.Item>
 
               <Form.Item
                 name="model"
-                label="モデル"
-                rules={[{ required: true, message: 'モデルを入力してください' }]}
+                label={t('vehicle.modal.fields.model')}
+                rules={[{ required: true, message: t('vehicle.modal.validation.model') }]}
               >
-                <Input placeholder="例: S2000, Supra" autoFocus />
+                <Input placeholder={t('vehicle.modal.placeholders.model')} autoFocus />
               </Form.Item>
 
               <Form.Item
                 name="year"
-                label="年式"
-                rules={[{ required: true, message: '年式を入力してください' }]}
+                label={t('vehicle.modal.fields.year')}
+                rules={[{ required: true, message: t('vehicle.modal.validation.year') }]}
               >
                 <InputNumber
                   min={1900}
@@ -377,23 +403,23 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                 />
               </Form.Item>
 
-              <Form.Item name="grade" label="グレード">
-                <Input placeholder="例: Type R, RZ" />
+              <Form.Item name="grade" label={t('vehicle.modal.fields.grade')}>
+                <Input placeholder={t('vehicle.modal.placeholders.grade')} />
               </Form.Item>
 
-              <Form.Item name="vin" label="VINコード">
-                <Input placeholder="17桁の車両識別番号" />
+              <Form.Item name="vin" label={t('vehicle.modal.fields.vin')}>
+                <Input placeholder={t('vehicle.modal.placeholders.vin')} />
               </Form.Item>
 
-              <Form.Item name="licensePlate" label="ナンバープレート">
-                <Input placeholder="例: 品川 330 あ 12-34" />
+              <Form.Item name="licensePlate" label={t('vehicle.modal.fields.licensePlate')}>
+                <Input placeholder={t('vehicle.modal.placeholders.licensePlate')} />
               </Form.Item>
 
-              <Form.Item name="color" label="色">
-                <Input placeholder="例: チャンピオンシップホワイト" />
+              <Form.Item name="color" label={t('vehicle.modal.fields.color')}>
+                <Input placeholder={t('vehicle.modal.placeholders.color')} />
               </Form.Item>
 
-              <Form.Item name="mileage" label="走行距離 (km)">
+              <Form.Item name="mileage" label={t('vehicle.modal.fields.mileage')}>
                 <InputNumber
                   min={0}
                   placeholder="50000"
@@ -401,37 +427,32 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                 />
               </Form.Item>
 
-              <Form.Item name="engineType" label="エンジン型式">
-                <Input placeholder="例: F20C, 2JZ-GTE" />
+              <Form.Item name="engineType" label={t('vehicle.modal.fields.engineType')}>
+                <Input placeholder={t('vehicle.modal.placeholders.engineType')} />
               </Form.Item>
 
-              <Form.Item name="transmission" label="トランスミッション">
-                <Select placeholder="選択してください">
-                  <Select.Option value="6MT">6速MT</Select.Option>
-                  <Select.Option value="5MT">5速MT</Select.Option>
+              <Form.Item name="transmission" label={t('vehicle.modal.fields.transmission')}>
+                <Select placeholder={t('common.select')}>
+                  <Select.Option value="6MT">{t('vehicle.modal.transmission.6MT')}</Select.Option>
+                  <Select.Option value="5MT">{t('vehicle.modal.transmission.5MT')}</Select.Option>
                   <Select.Option value="AT">AT</Select.Option>
                   <Select.Option value="CVT">CVT</Select.Option>
                   <Select.Option value="DCT">DCT</Select.Option>
-                  <Select.Option value="Sequential">シーケンシャル</Select.Option>
+                  <Select.Option value="Sequential">{t('vehicle.modal.transmission.sequential')}</Select.Option>
                 </Select>
               </Form.Item>
 
-              <Form.Item name="drivetrain" label="駆動方式">
-                <Select placeholder="選択してください">
-                  <Select.Option value="FR">FR（後輪駆動）</Select.Option>
-                  <Select.Option value="FF">FF（前輪駆動）</Select.Option>
-                  <Select.Option value="4WD">4WD（四輪駆動）</Select.Option>
-                  <Select.Option value="AWD">AWD（全輪駆動）</Select.Option>
-                  <Select.Option value="MR">MR（ミッドシップ）</Select.Option>
-                  <Select.Option value="RR">RR（リアエンジン）</Select.Option>
+              <Form.Item name="drivetrain" label={t('vehicle.modal.fields.drivetrain')}>
+                <Select placeholder={t('common.select')}>
+                  {(['FR', 'FF', '4WD', 'AWD', 'MR', 'RR'] as const).map((code) => <Select.Option key={code} value={code}>{t(`vehicle.modal.drivetrain.${code}`)}</Select.Option>)}
                 </Select>
               </Form.Item>
             </div>
 
-            <Form.Item name="notes" label="備考">
+            <Form.Item name="notes" label={t('vehicle.modal.fields.notes')}>
               <Input.TextArea
                 rows={3}
-                placeholder="車両に関する特記事項があれば入力してください"
+                placeholder={t('vehicle.modal.placeholders.notes')}
               />
             </Form.Item>
 
@@ -439,32 +460,32 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
               <Input />
             </Form.Item>
             
-            <Form.Item label="車両写真">
+            <Form.Item label={t('vehicle.modal.fields.photo')}>
               <Upload
                 listType="picture-card"
                 fileList={fileList}
                 maxCount={1}
                 accept="image/*"
                 beforeUpload={(file) => {
-                  // ファイルサイズチェック (0.5MB以下)
-                  const isLtHalfM = file.size <= 500 * 1024; // 512,000バイト相当
-                  if (!isLtHalfM) {
-                    message.error('画像サイズは0.5MB以下にしてください');
-                    return false;
-                  }
-                  
                   // 画像タイプチェック
                   const isImage = file.type.startsWith('image/');
                   if (!isImage) {
-                    message.error('画像ファイルを選択してください');
+                    message.error(t('vehicle.modal.image.invalidType'));
                     return false;
                   }
-                  // バリデーションOKならアップロードを進める（customRequestが呼ばれる）
+
+                  // 極端に大きな元画像だけを先に拒否し、それ以下は customRequest 内で圧縮する。
+                  if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+                    message.error(t('vehicle.modal.image.sourceTooLarge'));
+                    return false;
+                  }
+
+                  // バリデーションOKなら圧縮処理へ進む（customRequestが呼ばれる）
                   return true;
                 }}
                 customRequest={async ({ file, onSuccess, onError }) => {
                   if (!currentUser) {
-                    message.error('ログインしていません');
+                    message.error(t('vehicle.modal.errors.notLoggedIn'));
                     onError?.(new Error('ユーザーがログインしていません'));
                     return;
                   }
@@ -478,17 +499,18 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   
                   try {
                     // Cloud Storageは使わず、Base64(Data URL)でFirestoreに保存
-                    // 0.5MB以下を目標に圧縮
-                    const dataUrl = await makeDataUrlUnder(uploadFile, 500 * 1024);
+                    // Firestore ドキュメント容量に余裕を残すため 400KB 以下を目標に圧縮
+                    const dataUrl = await makeDataUrlUnder(uploadFile, TARGET_IMAGE_BYTES);
                     const approxBytes = estimateBase64Bytes(dataUrl);
                     console.log('Debug - DataURL approx bytes:', approxBytes);
-                    if (approxBytes > 500 * 1024) {
-                      message.error('画像が大きすぎます。0.5MB以下の画像を選択してください。');
+                    if (approxBytes > TARGET_IMAGE_BYTES) {
+                      message.error(t('vehicle.modal.image.compressFailed'));
                       setUploading(false);
-                      onError?.(new Error('Image exceeds 0.5MB'));
+                      onError?.(new Error('Image exceeds 400KB after compression'));
                       return;
                     }
                     form.setFieldsValue({ photoURL: dataUrl });
+                    setIsDirty(true);
                     // 画像メタ
                     await new Promise<void>((resolve) => {
                       const img = new Image();
@@ -508,12 +530,13 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                     ]);
                     console.log('Debug - Set photoURL(DataURL) in form:', String(form.getFieldValue('photoURL')).slice(0, 64) + '...');
                     
-                    message.success('画像をアップロードしました');
+                    const wasCompressed = uploadFile.size > approxBytes;
+                    message.success(t(wasCompressed ? 'vehicle.modal.image.compressed' : 'vehicle.modal.image.uploaded'));
                     setUploading(false);
                     onSuccess?.('OK');
                   } catch (error) {
                     console.error('Upload error:', error);
-                    message.error('画像のアップロードに失敗しました');
+                    message.error(t('vehicle.modal.image.uploadFailed'));
                     setUploading(false);
                     onError?.(error as Error);
                   }
@@ -522,6 +545,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   form.setFieldsValue({ photoURL: '' });
                   setFileList([]);
                   setImageMeta(null);
+                  setIsDirty(true);
                 }}
                 onChange={({ fileList: newFileList }) => {
                   console.log('Debug - FileList changed:', newFileList);
@@ -543,46 +567,46 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                     ) : (
                       <PlusOutlined />
                     )}
-                    <div style={{ marginTop: 8 }}>アップロード</div>
+                    <div style={{ marginTop: 8 }}>{t('vehicle.modal.image.upload')}</div>
                   </div>
                 )}
               </Upload>
               {imageMeta && (
                 <div className="text-xs text-gray-500 mt-1">
-                  解像度: {imageMeta.w}×{imageMeta.h}px / 容量: {(imageMeta.bytes/1024).toFixed(0)}KB
+                  {t('vehicle.modal.image.metadata', { width: imageMeta.w, height: imageMeta.h, size: (imageMeta.bytes/1024).toFixed(0) })}
                 </div>
               )}
               <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                ※ 画像サイズは0.5MB以下にしてください
+                {t('vehicle.modal.image.hint')}
               </div>
             </Form.Item>
 
             <Form.Item name="isActive" valuePropName="checked">
-              <Switch checkedChildren="アクティブ" unCheckedChildren="非アクティブ" />
+              <Switch checkedChildren={t('vehicle.modal.status.active')} unCheckedChildren={t('vehicle.modal.status.inactive')} />
             </Form.Item>
                 </>
               )
             },
             {
               key: 'profile',
-              label: 'チューニング',
+              label: t('vehicle.modal.tabs.tuning'),
               children: (
                 <div className="space-y-6">
                   <div className="rounded-lg border border-blue-100 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-900/20 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <h3 className="text-base font-medium text-gray-800 dark:text-gray-200">改造度プレビュー</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">現在装着中のカテゴリから自動推定されます</p>
+                        <h3 className="text-base font-medium text-gray-800 dark:text-gray-200">{t('vehicle.modal.profile.preview')}</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('vehicle.modal.profile.previewDescription')}</p>
                       </div>
                       <span className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold ${modLevelClass(previewModLevel)}`}>
-                        {MOD_LEVEL_LABELS[previewModLevel]}
+                        {t(`vehicle.labels.modLevel.${previewModLevel}`)}
                       </span>
                     </div>
                   </div>
 
                   <div>
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">改造パーツリスト</h3>
+                      <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('vehicle.modal.profile.parts')}</h3>
                     </div>
                     <Form.List name={['profile', 'modifications']}>
                       {(fields, { add, remove }) => (
@@ -608,9 +632,9 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                      パーツ {field.name + 1}
+                                      {t('vehicle.modal.profile.partNumber', { number: field.name + 1 })}
                                     </span>
-                                    {isRemoved && <Tag color="default">取外し済み</Tag>}
+                                    {isRemoved && <Tag color="default">{t('vehicle.modal.profile.removed')}</Tag>}
                                   </div>
                                   <div className="flex items-center gap-2">
                                     {isRemoved ? (
@@ -622,7 +646,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                                           setIsDirty(true);
                                         }}
                                       >
-                                        取外しを戻す
+                                        {t('vehicle.modal.profile.restore')}
                                       </Button>
                                     ) : (
                                       <Button
@@ -633,7 +657,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                                           setIsDirty(true);
                                         }}
                                       >
-                                        取外し
+                                        {t('vehicle.modal.profile.remove')}
                                       </Button>
                                     )}
                                     <Button
@@ -645,7 +669,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                                         setIsDirty(true);
                                       }}
                                     >
-                                      削除
+                                      {t('common.delete')}
                                     </Button>
                                   </div>
                                 </div>
@@ -653,39 +677,39 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                   <Form.Item
                                     name={[field.name, 'category']}
-                                    label="カテゴリ"
-                                    rules={[{ required: true, message: 'カテゴリを選択してください' }]}
+                                    label={t('vehicle.modal.profile.category')}
+                                    rules={[{ required: true, message: t('vehicle.modal.profile.categoryRequired') }]}
                                   >
                                     <Select
-                                      options={Object.entries(MOD_CATEGORY_LABELS).map(([value, label]) => ({ value, label }))}
+                                      options={modCategoryOptions}
                                     />
                                   </Form.Item>
                                   <Form.Item
                                     name={[field.name, 'partName']}
-                                    label="パーツ名"
-                                    rules={[{ required: true, message: 'パーツ名を入力してください' }]}
+                                    label={t('vehicle.modal.profile.partName')}
+                                    rules={[{ required: true, message: t('vehicle.modal.profile.partNameRequired') }]}
                                   >
-                                    <Input placeholder="例: 車高調キット" />
+                                    <Input placeholder={t('vehicle.modal.profile.partNamePlaceholder')} />
                                   </Form.Item>
-                                  <Form.Item name={[field.name, 'maker']} label="メーカー">
-                                    <Input placeholder="未入力" />
+                                  <Form.Item name={[field.name, 'maker']} label={t('vehicle.modal.fields.make')}>
+                                    <Input placeholder={t('common.notSet')} />
                                   </Form.Item>
-                                  <Form.Item name={[field.name, 'installedAt']} label="装着日">
-                                    <DatePicker className="w-full" placeholder="未入力" />
+                                  <Form.Item name={[field.name, 'installedAt']} label={t('vehicle.modal.profile.installedAt')}>
+                                    <DatePicker className="w-full" placeholder={t('common.notSet')} />
                                   </Form.Item>
                                   <Form.Item
                                     name={[field.name, 'costJPY']}
-                                    label="費用"
-                                    extra="非公開（共有時に含まれません）"
+                                    label={t('vehicle.modal.profile.cost')}
+                                    extra={t('vehicle.modal.profile.private')}
                                   >
-                                    <InputNumber min={0} max={10000000} className="w-full" placeholder="未入力" addonAfter="円" />
+                                    <InputNumber min={0} max={10000000} className="w-full" placeholder={t('common.notSet')} addonAfter={t('vehicle.modal.profile.yen')} />
                                   </Form.Item>
                                   <Form.Item
                                     name={[field.name, 'memo']}
-                                    label="メモ"
-                                    extra="非公開（共有時に含まれません）"
+                                    label={t('vehicle.modal.profile.memo')}
+                                    extra={t('vehicle.modal.profile.private')}
                                   >
-                                    <Input.TextArea rows={2} placeholder="未入力" />
+                                    <Input.TextArea rows={2} placeholder={t('common.notSet')} />
                                   </Form.Item>
                                 </div>
                               </div>
@@ -708,7 +732,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                               setIsDirty(true);
                             }}
                           >
-                            改造パーツを追加
+                            {t('vehicle.modal.profile.addPart')}
                           </Button>
                         </div>
                       )}
@@ -718,26 +742,26 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   <Divider />
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <Form.Item name={['profile', 'tireClass']} label="タイヤ区分">
+                    <Form.Item name={['profile', 'tireClass']} label={t('vehicle.modal.profile.tireClass')}>
                       <Select
                         allowClear
-                        placeholder="未選択"
-                        options={Object.entries(TIRE_CLASS_LABELS).map(([value, label]) => ({ value, label }))}
+                        placeholder={t('vehicle.modal.profile.notSelected')}
+                        options={tireClassOptions}
                       />
                     </Form.Item>
                     <Form.Item
                       name={['profile', 'powerPs']}
-                      label="パワー"
-                      extra="自己申告値として表示されます"
+                      label={t('vehicle.modal.profile.power')}
+                      extra={t('vehicle.modal.profile.selfReported')}
                     >
-                      <InputNumber min={0} max={2000} className="w-full" placeholder="未入力" addonAfter="ps" />
+                      <InputNumber min={0} max={2000} className="w-full" placeholder={t('common.notSet')} addonAfter="ps" />
                     </Form.Item>
                     <Form.Item
                       name={['profile', 'weightKg']}
-                      label="車重"
-                      extra="自己申告値として表示されます"
+                      label={t('vehicle.modal.profile.weight')}
+                      extra={t('vehicle.modal.profile.selfReported')}
                     >
-                      <InputNumber min={300} max={3500} className="w-full" placeholder="未入力" addonAfter="kg" />
+                      <InputNumber min={300} max={3500} className="w-full" placeholder={t('common.notSet')} addonAfter="kg" />
                     </Form.Item>
                   </div>
                 </div>
@@ -745,16 +769,25 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
             },
             {
               key: 'setup',
-              label: 'セッティング項目',
+              label: t('vehicle.modal.tabs.setup'),
               children: (
                 <>
             <div className="space-y-6">
+              <div>
+                <div className="mb-3">
+                  <h3 className="text-lg font-medium dark:text-gray-200">{t('vehicle.modal.setup.standard')}</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {t('vehicle.modal.setup.standardDescription')}
+                  </p>
+                </div>
+              </div>
+
               {/* サスペンション設定 */}
               <div>
-                <h3 className="text-lg font-medium mb-3 dark:text-gray-200">サスペンション設定</h3>
+                <h3 className="text-lg font-medium mb-3 dark:text-gray-200">{t('vehicle.modal.setup.suspension')}</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="dark:text-gray-300">ダンパー調整機能</span>
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.damperAdjustable')}</span>
                     <Form.Item
                       name={['setupConfig', 'suspension', 'damperAdjustable']}
                       valuePropName="checked"
@@ -776,13 +809,13 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                         <div className="ml-6 grid grid-cols-2 gap-4">
                           <Form.Item
                             name={['setupConfig', 'suspension', 'damperClicksFront']}
-                            label="フロントダンパー段数"
+                            label={t('vehicle.modal.setup.frontDamperClicks')}
                           >
                             <InputNumber min={1} max={100} style={{ width: '100%' }} />
                           </Form.Item>
                           <Form.Item
                             name={['setupConfig', 'suspension', 'damperClicksRear']}
-                            label="リアダンパー段数"
+                            label={t('vehicle.modal.setup.rearDamperClicks')}
                           >
                             <InputNumber min={1} max={100} style={{ width: '100%' }} />
                           </Form.Item>
@@ -792,7 +825,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   </Form.Item>
 
                   <div className="flex items-center justify-between">
-                    <span className="dark:text-gray-300">車高調整機能</span>
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.heightAdjustable')}</span>
                     <Form.Item
                       name={['setupConfig', 'suspension', 'heightAdjustable']}
                       valuePropName="checked"
@@ -803,7 +836,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="dark:text-gray-300">スプリングレート変更可能</span>
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.springRateChangeable')}</span>
                     <Form.Item
                       name={['setupConfig', 'suspension', 'springRateChangeable']}
                       valuePropName="checked"
@@ -814,7 +847,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="dark:text-gray-300">スタビライザー調整機能</span>
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.antiRollBarAdjustable')}</span>
                     <Form.Item
                       name={['setupConfig', 'suspension', 'antiRollBarAdjustable']}
                       valuePropName="checked"
@@ -830,10 +863,10 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
 
               {/* アライメント設定 */}
               <div>
-                <h3 className="text-lg font-medium mb-3 dark:text-gray-200">アライメント設定</h3>
+                <h3 className="text-lg font-medium mb-3 dark:text-gray-200">{t('vehicle.modal.setup.alignment')}</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="dark:text-gray-300">キャンバー調整機能</span>
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.camberAdjustable')}</span>
                     <Form.Item
                       name={['setupConfig', 'alignment', 'camberAdjustable']}
                       valuePropName="checked"
@@ -844,7 +877,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="dark:text-gray-300">トー調整機能</span>
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.toeAdjustable')}</span>
                     <Form.Item
                       name={['setupConfig', 'alignment', 'toeAdjustable']}
                       valuePropName="checked"
@@ -855,7 +888,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="dark:text-gray-300">キャスター調整機能</span>
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.casterAdjustable')}</span>
                     <Form.Item
                       name={['setupConfig', 'alignment', 'casterAdjustable']}
                       valuePropName="checked"
@@ -869,12 +902,62 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
 
               <Divider />
 
-              {/* エンジン設定 */}
               <div>
-                <h3 className="text-lg font-medium mb-3 dark:text-gray-200">エンジン設定</h3>
+                <h3 className="text-lg font-medium mb-1 dark:text-gray-200">{t('vehicle.modal.setup.tireBrake')}</h3>
+                <div className="mb-4 flex items-center justify-between rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                  <div>
+                    <div className="font-medium text-gray-800 dark:text-gray-200">{t('vehicle.modal.setup.tireSetManagement')}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{t('vehicle.modal.setup.tireSetDescription')}</div>
+                  </div>
+                  <Form.Item name={['setupConfig', 'tire', 'tireSetManagementEnabled']} valuePropName="checked" className="mb-0">
+                    <Switch />
+                  </Form.Item>
+                </div>
+                <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">{t('vehicle.modal.setup.sizeDescription')}</p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <Form.Item name={['setupConfig', 'tire', 'frontSize']} label={t('vehicle.modal.setup.frontTireSizes')}>
+                    <Select mode="tags" placeholder={t('vehicle.modal.setup.frontTirePlaceholder')} tokenSeparators={[',']} />
+                  </Form.Item>
+                  <Form.Item name={['setupConfig', 'tire', 'rearSize']} label={t('vehicle.modal.setup.rearTireSizes')}>
+                    <Select mode="tags" placeholder={t('vehicle.modal.setup.rearTirePlaceholder')} tokenSeparators={[',']} />
+                  </Form.Item>
+                  <Form.Item name={['setupConfig', 'brake', 'padTypes']} label={t('vehicle.modal.setup.brakePads')}>
+                    <Select mode="tags" placeholder={t('vehicle.modal.setup.brakePadPlaceholder')} tokenSeparators={[',']} />
+                  </Form.Item>
+                  <Form.Item name={['setupConfig', 'brake', 'rotorTypes']} label={t('vehicle.modal.setup.brakeRotors')}>
+                    <Select mode="tags" placeholder={t('vehicle.modal.setup.brakeRotorPlaceholder')} tokenSeparators={[',']} />
+                  </Form.Item>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="dark:text-gray-300">{t('vehicle.modal.setup.brakeBalance')}</span>
+                  <Form.Item name={['setupConfig', 'brake', 'balanceAdjustable']} valuePropName="checked" className="mb-0"><Switch /></Form.Item>
+                </div>
+              </div>
+
+              <Divider />
+
+              <div>
+                <h3 className="text-lg font-medium mb-3 dark:text-gray-200">{t('vehicle.modal.setup.aero')}</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="dark:text-gray-300">ECUチューニング可能</span>
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.frontAero')}</span>
+                    <Form.Item name={['setupConfig', 'aero', 'frontAdjustable']} valuePropName="checked" className="mb-0"><Switch /></Form.Item>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.rearAero')}</span>
+                    <Form.Item name={['setupConfig', 'aero', 'rearAdjustable']} valuePropName="checked" className="mb-0"><Switch /></Form.Item>
+                  </div>
+                </div>
+              </div>
+
+              <Divider />
+
+              {/* エンジン設定 */}
+              <div>
+                <h3 className="text-lg font-medium mb-3 dark:text-gray-200">{t('vehicle.modal.setup.engine')}</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.ecu')}</span>
                     <Form.Item
                       name={['setupConfig', 'engine', 'ecuTunable']}
                       valuePropName="checked"
@@ -885,7 +968,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="dark:text-gray-300">ブースト圧調整可能</span>
+                    <span className="dark:text-gray-300">{t('vehicle.modal.setup.boost')}</span>
                     <Form.Item
                       name={['setupConfig', 'engine', 'boostAdjustable']}
                       valuePropName="checked"
@@ -896,6 +979,64 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                   </div>
                 </div>
               </div>
+
+              <Divider />
+
+              <div>
+                <div className="mb-3">
+                  <h3 className="text-lg font-medium dark:text-gray-200">{t('vehicle.modal.setup.custom')}</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {t('vehicle.modal.setup.customDescription')}
+                  </p>
+                </div>
+                <Form.List name={['setupConfig', 'adjustmentDefinitions']}>
+                  {(fields, { add, remove }) => (
+                    <div className="space-y-3">
+                      {fields.map((field, index) => (
+                        <div key={field.key} className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                          <Form.Item name={[field.name, 'id']} hidden><Input /></Form.Item>
+                          <Form.Item name={[field.name, 'enabled']} hidden><Switch /></Form.Item>
+                          <Form.Item name={[field.name, 'order']} hidden><InputNumber /></Form.Item>
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('vehicle.modal.setup.customNumber', { number: index + 1 })}</span>
+                            <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)}>{t('common.delete')}</Button>
+                          </div>
+                          <div className="grid grid-cols-1 gap-x-3 md:grid-cols-2">
+                            <Form.Item name={[field.name, 'label']} label={t('vehicle.modal.setup.fields.label')} rules={[{ required: true, message: t('vehicle.modal.setup.labelRequired') }]}>
+                              <Input placeholder={t('vehicle.modal.setup.labelPlaceholder')} />
+                            </Form.Item>
+                            <Form.Item name={[field.name, 'group']} label={t('vehicle.modal.setup.fields.group')} rules={[{ required: true }]}><Select options={adjustmentGroupOptions} /></Form.Item>
+                            <Form.Item name={[field.name, 'position']} label={t('vehicle.modal.setup.fields.position')} rules={[{ required: true }]}><Select options={adjustmentPositionOptions} /></Form.Item>
+                            <Form.Item name={[field.name, 'valueType']} label={t('vehicle.modal.setup.fields.valueType')} rules={[{ required: true }]}><Select options={adjustmentValueTypeOptions} /></Form.Item>
+                            <Form.Item name={[field.name, 'unit']} label={t('vehicle.modal.setup.fields.unit')}><Input placeholder="click / mm / ° / kPa" /></Form.Item>
+                            <Form.Item name={[field.name, 'options']} label={t('vehicle.modal.setup.fields.options')}><Select mode="tags" tokenSeparators={[',']} placeholder="Soft, Medium, Hard" /></Form.Item>
+                            <Form.Item name={[field.name, 'min']} label={t('vehicle.modal.setup.fields.min')}><InputNumber className="w-full" /></Form.Item>
+                            <Form.Item name={[field.name, 'max']} label={t('vehicle.modal.setup.fields.max')}><InputNumber className="w-full" /></Form.Item>
+                            <Form.Item name={[field.name, 'step']} label={t('vehicle.modal.setup.fields.step')}><InputNumber className="w-full" min={0.001} /></Form.Item>
+                            <Form.Item name={[field.name, 'helpText']} label={t('vehicle.modal.setup.fields.help')}><Input placeholder={t('vehicle.modal.setup.helpPlaceholder')} /></Form.Item>
+                          </div>
+                        </div>
+                      ))}
+                      <Button
+                        type="dashed"
+                        block
+                        icon={<PlusOutlined />}
+                        onClick={() => add({
+                          id: crypto.randomUUID(),
+                          group: 'other',
+                          label: '',
+                          position: 'vehicle',
+                          valueType: 'number',
+                          enabled: true,
+                          order: fields.length,
+                        })}
+                      >
+                        {t('vehicle.modal.setup.addCustom')}
+                      </Button>
+                    </div>
+                  )}
+                </Form.List>
+              </div>
             </div>
                 </>
               )
@@ -905,10 +1046,10 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
 
         <div className="flex justify-end mt-6 space-x-2">
           <Button onClick={requestClose}>
-            キャンセル
+            {t('common.cancel')}
           </Button>
           <Button type="primary" htmlType="submit" loading={loading} disabled={uploading}>
-            {vehicle ? '更新' : '追加'}
+            {t(vehicle ? 'vehicle.modal.actions.update' : 'vehicle.modal.actions.add')}
           </Button>
         </div>
       </Form>

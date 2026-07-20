@@ -187,6 +187,17 @@ export const getUserSetups = async (userId: string, limitCount: number = 20): Pr
   }
 };
 
+/** タイヤ使用量の再集計用。距離を二重加算しないため、ユーザーの走行記録を原本として全件読む。 */
+export const getUserSetupsForTireUsage = async (userId: string): Promise<CarSetup[]> => {
+  try {
+    const snapshot = await getDocs(query(collection(db, COLLECTION_NAME), where('userId', '==', userId)));
+    return snapshot.docs.map((entry) => fromFirestoreDoc(entry.id, entry.data()));
+  } catch (error) {
+    logger.error('タイヤ使用履歴の取得に失敗しました:', error);
+    throw error;
+  }
+};
+
 // 車種別セットアップ取得
 export const getSetupsByCarModel = async (userId: string, carModel: string): Promise<CarSetup[]> => {
   try {
@@ -301,6 +312,8 @@ export const setSetupVisibility = async (
     // 計測: 共有開始時のみ setup_shared を発火（個人情報は渡さない）
     if (visibility === 'shared') {
       trackEvent('setup_shared', { circuit: meta?.circuit, car_model: meta?.carModel });
+    } else {
+      trackEvent('share_disabled', { circuit: meta?.circuit, car_model: meta?.carModel });
     }
   } catch (error) {
     logger.error('公開設定の更新に失敗しました:', error);

@@ -9,6 +9,7 @@
 
 import { CarSetup } from '../types/setup';
 import { UNITS } from './units';
+import { legacyWeatherLabel } from './weather';
 
 /**
  * 1セルをCSV用にエスケープする。
@@ -65,7 +66,7 @@ const COLUMNS: Column[] = [
   { header: '車種', get: (s) => s.carModel },
   { header: 'ドライバー', get: (s) => s.driver ?? null },
   { header: 'セッション種別', get: (s) => sessionTypeLabel(s.sessionType) },
-  { header: '天候', get: (s) => s.weather.condition ?? null },
+  { header: '天候', get: (s) => legacyWeatherLabel(s.weather.condition) },
   { header: `気温(${UNITS.temperature})`, get: (s) => num(s.weather.airTemp) },
   { header: `路温(${UNITS.temperature})`, get: (s) => num(s.weather.trackTemp) },
   { header: `湿度(${UNITS.humidity})`, get: (s) => num(s.weather.humidity) },
@@ -81,7 +82,9 @@ const COLUMNS: Column[] = [
   { header: `RR空気圧前(${UNITS.pressure})`, get: (s) => num(s.tireSettings.rr.before) },
   { header: `RR空気圧後(${UNITS.pressure})`, get: (s) => num(s.tireSettings.rr.after) },
 
-  { header: 'タイヤ銘柄', get: (s) => s.tireInfo.brand || null },
+  { header: 'タイヤセットID', get: (s) => s.tireInfo.tireSetCode || null },
+  { header: 'タイヤメーカー', get: (s) => s.tireInfo.manufacturer || s.tireInfo.brand || null },
+  { header: 'タイヤ製品名', get: (s) => s.tireInfo.productName || null },
   { header: 'コンパウンド', get: (s) => s.tireInfo.compound || null },
 
   { header: 'ベストラップ', get: (s) => s.lapTimeData?.bestLap ?? null },

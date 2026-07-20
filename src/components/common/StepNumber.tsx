@@ -18,6 +18,11 @@ interface StepNumberProps {
   placeholder?: string;
   /** 未入力時にボタンを押した際の初期値。指定しない場合は min（さらに未指定なら0） */
   defaultValue?: number;
+  /**
+   * モバイルキーボードの種別。未指定なら step / min から自動判定
+   * （小数ステップや負値を扱う場合は decimal、それ以外は numeric）。
+   */
+  inputMode?: 'numeric' | 'decimal';
 }
 
 export const StepNumber: React.FC<StepNumberProps> = ({
@@ -34,11 +39,15 @@ export const StepNumber: React.FC<StepNumberProps> = ({
   placeholder = '——',
   largeStep,
   defaultValue,
+  inputMode,
 }) => {
   const incTimer = useRef<number | null>(null);
   const decTimer = useRef<number | null>(null);
   const inputRef = useRef<any>(null);
   const hasLarge = typeof largeStep === 'number' && largeStep > 0;
+  // モバイルキーボード種別: 小数ステップ or 負値を扱うなら decimal、それ以外は numeric。
+  const resolvedInputMode: 'numeric' | 'decimal' =
+    inputMode ?? (step % 1 !== 0 || (min !== undefined && min < 0) ? 'decimal' : 'numeric');
 
   const clamp = (v: number) => {
     if (min !== undefined && v < min) return min;
@@ -91,7 +100,7 @@ export const StepNumber: React.FC<StepNumberProps> = ({
           onMouseLeave={stopHold}
           onTouchStart={() => startHold(-(largeStep as number))}
           onTouchEnd={stopHold}
-          className="text-xs"
+          className="text-xs vl-step-btn"
           style={{ minWidth: size === 'small' ? 28 : undefined, padding: size === 'small' ? '0 2px' : undefined, fontWeight: 600 }}
         >
           −{largeStep}
@@ -106,6 +115,7 @@ export const StepNumber: React.FC<StepNumberProps> = ({
         onTouchStart={() => startHold(-step)}
         onTouchEnd={stopHold}
         icon={<MinusOutlined />}
+        className="vl-step-btn"
       />
       <InputNumber
         ref={inputRef}
@@ -117,11 +127,12 @@ export const StepNumber: React.FC<StepNumberProps> = ({
         min={min}
         max={max}
         step={step}
-        className="mx-2"
+        className="mx-2 vl-step-input"
         size={size}
         controls={false}
         style={{ width: inputWidth }}
         placeholder={placeholder}
+        inputMode={resolvedInputMode}
         onKeyDown={(e) => {
           if (e.key === 'ArrowUp') stepBy(step);
           if (e.key === 'ArrowDown') stepBy(-step);
@@ -146,6 +157,7 @@ export const StepNumber: React.FC<StepNumberProps> = ({
         onTouchStart={() => startHold(step)}
         onTouchEnd={stopHold}
         icon={<PlusOutlined />}
+        className="vl-step-btn"
       />
       {hasLarge && (
         <Button
@@ -156,7 +168,7 @@ export const StepNumber: React.FC<StepNumberProps> = ({
           onMouseLeave={stopHold}
           onTouchStart={() => startHold(largeStep as number)}
           onTouchEnd={stopHold}
-          className="text-xs"
+          className="text-xs vl-step-btn"
           style={{ minWidth: size === 'small' ? 28 : undefined, padding: size === 'small' ? '0 2px' : undefined, fontWeight: 600 }}
         >
           +{largeStep}

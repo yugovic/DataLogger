@@ -23,18 +23,16 @@ import {
   type JournalSession,
   type ModImpact,
 } from '../../lib/buildJournal';
-import { estimateModLevel, MOD_LEVEL_LABELS } from '../../lib/modLevel';
+import { estimateModLevel } from '../../lib/modLevel';
 import { getUserSetups } from '../../services/setupService';
 import { getVehicle } from '../../services/vehicleService';
-import { MOD_CATEGORY_LABELS, type ModificationEntry, type Vehicle } from '../../types/vehicle';
+import { type ModificationEntry, type Vehicle } from '../../types/vehicle';
 import { Header } from '../common/Header';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext';
+import { formatCurrency, formatDate, formatNumber } from '../../i18n/formatters';
 
 const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
-const ROI_NOTE = '参考値（走行条件・ドライバーの上達の影響を含みます）';
-
-const formatDate = (date: Date): string =>
-  new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
-
 const formatLapSeconds = (seconds: number): string => {
   const totalMs = Math.round(seconds * 1000);
   const min = Math.floor(totalMs / 60000);
@@ -48,8 +46,6 @@ const formatSignedSeconds = (seconds: number): string => {
   const sign = rounded > 0 ? '+' : rounded < 0 ? '-' : '±';
   return `${sign}${Math.abs(rounded).toFixed(3)}`;
 };
-
-const formatYen = (value: number): string => `${value.toLocaleString('ja-JP')}円`;
 
 const sortedDatedModifications = (modifications: ModificationEntry[]): Array<ModificationEntry & { installedAt: Date }> =>
   modifications
@@ -74,6 +70,8 @@ export const BuildJournal: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { darkMode } = useTheme();
+  const { t } = useTranslation();
+  const { locale } = useLocale();
   const [settingsModal, setSettingsModal] = useState(false);
   const [currentSettingView, setCurrentSettingView] = useState('account');
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
@@ -98,7 +96,7 @@ export const BuildJournal: React.FC = () => {
         if (!vehicleData || vehicleData.userId !== currentUser.uid) {
           setVehicle(null);
           setSessions([]);
-          message.error('車両が見つかりません');
+          message.error(t('vehicle.journal.errors.notFound'));
           return;
         }
 
@@ -106,7 +104,7 @@ export const BuildJournal: React.FC = () => {
         setSessions(toJournalSessions(setups, vehicleData));
       } catch (_error) {
         if (!cancelled) {
-          message.error('ビルドジャーナルの読み込みに失敗しました');
+          message.error(t('vehicle.journal.errors.load'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -117,7 +115,7 @@ export const BuildJournal: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [currentUser, id]);
+  }, [currentUser, id, t]);
 
   const modifications = useMemo(
     () => vehicle?.profile?.modifications ?? [],
@@ -135,8 +133,8 @@ export const BuildJournal: React.FC = () => {
     [sessions],
   );
   const circuits = useMemo(
-    () => Array.from(new Set(sessionsWithLap.map((session) => session.circuit))).sort((a, b) => a.localeCompare(b, 'ja')),
-    [sessionsWithLap],
+    () => Array.from(new Set(sessionsWithLap.map((session) => session.circuit))).sort((a, b) => a.localeCompare(b, locale)),
+    [sessionsWithLap, locale],
   );
 
   useEffect(() => {
@@ -170,7 +168,7 @@ export const BuildJournal: React.FC = () => {
 
     if (datedModifications.length > 0) {
       series.push({
-        name: '改造イベント',
+        name: t('vehicle.journal.chart.modEvents'),
         type: 'line',
         data: [],
         markLine: {
@@ -217,7 +215,7 @@ export const BuildJournal: React.FC = () => {
       yAxis: {
         type: 'value',
         inverse: true,
-        name: 'ベストラップ',
+        name: t('vehicle.journal.chart.bestLap'),
         nameTextStyle: { color: axisColor, fontSize: 11 },
         axisLabel: {
           color: axisColor,
@@ -228,7 +226,7 @@ export const BuildJournal: React.FC = () => {
       },
       series,
     };
-  }, [circuits, darkMode, datedModifications, selectedCircuit, sessionsWithLap]);
+  }, [circuits, darkMode, datedModifications, selectedCircuit, sessionsWithLap, t]);
 
   const modLevel = vehicle?.profile ? estimateModLevel(vehicle.profile.modifications) : 'NORMAL';
   const vehicleName = vehicle ? `${vehicle.make} ${vehicle.model}` : '';
@@ -251,9 +249,9 @@ export const BuildJournal: React.FC = () => {
           setCurrentSettingView={setCurrentSettingView}
         />
         <main className="mx-auto max-w-4xl px-4 py-10">
-          <Empty description={<span className="text-slate-500 dark:text-slate-400">車両が見つかりません</span>}>
+          <Empty description={<span className="text-slate-500 dark:text-slate-400">{t('vehicle.journal.errors.notFound')}</span>}>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/vehicles')}>
-              車両管理へ戻る
+              {t('vehicle.journal.back')}
             </Button>
           </Empty>
         </main>
@@ -284,7 +282,7 @@ export const BuildJournal: React.FC = () => {
                 onClick={() => navigate('/vehicles')}
                 className="mb-3 -ml-2 text-slate-600 dark:text-slate-300"
               >
-                車両管理へ戻る
+                {t('vehicle.journal.back')}
               </Button>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="grid h-11 w-11 place-items-center rounded-md bg-slate-950 text-white dark:bg-white dark:text-slate-950">
@@ -295,7 +293,7 @@ export const BuildJournal: React.FC = () => {
                     {vehicleName}
                   </h2>
                   <p className={mutedTextClass}>
-                    {vehicle.year}年式{vehicle.grade ? ` / ${vehicle.grade}` : ''}
+                    {t('vehicle.list.modelYear', { year: vehicle.year })}{vehicle.grade ? ` / ${vehicle.grade}` : ''}
                   </p>
                 </div>
               </div>
@@ -303,10 +301,10 @@ export const BuildJournal: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
                 <ToolOutlined />
-                {MOD_LEVEL_LABELS[modLevel]}
+                {t(`vehicle.labels.modLevel.${modLevel}`)}
               </span>
               <span className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-                改造 {modifications.length}件
+                {t('vehicle.journal.modCount', { count: modifications.length, formatted: formatNumber(modifications.length, locale) })}
               </span>
             </div>
           </div>
@@ -315,15 +313,15 @@ export const BuildJournal: React.FC = () => {
         <section className={`${cardClass} p-4 sm:p-5`}>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className={sectionTitleClass}>サーキット別ベストラップ推移</h3>
-              <p className={mutedTextClass}>X軸は走行日、Y軸はベストラップ秒です。下に行くほど速い表示です。</p>
+              <h3 className={sectionTitleClass}>{t('vehicle.journal.chart.title')}</h3>
+              <p className={mutedTextClass}>{t('vehicle.journal.chart.description')}</p>
             </div>
             <Select
               value={selectedCircuit}
               onChange={setSelectedCircuit}
               className="w-full sm:w-60"
               options={[
-                { value: 'all', label: 'すべてのサーキット' },
+                { value: 'all', label: t('vehicle.journal.allCircuits') },
                 ...circuits.map((circuit) => ({ value: circuit, label: circuit })),
               ]}
             />
@@ -337,7 +335,7 @@ export const BuildJournal: React.FC = () => {
 
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           <div className={`${cardClass} p-4 sm:p-5`}>
-            <h3 className={sectionTitleClass}>タイムライン</h3>
+              <h3 className={sectionTitleClass}>{t('vehicle.journal.timeline')}</h3>
             <div className="mt-4">
               {timeline.length > 0 ? (
                 <Timeline events={timeline} />
@@ -351,9 +349,9 @@ export const BuildJournal: React.FC = () => {
             <div className={`${cardClass} p-4 sm:p-5`}>
               <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                 <WarningOutlined className="mt-0.5" />
-                <span>{ROI_NOTE}</span>
+                <span>{t('vehicle.journal.roiNote')}</span>
               </div>
-              <h3 className={sectionTitleClass}>Mod ROI注釈</h3>
+              <h3 className={sectionTitleClass}>{t('vehicle.journal.roiTitle')}</h3>
               <div className="mt-4 space-y-3">
                 {impacts.length > 0 ? (
                   impacts.map((impact) => (
@@ -371,7 +369,7 @@ export const BuildJournal: React.FC = () => {
 
             {undatedModifications.length > 0 && (
               <div className={`${cardClass} p-4 sm:p-5`}>
-                <h3 className={sectionTitleClass}>日付未設定の改造</h3>
+                <h3 className={sectionTitleClass}>{t('vehicle.journal.undated')}</h3>
                 <div className="mt-3 space-y-2">
                   {undatedModifications.map((modification) => (
                     <ModificationRow key={modification.id} modification={modification} />
@@ -386,13 +384,16 @@ export const BuildJournal: React.FC = () => {
   );
 };
 
-const EmptyState: React.FC = () => (
+const EmptyState: React.FC = () => {
+  const { t } = useTranslation();
+  return (
   <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-800 dark:bg-slate-950">
     <p className="text-sm text-slate-500 dark:text-slate-400">
-      改造の装着日とラップタイム付きの走行記録が揃うと、ここに変化が表示されます
+      {t('vehicle.journal.empty')}
     </p>
   </div>
-);
+  );
+};
 
 const Timeline: React.FC<{ events: JournalEvent[] }> = ({ events }) => (
   <div className="relative space-y-3">
@@ -419,15 +420,18 @@ const eventKey = (event: JournalEvent): string =>
     ? `mod-${event.modification.id}`
     : `session-${event.session.setupId}-${event.date.getTime()}`;
 
-const ModificationEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'mod' }> }> = ({ event }) => (
+const ModificationEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'mod' }> }> = ({ event }) => {
+  const { t } = useTranslation();
+  const { locale } = useLocale();
+  return (
   <div>
     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
       <span className="inline-flex items-center gap-1">
         <CalendarOutlined />
-        {formatDate(event.date)}
+        {formatDate(event.date, locale)}
       </span>
       <span className="rounded bg-orange-100 px-2 py-0.5 font-bold text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
-        {MOD_CATEGORY_LABELS[event.modification.category]}
+        {t(`vehicle.labels.modCategory.${event.modification.category}`)}
       </span>
     </div>
     <div className="mt-1 font-bold text-slate-900 dark:text-slate-100">{event.modification.partName}</div>
@@ -435,10 +439,13 @@ const ModificationEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'mod' }
       <div className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{event.modification.maker}</div>
     )}
   </div>
-);
+  );
+};
 
 const SessionEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'session' }> }> = ({ event }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { locale } = useLocale();
   const setupId = event.session.setupId;
   const canNavigate = setupId.length > 0;
 
@@ -460,12 +467,12 @@ const SessionEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'session' }>
       onClick={canNavigate ? handleClick : undefined}
       onKeyDown={canNavigate ? handleKeyDown : undefined}
       className={canNavigate ? 'group cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-blue-500 hover:opacity-80 transition-opacity' : undefined}
-      aria-label={canNavigate ? `セットアップ詳細を開く（${event.session.circuit} ${formatDate(event.date)}）` : undefined}
+      aria-label={canNavigate ? t('vehicle.journal.openSetupAria', { circuit: event.session.circuit, date: formatDate(event.date, locale) }) : undefined}
     >
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
         <span className="inline-flex items-center gap-1">
           <CalendarOutlined />
-          {formatDate(event.date)}
+          {formatDate(event.date, locale)}
         </span>
         <span className="inline-flex items-center gap-1">
           <EnvironmentOutlined />
@@ -474,17 +481,17 @@ const SessionEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'session' }>
         {event.isCircuitBest && (
           <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
             <TrophyOutlined />
-            ベスト更新
+            {t('vehicle.journal.newBest')}
           </span>
         )}
         {canNavigate && (
           <span className="ml-auto inline-flex items-center gap-1 text-blue-500 opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 dark:text-blue-400 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100">
-            詳細 →
+            {t('vehicle.journal.details')} →
           </span>
         )}
       </div>
       <div className="mt-1 font-mono text-lg font-black tabular-nums text-slate-900 dark:text-slate-100">
-        {event.session.bestLapSeconds !== null ? formatLapSeconds(event.session.bestLapSeconds) : 'ベストラップ未入力'}
+        {event.session.bestLapSeconds !== null ? formatLapSeconds(event.session.bestLapSeconds) : t('vehicle.journal.noBestLap')}
       </div>
     </div>
   );
@@ -493,11 +500,14 @@ const SessionEvent: React.FC<{ event: Extract<JournalEvent, { kind: 'session' }>
 const ImpactCard: React.FC<{
   impact: ModImpact;
   modification: ModificationEntry | undefined;
-}> = ({ impact, modification }) => (
+}> = ({ impact, modification }) => {
+  const { t } = useTranslation();
+  const { locale } = useLocale();
+  return (
   <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
     {/* 主情報: パーツ名・サーキット */}
     <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
-      {modification?.partName ?? '改造'} 導入後、{impact.circuit}
+      {t('vehicle.journal.afterModification', { modification: modification?.partName ?? t('vehicle.journal.modification'), circuit: impact.circuit })}
     </div>
     {/* 主情報: 導入前後のベストラップ変化 */}
     <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -509,34 +519,39 @@ const ImpactCard: React.FC<{
         {formatLapSeconds(impact.afterBestSeconds)}
       </span>
       <span className={`font-mono text-lg font-black tabular-nums ${impact.deltaSeconds < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-        {formatSignedSeconds(impact.deltaSeconds)}秒
+        {t('vehicle.journal.seconds', { value: formatSignedSeconds(impact.deltaSeconds) })}
       </span>
     </div>
     {/* 従情報: 金額換算（参考） */}
     {impact.yenPerSecond !== null && (
       <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
         <DollarOutlined />
-        <span className="text-blue-400 dark:text-blue-500">参考</span>
-        約{formatYen(impact.yenPerSecond)}/秒
+        <span className="text-blue-400 dark:text-blue-500">{t('vehicle.journal.reference')}</span>
+        {t('vehicle.journal.costPerSecond', { value: formatCurrency(impact.yenPerSecond, locale) })}
       </div>
     )}
   </div>
-);
+  );
+};
 
-const ModificationRow: React.FC<{ modification: ModificationEntry }> = ({ modification }) => (
+const ModificationRow: React.FC<{ modification: ModificationEntry }> = ({ modification }) => {
+  const { t } = useTranslation();
+  const { locale } = useLocale();
+  return (
   <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
       <span className="rounded bg-slate-200 px-2 py-0.5 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-        {MOD_CATEGORY_LABELS[modification.category]}
+        {t(`vehicle.labels.modCategory.${modification.category}`)}
       </span>
-      {modification.costJPY !== null && <span>{formatYen(modification.costJPY)}</span>}
+      {modification.costJPY !== null && <span>{formatCurrency(modification.costJPY, locale)}</span>}
     </div>
     <div className="mt-1 font-bold text-slate-900 dark:text-slate-100">{modification.partName}</div>
     {modification.maker && (
       <div className="text-sm text-slate-500 dark:text-slate-400">{modification.maker}</div>
     )}
   </div>
-);
+  );
+};
 
 const EChart: React.FC<{ option: echarts.EChartsOption; darkMode: boolean; className: string }> = ({
   option,

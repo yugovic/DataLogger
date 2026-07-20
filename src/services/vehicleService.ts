@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { vehicleProfileSchema } from '../schemas/vehicleProfileSchema';
+import { adjustmentDefinitionErrors, normalizeAdjustmentDefinitions } from '../lib/setupAdjustments';
 import type { ModificationEntry, Vehicle, VehicleProfile } from '../types/vehicle';
 
 const COLLECTION_NAME = 'vehicles';
@@ -37,13 +38,26 @@ const validateVehicleProfile = (profile: unknown): VehicleProfile => {
 };
 
 const prepareVehicleData = <T extends Partial<Vehicle>>(vehicleData: T): T => {
-  if (!('profile' in vehicleData) || vehicleData.profile === undefined) {
-    return vehicleData;
+  const definitionErrors = adjustmentDefinitionErrors(vehicleData.setupConfig?.adjustmentDefinitions);
+  if (definitionErrors.length > 0) {
+    throw new Error(`セッティング項目の入力内容に誤りがあります。${definitionErrors.join(' / ')}`);
   }
 
   return {
     ...vehicleData,
-    profile: validateVehicleProfile(vehicleData.profile),
+    ...('profile' in vehicleData && vehicleData.profile !== undefined
+      ? { profile: validateVehicleProfile(vehicleData.profile) }
+      : {}),
+    ...(vehicleData.setupConfig
+      ? {
+          setupConfig: {
+            ...vehicleData.setupConfig,
+            adjustmentDefinitions: normalizeAdjustmentDefinitions(
+              vehicleData.setupConfig.adjustmentDefinitions,
+            ),
+          },
+        }
+      : {}),
   };
 };
 
@@ -231,11 +245,23 @@ export const generateDefaultSetupConfig = () => {
       casterAdjustable: false
     },
     tire: {
+      tireSetManagementEnabled: false,
       frontSize: [],
       rearSize: []
     },
     brake: {
-      padTypes: []
-    }
+      padTypes: [],
+      rotorTypes: [],
+      balanceAdjustable: false
+    },
+    aero: {
+      frontAdjustable: false,
+      rearAdjustable: false
+    },
+    engine: {
+      ecuTunable: false,
+      boostAdjustable: false
+    },
+    adjustmentDefinitions: [],
   };
 };

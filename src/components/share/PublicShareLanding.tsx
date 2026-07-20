@@ -5,21 +5,23 @@ import { getPublicShare } from '../../services/publicShareService';
 import { trackEvent } from '../../lib/analytics';
 import type { PublicShare } from '../../types/publicShare';
 import { SpecCard } from '../vehicle/SpecCard';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext';
+import { formatDate } from '../../i18n/formatters';
+import { LocaleSelect } from '../common/LocaleSelect';
 
-const formatSessionDate = (date: Date): string =>
-  date.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-
-const PublicShareFooter: React.FC = () => (
+const PublicShareFooter: React.FC = () => {
+  const { t } = useTranslation('share');
+  return (
   <footer className="border-t border-slate-800/80 px-5 py-6 text-center text-xs text-slate-500">
-    VELOCITY LOGGER - 走行記録とセットアップ改善を積み上げるログブック
+    {t('footer')}
   </footer>
-);
+  );
+};
 
 export const PublicShareLanding: React.FC = () => {
+  const { t } = useTranslation('share');
+  const { locale } = useLocale();
   const { shareId } = useParams<{ shareId: string }>();
   const [share, setShare] = useState<PublicShare | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,12 @@ export const PublicShareLanding: React.FC = () => {
       }
 
       try {
-        const data = await getPublicShare(shareId);
+        const data = await Promise.race([
+          getPublicShare(shareId),
+          new Promise<never>((_, reject) => {
+            window.setTimeout(() => reject(new Error('public-share-timeout')), 8000);
+          }),
+        ]);
         if (!mounted) return;
         setShare(data);
         if (data) {
@@ -59,11 +66,11 @@ export const PublicShareLanding: React.FC = () => {
   useEffect(() => {
     if (!share) return;
     const prev = document.title;
-    document.title = `${share.summary.circuit} のベストラップ | VELOCITY LOGGER`;
+    document.title = t('pageTitle', { circuit: share.summary.circuit });
     return () => {
       document.title = prev;
     };
-  }, [share]);
+  }, [share, t]);
 
   const trackCta = () => {
     void trackEvent('public_share_cta_clicked', { shareId });
@@ -74,7 +81,7 @@ export const PublicShareLanding: React.FC = () => {
       <div className="flex min-h-[100dvh] items-center justify-center bg-slate-950 text-slate-100">
         <div className="flex items-center gap-3 text-sm text-slate-400">
           <LoadingOutlined className="text-blue-300" />
-          公開リンクを読み込んでいます
+          {t('loading')}
         </div>
       </div>
     );
@@ -89,17 +96,17 @@ export const PublicShareLanding: React.FC = () => {
               VELOCITY LOGGER
             </div>
             <h1 className="mt-5 text-3xl font-bold leading-tight text-slate-50 sm:text-4xl">
-              この共有リンクは存在しないか、削除されました
+              {t('missingTitle')}
             </h1>
             <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-slate-400">
-              公開元のユーザーがリンクを削除したか、URLが正しくない可能性があります。
+              {t('missingDescription')}
             </p>
             <Link
               to="/auth"
               onClick={trackCta}
               className="mt-8 inline-flex items-center justify-center rounded-md bg-blue-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-950/40 transition hover:bg-blue-400"
             >
-              あなたの走行も記録しよう
+              {t('cta')}
             </Link>
           </div>
         </main>
@@ -111,7 +118,8 @@ export const PublicShareLanding: React.FC = () => {
   const { summary } = share;
 
   return (
-    <div className="min-h-[100dvh] bg-slate-950 text-slate-100">
+    <div className="relative min-h-[100dvh] bg-slate-950 text-slate-100">
+      <LocaleSelect className="absolute right-5 top-5 z-10 w-32" />
       <main className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-8 sm:px-6 lg:grid-cols-[1fr_420px] lg:items-start lg:px-8 lg:py-12">
         <section className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-[0.32em] text-blue-300">
@@ -122,36 +130,36 @@ export const PublicShareLanding: React.FC = () => {
           </h1>
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-400">
             <span>{summary.carModel}</span>
-            <span>{formatSessionDate(summary.sessionDate)}</span>
+            <span>{formatDate(summary.sessionDate, locale)}</span>
             {summary.hasLoggerEvidence && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
                 <SafetyCertificateOutlined />
-                ロガー計測
+                {t('loggerEvidence')}
               </span>
             )}
           </div>
 
           <div className="mt-10 border-y border-slate-800 py-7">
             <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-              BEST LAP
+              {t('bestLap')}
             </div>
             <div className="mt-3 font-mono text-5xl font-black leading-none text-emerald-300 sm:text-7xl">
-              {summary.bestLap ?? '未記録'}
+              {summary.bestLap ?? t('noRecord')}
             </div>
           </div>
 
           <ul className="mt-8 space-y-2 text-sm text-slate-400">
             <li className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 text-blue-400">›</span>
-              タイヤ空気圧・サスセットアップを走行ごとに記録
+              {t('featureSetup')}
             </li>
             <li className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 text-blue-400">›</span>
-              ラップタイムと改造履歴の推移を可視化
+              {t('featureHistory')}
             </li>
             <li className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 text-blue-400">›</span>
-              スペックカードで愛車の仕様を共有
+              {t('featureSpec')}
             </li>
           </ul>
 
@@ -161,7 +169,7 @@ export const PublicShareLanding: React.FC = () => {
               onClick={trackCta}
               className="inline-flex w-full items-center justify-center rounded-md bg-blue-500 px-6 py-4 text-base font-bold text-white shadow-xl shadow-blue-950/40 transition hover:bg-blue-400 sm:w-auto"
             >
-              あなたの走行も記録しよう
+              {t('cta')}
             </Link>
           </div>
         </section>
@@ -176,7 +184,7 @@ export const PublicShareLanding: React.FC = () => {
             />
           ) : (
             <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-5 text-sm text-slate-400">
-              車両スペックカードは公開されていません。
+              {t('noSpecCard')}
             </div>
           )}
         </aside>

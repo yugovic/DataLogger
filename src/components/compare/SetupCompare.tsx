@@ -14,9 +14,9 @@ import { CarSetup } from '../../types/setup';
 import { Header } from '../common/Header';
 import {
   buildCompareSections,
+  resolveCompareSections,
   compareRow,
   compareBestLaps,
-  sessionTypeLabel,
   formatDelta,
   CompareRow,
   DiffKind,
@@ -24,6 +24,9 @@ import {
 import { trackEvent } from '../../lib/analytics';
 import logger from '../../utils/logger';
 import { SpecCard } from '../vehicle/SpecCard';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext';
+import { formatDateTime } from '../../i18n/formatters';
 
 // 差分種別ごとのセル背景クラス（ダークモード対応）
 function cellClass(kind: DiffKind, side: 'a' | 'b'): string {
@@ -47,15 +50,12 @@ function cellClass(kind: DiffKind, side: 'a' | 'b'): string {
   }
 }
 
-const formatHeaderDate = (date: Date): string => {
-  const d = date instanceof Date ? date : new Date(date);
-  return `${d.toLocaleDateString('ja-JP')} ${d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
-};
-
 export const SetupCompare: React.FC = () => {
   const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { locale } = useLocale();
   const [settingsModal, setSettingsModal] = useState(false);
   const [currentSettingView, setCurrentSettingView] = useState('account');
 
@@ -72,7 +72,7 @@ export const SetupCompare: React.FC = () => {
     const load = async () => {
       if (!currentUser) return;
       if (!idA || !idB) {
-        setLoadError('比較する2件のセットアップが指定されていません');
+        setLoadError(t('compare.errors.missingIds'));
         setLoading(false);
         return;
       }
@@ -81,12 +81,12 @@ export const SetupCompare: React.FC = () => {
       try {
         const [a, b] = await Promise.all([getSetup(idA), getSetup(idB)]);
         if (!a || !b) {
-          setLoadError('指定されたセットアップが見つかりません');
+          setLoadError(t('compare.errors.notFound'));
           return;
         }
         // 他人のデータは比較しない（所有者チェック）
         if (a.userId !== currentUser.uid || b.userId !== currentUser.uid) {
-          setLoadError('このセットアップを表示する権限がありません');
+          setLoadError(t('compare.errors.forbidden'));
           return;
         }
         setSetupA(a);
@@ -95,16 +95,19 @@ export const SetupCompare: React.FC = () => {
         trackEvent('comparison_viewed', { circuit: a.circuit, car_model: a.carModel });
       } catch (error) {
         logger.error('比較データの読み込みに失敗しました:', error);
-        setLoadError('比較データの読み込みに失敗しました');
-        message.error('比較データの読み込みに失敗しました');
+        setLoadError(t('compare.errors.load'));
+        message.error(t('compare.errors.load'));
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [currentUser, idA, idB]);
+  }, [currentUser, idA, idB, t]);
 
-  const sections = useMemo(() => buildCompareSections(), []);
+  const sections = useMemo(
+    () => resolveCompareSections(buildCompareSections(setupA && setupB ? [setupA, setupB] : []), t),
+    [setupA, setupB, t],
+  );
 
   // ベストラップの勝者バッジ判定
   const lapWinner = useMemo(() => {
@@ -148,10 +151,10 @@ export const SetupCompare: React.FC = () => {
             className="flex items-center text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm mb-6"
           >
             <ArrowLeftOutlined className="mr-1" />
-            履歴に戻る
+            {t('compare.back')}
           </button>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12">
-            <Empty description={<span className="text-gray-500 dark:text-gray-400">{loadError ?? '比較できません'}</span>} />
+            <Empty description={<span className="text-gray-500 dark:text-gray-400">{loadError ?? t('compare.unavailable')}</span>} />
           </div>
         </main>
       </div>
@@ -182,29 +185,29 @@ export const SetupCompare: React.FC = () => {
           className="flex items-center text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm mb-4"
         >
           <ArrowLeftOutlined className="mr-1" />
-          履歴に戻る
+          {t('compare.back')}
         </button>
 
         <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">セットアップ比較</h2>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{t('compare.title')}</h2>
           <button
             onClick={swap}
             className="flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-md text-sm"
           >
             <SwapOutlined className="mr-2" />
-            左右を入れ替え
+            {t('compare.swap')}
           </button>
         </div>
 
         {!sameCarModel && (
           <div className="mb-4 text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 px-3 py-2 rounded-md">
-            車種が異なるセットアップを比較しています（{setupA.carModel} と {setupB.carModel}）。
+            {t('compare.differentVehicles', { a: setupA.carModel, b: setupB.carModel })}
           </div>
         )}
 
         {hasVehicleConditionDiff && (
           <div className="mb-4 text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 px-3 py-2 rounded-md">
-            車両条件が異なります。タイム差は改造度やタイヤ区分の違いも踏まえて確認してください。
+            {t('compare.differentConditions')}
           </div>
         )}
 
@@ -212,18 +215,18 @@ export const SetupCompare: React.FC = () => {
         <div className="mb-4 flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-sm bg-yellow-100 dark:bg-yellow-900/40 border border-yellow-300 dark:border-yellow-700"></span>
-            差分あり
+            {t('compare.changed')}
           </span>
           <span className="flex items-center gap-1">
             <span className="font-medium">—</span>
-            未入力
+            {t('compare.empty')}
           </span>
         </div>
 
         {/* 比較ヘッダー（A / B のラベル） */}
         <div className="grid grid-cols-[minmax(7rem,1fr)_1fr_1fr] sm:grid-cols-[minmax(10rem,1fr)_1fr_1fr] gap-px bg-gray-200 dark:bg-gray-700 rounded-t-lg overflow-hidden sticky top-0 z-10">
           <div className="bg-gray-100 dark:bg-gray-800 px-3 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">
-            項目
+            {t('compare.item')}
           </div>
           {[setupA, setupB].map((s, i) => {
             const isWinner = lapWinner === (i === 0 ? 'a' : 'b');
@@ -235,14 +238,14 @@ export const SetupCompare: React.FC = () => {
                   </span>
                   {isWinner && (
                     <span className="text-[10px] bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
-                      ベスト最速
+                      {t('compare.fastest')}
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">{formatHeaderDate(s.date)}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">{formatDateTime(s.date, locale)}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-500 truncate">{s.circuit}</div>
                 <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate">
-                  {s.carModel} ・ {sessionTypeLabel(s.sessionType)}
+                  {s.carModel} · {t(`common.sessionType.${s.sessionType}`)}
                 </div>
                 {s.vehicleProfileSnapshot && (
                   <div className="mt-2">
@@ -300,7 +303,7 @@ export const SetupCompare: React.FC = () => {
         </div>
 
         <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
-          差分（B − A）は B 列に表示されます。赤＝増加 / 青＝減少。
+          {t('compare.deltaHint')}
         </p>
       </main>
     </div>

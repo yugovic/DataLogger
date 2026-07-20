@@ -5,10 +5,14 @@
 
 import { CarSetup } from '../types/setup';
 import { UNITS } from './units';
+import { legacyWeatherLabel } from './weather';
+import { weatherTranslationKey } from './weather';
+import type { TFunction } from 'i18next';
 
 /** 値の表示用フォーマット。null/undefined は「—」 */
-export function displayValue(value: number | string | null | undefined, unit?: string): string {
+export function displayValue(value: number | string | boolean | null | undefined, unit?: string): string {
   if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'boolean') return value ? 'ON' : 'OFF';
   return unit ? `${value} ${unit}` : String(value);
 }
 
@@ -20,16 +24,16 @@ export function formatDelta(delta: number): string {
 }
 
 /** セッション種別の日本語ラベル */
-export function sessionTypeLabel(type: CarSetup['sessionType']): string {
+export function sessionTypeTranslationKey(type: CarSetup['sessionType']): string {
   switch (type) {
     case 'practice':
-      return '練習走行';
+      return 'common.sessionType.practice';
     case 'qualifying':
-      return '予選';
+      return 'common.sessionType.qualifying';
     case 'race':
-      return 'レース';
+      return 'common.sessionType.race';
     default:
-      return '—';
+      return 'common.sessionType.unknown';
   }
 }
 
@@ -94,101 +98,176 @@ export function pressureSummary(setup: CarSetup): string {
 // ─── 比較ビュー用の項目定義 ────────────────────────────────
 
 export interface CompareRow {
-  label: string;
+  labelKey?: string;
+  /** 車両固有の保存済み項目など、翻訳対象外の動的ラベル */
+  label?: string;
   unit?: string;
   /** 各セットアップから取り出す値（数値 or 文字列 or null） */
-  get: (s: CarSetup) => number | string | null | undefined;
+  get: (s: CarSetup) => number | string | boolean | null | undefined;
   /** true の場合、数値差分（+5 等）を表示する */
   numeric?: boolean;
 }
 
 export interface CompareSection {
-  title: string;
+  titleKey: string;
   rows: CompareRow[];
 }
 
+export interface ResolvedCompareRow extends CompareRow { label: string }
+export interface ResolvedCompareSection { titleKey: string; title: string; rows: ResolvedCompareRow[] }
+
+/** 翻訳キーを表示文字列へ解決する。入力定義は変更しない。 */
+export function resolveCompareSections(
+  sections: CompareSection[],
+  t: TFunction,
+): ResolvedCompareSection[] {
+  return sections.map((section) => ({
+    ...section,
+    title: t(section.titleKey),
+    rows: section.rows.map((row) => {
+      let get = row.get;
+      if (row.labelKey === 'compare.fields.sessionType') {
+        get = (setup) => t(sessionTypeTranslationKey(setup.sessionType));
+      } else if (row.labelKey === 'compare.fields.weather') {
+        get = (setup) => {
+          const key = weatherTranslationKey(setup.weather.condition);
+          return key ? t(`common.${key}`) : null;
+        };
+      }
+      return { ...row, label: row.labelKey ? t(row.labelKey) : (row.label ?? ''), get };
+    }),
+  }));
+}
+
 /** 比較ビューに表示する全セクション定義（単位はラベル横に併記） */
-export function buildCompareSections(): CompareSection[] {
-  return [
+export function buildCompareSections(setups: CarSetup[] = []): CompareSection[] {
+  const sections: CompareSection[] = [
     {
-      title: 'セッション情報',
+      titleKey: 'compare.sections.session',
       rows: [
-        { label: 'サーキット', get: (s) => s.circuit },
-        { label: '車種', get: (s) => s.carModel },
-        { label: 'ドライバー', get: (s) => s.driver ?? null },
-        { label: 'セッション種別', get: (s) => sessionTypeLabel(s.sessionType) },
-        { label: '走行距離', unit: UNITS.distance, numeric: true, get: (s) => s.sessionInfo.distance },
-        { label: '燃料量', unit: UNITS.fuel, numeric: true, get: (s) => s.sessionInfo.fuel },
+        { labelKey: 'compare.fields.circuit', get: (s) => s.circuit },
+        { labelKey: 'compare.fields.carModel', get: (s) => s.carModel },
+        { labelKey: 'compare.fields.driver', get: (s) => s.driver ?? null },
+        { labelKey: 'compare.fields.sessionType', get: (s) => s.sessionType },
+        { labelKey: 'compare.fields.distance', unit: UNITS.distance, numeric: true, get: (s) => s.sessionInfo.distance },
+        { labelKey: 'compare.fields.fuel', unit: UNITS.fuel, numeric: true, get: (s) => s.sessionInfo.fuel },
       ],
     },
     {
-      title: '天候',
+      titleKey: 'compare.sections.weather',
       rows: [
-        { label: '天候', get: (s) => s.weather.condition ?? null },
-        { label: '気温', unit: UNITS.temperature, numeric: true, get: (s) => s.weather.airTemp },
-        { label: '路面温度', unit: UNITS.temperature, numeric: true, get: (s) => s.weather.trackTemp },
-        { label: '湿度', unit: UNITS.humidity, numeric: true, get: (s) => s.weather.humidity },
-        { label: '気圧', unit: UNITS.atmosphericPressure, numeric: true, get: (s) => s.weather.pressure },
+        { labelKey: 'compare.fields.weather', get: (s) => legacyWeatherLabel(s.weather.condition) },
+        { labelKey: 'compare.fields.airTemp', unit: UNITS.temperature, numeric: true, get: (s) => s.weather.airTemp },
+        { labelKey: 'compare.fields.trackTemp', unit: UNITS.temperature, numeric: true, get: (s) => s.weather.trackTemp },
+        { labelKey: 'compare.fields.humidity', unit: UNITS.humidity, numeric: true, get: (s) => s.weather.humidity },
+        { labelKey: 'compare.fields.pressure', unit: UNITS.atmosphericPressure, numeric: true, get: (s) => s.weather.pressure },
       ],
     },
     {
-      title: `タイヤ空気圧 走行前 (${UNITS.pressure})`,
+      titleKey: 'compare.sections.tirePressureBefore',
       rows: [
-        { label: 'FL 前', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fl.before },
-        { label: 'FR 前', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fr.before },
-        { label: 'RL 前', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rl.before },
-        { label: 'RR 前', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rr.before },
+        { labelKey: 'compare.fields.flBefore', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fl.before },
+        { labelKey: 'compare.fields.frBefore', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fr.before },
+        { labelKey: 'compare.fields.rlBefore', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rl.before },
+        { labelKey: 'compare.fields.rrBefore', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rr.before },
       ],
     },
     {
-      title: `タイヤ空気圧 走行後 (${UNITS.pressure})`,
+      titleKey: 'compare.sections.tirePressureAfter',
       rows: [
-        { label: 'FL 後', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fl.after },
-        { label: 'FR 後', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fr.after },
-        { label: 'RL 後', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rl.after },
-        { label: 'RR 後', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rr.after },
+        { labelKey: 'compare.fields.flAfter', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fl.after },
+        { labelKey: 'compare.fields.frAfter', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fr.after },
+        { labelKey: 'compare.fields.rlAfter', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rl.after },
+        { labelKey: 'compare.fields.rrAfter', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rr.after },
       ],
     },
     {
-      title: 'タイヤ',
+      titleKey: 'compare.sections.tires',
       rows: [
-        { label: '銘柄', get: (s) => s.tireInfo.brand || null },
-        { label: 'コンパウンド', get: (s) => s.tireInfo.compound || null },
+        { labelKey: 'compare.fields.tireSetId', get: (s) => s.tireInfo.tireSetCode || null },
+        { labelKey: 'compare.fields.manufacturer', get: (s) => s.tireInfo.manufacturer || s.tireInfo.brand || null },
+        { labelKey: 'compare.fields.productName', get: (s) => s.tireInfo.productName || null },
+        { labelKey: 'compare.fields.compound', get: (s) => s.tireInfo.compound || null },
+        { labelKey: 'compare.fields.frontSize', get: (s) => s.tireInfo.frontSize || null },
+        { labelKey: 'compare.fields.rearSize', get: (s) => s.tireInfo.rearSize || null },
+        { labelKey: 'compare.fields.heatCyclesAdded', numeric: true, unit: '回', get: (s) => s.tireUsage?.heatCyclesAdded ?? null },
       ],
     },
     {
-      title: 'サスペンション',
+      titleKey: 'compare.sections.suspension',
       rows: [
-        { label: 'Fダンパー 圧側', unit: UNITS.damper, numeric: true, get: (s) => s.suspensionSettings?.frontDamper.compression ?? null },
-        { label: 'Fダンパー 伸側', unit: UNITS.damper, numeric: true, get: (s) => s.suspensionSettings?.frontDamper.rebound ?? null },
-        { label: 'Rダンパー 圧側', unit: UNITS.damper, numeric: true, get: (s) => s.suspensionSettings?.rearDamper.compression ?? null },
-        { label: 'Rダンパー 伸側', unit: UNITS.damper, numeric: true, get: (s) => s.suspensionSettings?.rearDamper.rebound ?? null },
-        { label: 'Fバネレート', unit: UNITS.springRate, numeric: true, get: (s) => s.suspensionSettings?.springRate.front ?? null },
-        { label: 'Rバネレート', unit: UNITS.springRate, numeric: true, get: (s) => s.suspensionSettings?.springRate.rear ?? null },
-        { label: 'F車高', unit: UNITS.rideHeight, numeric: true, get: (s) => s.suspensionSettings?.rideHeight.front ?? null },
-        { label: 'R車高', unit: UNITS.rideHeight, numeric: true, get: (s) => s.suspensionSettings?.rideHeight.rear ?? null },
-        { label: 'Fスタビライザー', numeric: true, get: (s) => s.suspensionSettings?.antiRollBar.front ?? null },
-        { label: 'Rスタビライザー', numeric: true, get: (s) => s.suspensionSettings?.antiRollBar.rear ?? null },
+        { labelKey: 'compare.fields.frontDamperCompression', unit: UNITS.damper, numeric: true, get: (s) => s.suspensionSettings?.frontDamper.compression ?? null },
+        { labelKey: 'compare.fields.frontDamperRebound', unit: UNITS.damper, numeric: true, get: (s) => s.suspensionSettings?.frontDamper.rebound ?? null },
+        { labelKey: 'compare.fields.rearDamperCompression', unit: UNITS.damper, numeric: true, get: (s) => s.suspensionSettings?.rearDamper.compression ?? null },
+        { labelKey: 'compare.fields.rearDamperRebound', unit: UNITS.damper, numeric: true, get: (s) => s.suspensionSettings?.rearDamper.rebound ?? null },
+        { labelKey: 'compare.fields.frontSpringRate', unit: UNITS.springRate, numeric: true, get: (s) => s.suspensionSettings?.springRate.front ?? null },
+        { labelKey: 'compare.fields.rearSpringRate', unit: UNITS.springRate, numeric: true, get: (s) => s.suspensionSettings?.springRate.rear ?? null },
+        { labelKey: 'compare.fields.frontRideHeight', unit: UNITS.rideHeight, numeric: true, get: (s) => s.suspensionSettings?.rideHeight.front ?? null },
+        { labelKey: 'compare.fields.rearRideHeight', unit: UNITS.rideHeight, numeric: true, get: (s) => s.suspensionSettings?.rideHeight.rear ?? null },
+        { labelKey: 'compare.fields.frontAntiRollBar', numeric: true, get: (s) => s.suspensionSettings?.antiRollBar.front ?? null },
+        { labelKey: 'compare.fields.rearAntiRollBar', numeric: true, get: (s) => s.suspensionSettings?.antiRollBar.rear ?? null },
       ],
     },
     {
-      title: 'アライメント',
+      titleKey: 'compare.sections.alignment',
       rows: [
-        { label: 'Fキャンバー', unit: UNITS.angle, numeric: true, get: (s) => s.alignmentSettings?.camber.front ?? null },
-        { label: 'Rキャンバー', unit: UNITS.angle, numeric: true, get: (s) => s.alignmentSettings?.camber.rear ?? null },
-        { label: 'Fトー', unit: UNITS.rideHeight, numeric: true, get: (s) => s.alignmentSettings?.toe.front ?? null },
-        { label: 'Rトー', unit: UNITS.rideHeight, numeric: true, get: (s) => s.alignmentSettings?.toe.rear ?? null },
-        { label: 'キャスター', unit: UNITS.angle, numeric: true, get: (s) => s.alignmentSettings?.caster ?? null },
+        { labelKey: 'compare.fields.frontCamber', unit: UNITS.angle, numeric: true, get: (s) => s.alignmentSettings?.camber.front ?? null },
+        { labelKey: 'compare.fields.rearCamber', unit: UNITS.angle, numeric: true, get: (s) => s.alignmentSettings?.camber.rear ?? null },
+        { labelKey: 'compare.fields.frontToe', unit: UNITS.rideHeight, numeric: true, get: (s) => s.alignmentSettings?.toe.front ?? null },
+        { labelKey: 'compare.fields.rearToe', unit: UNITS.rideHeight, numeric: true, get: (s) => s.alignmentSettings?.toe.rear ?? null },
+        { labelKey: 'compare.fields.caster', unit: UNITS.angle, numeric: true, get: (s) => s.alignmentSettings?.caster ?? null },
       ],
     },
     {
-      title: 'ラップタイム',
+      titleKey: 'compare.sections.brakes',
       rows: [
-        { label: 'ベストラップ', get: (s) => s.lapTimeData?.bestLap ?? null },
-        { label: '周回数', numeric: true, get: (s) => s.lapTimeData?.totalLaps ?? null },
+        { labelKey: 'compare.fields.frontPad', get: (s) => s.brakeSettings?.frontPad || null },
+        { labelKey: 'compare.fields.rearPad', get: (s) => s.brakeSettings?.rearPad || null },
+        { labelKey: 'compare.fields.frontRotor', get: (s) => s.brakeSettings?.frontRotor || null },
+        { labelKey: 'compare.fields.rearRotor', get: (s) => s.brakeSettings?.rearRotor || null },
+        { labelKey: 'compare.fields.frontBrakeBalance', unit: '%', numeric: true, get: (s) => s.brakeSettings?.balance ?? null },
+      ],
+    },
+    {
+      titleKey: 'compare.sections.aeroEngine',
+      rows: [
+        { labelKey: 'compare.fields.frontAero', numeric: true, get: (s) => s.aeroSettings?.front ?? null },
+        { labelKey: 'compare.fields.rearAero', numeric: true, get: (s) => s.aeroSettings?.rear ?? null },
+        { labelKey: 'compare.fields.ecuMap', get: (s) => s.engineSettings?.ecuMap || null },
+        { labelKey: 'compare.fields.boost', unit: 'kPa', numeric: true, get: (s) => s.engineSettings?.boost ?? null },
+      ],
+    },
+    {
+      titleKey: 'compare.sections.lapTime',
+      rows: [
+        { labelKey: 'compare.fields.bestLap', get: (s) => s.lapTimeData?.bestLap ?? null },
+        { labelKey: 'compare.fields.totalLaps', numeric: true, get: (s) => s.lapTimeData?.totalLaps ?? null },
       ],
     },
   ];
+
+  const adjustmentSnapshots = new Map<string, NonNullable<CarSetup['adjustmentValues']>[number]>();
+  setups.forEach((setup) => {
+    setup.adjustmentValues?.forEach((entry) => {
+      if (!adjustmentSnapshots.has(entry.definitionId)) adjustmentSnapshots.set(entry.definitionId, entry);
+    });
+  });
+
+  if (adjustmentSnapshots.size > 0) {
+    sections.splice(sections.length - 1, 0, {
+      titleKey: 'compare.sections.vehicleSpecific',
+      rows: Array.from(adjustmentSnapshots.values()).map((snapshot) => ({
+        label: snapshot.label,
+        unit: snapshot.unit,
+        numeric: snapshot.valueType === 'number',
+        get: (setup) => setup.adjustmentValues
+          ?.find((entry) => entry.definitionId === snapshot.definitionId)
+          ?.value ?? null,
+      })),
+    });
+  }
+
+  return sections;
 }
 
 /** 比較行の差分種別 */

@@ -95,6 +95,13 @@ export function useTelemetryImport() {
       });
       setPhase('done');
 
+      if (detection.laps.length === 0) {
+        void trackEvent('lap_detection_failed', {
+          format: session.meta.format,
+          reason: line ? 'no_complete_laps' : 'no_start_finish_line',
+        });
+      }
+
       // 計測: 取込成功（KPI: 証憑つきデータの生成数）
       trackEvent('telemetry_imported', {
         format: session.meta.format,
@@ -109,6 +116,9 @@ export function useTelemetryImport() {
           : 'ファイルの取込中に予期しないエラーが発生しました',
       );
       setPhase('error');
+      void trackEvent('telemetry_attach_failed', {
+        reason: e instanceof TelemetryParseError ? 'parse_error' : 'unexpected_error',
+      });
     }
   }, []);
 

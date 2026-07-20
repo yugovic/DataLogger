@@ -193,7 +193,8 @@ function conditionScore(current: TelemetryTrace, candidate: TelemetryTrace): num
   if (fuelA != null && fuelB != null) score += Math.abs(fuelA - fuelB) * 0.15;
   else score += 3;
 
-  if (current.conditions.tireInfo.brand !== candidate.conditions.tireInfo.brand) score += 8;
+  if ((current.conditions.tireInfo.productName || current.conditions.tireInfo.brand) !==
+      (candidate.conditions.tireInfo.productName || candidate.conditions.tireInfo.brand)) score += 8;
   if (current.conditions.tireInfo.compound !== candidate.conditions.tireInfo.compound) score += 6;
   return score;
 }

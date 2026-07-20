@@ -5,6 +5,7 @@
 - 前提ドキュメント: BUSINESS_PLAN.md / SPECIFICATION.md / docs/strategy/01〜05 / docs/telemetry-ux-strategy.md
 - NSM: 月1回以上セットアップを記録するアクティブユーザー数
 - 最重要検証仮説: H3「実車データに支払い意思がある」（購入率5%/リピート30%）
+- 実行順序・状態・リリース判定の正本: `docs/PRODUCT_BACKLOG.md`
 
 ---
 

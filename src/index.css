@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* WP4: タッチ端末では StepNumber の増減ボタンを最低44px相当にする。
+   （pointer:coarse のみ適用し、マウス環境の高密度レイアウトは維持する。
+   横幅が足りない場合は StepNumber の flex-wrap で折り返すため重ならない） */
+@media (pointer: coarse) {
+  .vl-step-btn.ant-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+  .vl-step-input .ant-input-number-input {
+    min-height: 40px;
+  }
+}
+
 /* Ant Design ダークモード対応 */
 .dark .ant-input,
 .dark .ant-input-number-input,

@@ -1,6 +1,6 @@
 // 基本情報タブコンポーネント
 import React from 'react';
-import { AutoComplete, Modal, message, Dropdown, Tooltip } from 'antd';
+import { Modal, message, Dropdown, Tooltip } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import { StepNumber } from '../../common/StepNumber';
 import { calcPressureAdvice, formatAdjust, getWheelTarget, calcRecommendedCold, PressureStatus } from '../../../lib/pressureAdvice';
@@ -19,18 +19,6 @@ interface TirePressures {
   rr: TirePressure;
 }
 
-interface DamperSetting {
-  bump: number | null;
-  rebound: number | null;
-}
-
-interface DamperSettings {
-  fl: DamperSetting;
-  fr: DamperSetting;
-  rl: DamperSetting;
-  rr: DamperSetting;
-}
-
 interface TargetPressures {
   front: string; // kPa、空文字 = 未設定
   rear: string;
@@ -39,20 +27,42 @@ interface TargetPressures {
 interface BasicInfoTabProps {
   tirePressures: TirePressures;
   setTirePressures: React.Dispatch<React.SetStateAction<TirePressures>>;
-  damperSettings: DamperSettings;
-  setDamperSettings: React.Dispatch<React.SetStateAction<DamperSettings>>;
+  // ダンパー: 現行スキーマに一致する前後軸単位（bump=compression / rebound、単位 click）
+  frontDamperCompression: number | null;
+  setFrontDamperCompression: (v: number | null) => void;
+  frontDamperRebound: number | null;
+  setFrontDamperRebound: (v: number | null) => void;
+  rearDamperCompression: number | null;
+  setRearDamperCompression: (v: number | null) => void;
+  rearDamperRebound: number | null;
+  setRearDamperRebound: (v: number | null) => void;
   targetPressures: TargetPressures;
   setTargetPressures: React.Dispatch<React.SetStateAction<TargetPressures>>;
   handleDropdownClick?: (e: React.MouseEvent, inputValue: string, options: { value: string; label: string }[]) => void;
+  disabled?: boolean;
+  /** 選択中の登録車両の setupConfig から導出したダンパー表示制約。未指定なら制約なし（後方互換） */
+  damperConstraints?: {
+    visible: boolean;
+    frontMax?: number;
+    rearMax?: number;
+  };
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   tirePressures,
   setTirePressures,
-  damperSettings,
-  setDamperSettings,
+  frontDamperCompression,
+  setFrontDamperCompression,
+  frontDamperRebound,
+  setFrontDamperRebound,
+  rearDamperCompression,
+  setRearDamperCompression,
+  rearDamperRebound,
+  setRearDamperRebound,
   targetPressures,
   setTargetPressures,
+  disabled,
+  damperConstraints = { visible: true },
 }) => {
   const [modal, modalContextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
@@ -367,6 +377,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </div>
         
         {/* ダンパー設定 */}
+        {damperConstraints.visible && (
         <div className="relative bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 sm:p-6">
         {/* 車両イメージ - ダンパー設定 */}
         <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
@@ -381,265 +392,73 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             Bump / Rebound (クリック)
           </div>
         </div>
+        {/* 前後軸単位（現行スキーマに一致）。左右独立値は事業要件確定まで扱わない */}
         <div className="grid grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-4 sm:gap-y-6">
           <div>
-            <div className="text-center mb-2 font-medium dark:text-gray-200">FL</div>
-            <div className="flex items-center space-x-2">
+            <div className="text-center mb-2 font-medium dark:text-gray-200">フロント</div>
+            <div className="flex items-center gap-2">
               <div className="flex-1">
-                <AutoComplete
-                  value={damperSettings.fl.bump != null ? damperSettings.fl.bump.toString() : ''}
-                  onChange={(value) => {
-                    const numValue = parseInt(value);
-                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
-                      setDamperSettings(prev => ({
-                        ...prev,
-                        fl: { ...prev.fl, bump: numValue }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 21 }, (_, i) => ({ 
-                    value: i.toString()
-                  }))}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = damperSettings.fl.bump != null ? damperSettings.fl.bump.toString() : '';
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 text-center">Bump</label>
+                <StepNumber
+                  value={frontDamperCompression}
+                  onChange={setFrontDamperCompression}
+                  min={0}
+                  max={damperConstraints.frontMax ?? 40}
+                  step={1}
+                  size="small"
+                  inputWidth={56}
+                  disabled={disabled}
                 />
               </div>
-              <div className="text-gray-500">/</div>
               <div className="flex-1">
-                <AutoComplete
-                  value={damperSettings.fl.rebound != null ? damperSettings.fl.rebound.toString() : ''}
-                  onChange={(value) => {
-                    const numValue = parseInt(value);
-                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
-                      setDamperSettings(prev => ({
-                        ...prev,
-                        fl: { ...prev.fl, rebound: numValue }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 21 }, (_, i) => ({ 
-                    value: i.toString()
-                  }))}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = damperSettings.fl.rebound != null ? damperSettings.fl.rebound.toString() : '';
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 text-center">Rebound</label>
+                <StepNumber
+                  value={frontDamperRebound}
+                  onChange={setFrontDamperRebound}
+                  min={0}
+                  max={damperConstraints.frontMax ?? 40}
+                  step={1}
+                  size="small"
+                  inputWidth={56}
+                  disabled={disabled}
                 />
               </div>
             </div>
           </div>
           <div>
-            <div className="text-center mb-2 font-medium dark:text-gray-200">FR</div>
-            <div className="flex items-center space-x-2">
+            <div className="text-center mb-2 font-medium dark:text-gray-200">リア</div>
+            <div className="flex items-center gap-2">
               <div className="flex-1">
-                <AutoComplete
-                  value={damperSettings.fr.bump != null ? damperSettings.fr.bump.toString() : ''}
-                  onChange={(value) => {
-                    const numValue = parseInt(value);
-                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
-                      setDamperSettings(prev => ({
-                        ...prev,
-                        fr: { ...prev.fr, bump: numValue }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 21 }, (_, i) => ({ 
-                    value: i.toString()
-                  }))}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = damperSettings.fr.bump != null ? damperSettings.fr.bump.toString() : '';
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 text-center">Bump</label>
+                <StepNumber
+                  value={rearDamperCompression}
+                  onChange={setRearDamperCompression}
+                  min={0}
+                  max={damperConstraints.rearMax ?? 40}
+                  step={1}
+                  size="small"
+                  inputWidth={56}
+                  disabled={disabled}
                 />
               </div>
-              <div className="text-gray-500">/</div>
               <div className="flex-1">
-                <AutoComplete
-                  value={damperSettings.fr.rebound != null ? damperSettings.fr.rebound.toString() : ''}
-                  onChange={(value) => {
-                    const numValue = parseInt(value);
-                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
-                      setDamperSettings(prev => ({
-                        ...prev,
-                        fr: { ...prev.fr, rebound: numValue }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 21 }, (_, i) => ({ 
-                    value: i.toString()
-                  }))}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = damperSettings.fr.rebound != null ? damperSettings.fr.rebound.toString() : '';
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-          <div>
-            <div className="text-center mb-2 font-medium dark:text-gray-200">RL</div>
-            <div className="flex items-center space-x-2">
-              <div className="flex-1">
-                <AutoComplete
-                  value={damperSettings.rl.bump != null ? damperSettings.rl.bump.toString() : ''}
-                  onChange={(value) => {
-                    const numValue = parseInt(value);
-                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
-                      setDamperSettings(prev => ({
-                        ...prev,
-                        rl: { ...prev.rl, bump: numValue }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 21 }, (_, i) => ({ 
-                    value: i.toString()
-                  }))}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = damperSettings.rl.bump != null ? damperSettings.rl.bump.toString() : '';
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-              <div className="text-gray-500">/</div>
-              <div className="flex-1">
-                <AutoComplete
-                  value={damperSettings.rl.rebound != null ? damperSettings.rl.rebound.toString() : ''}
-                  onChange={(value) => {
-                    const numValue = parseInt(value);
-                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
-                      setDamperSettings(prev => ({
-                        ...prev,
-                        rl: { ...prev.rl, rebound: numValue }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 21 }, (_, i) => ({ 
-                    value: i.toString()
-                  }))}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = damperSettings.rl.rebound != null ? damperSettings.rl.rebound.toString() : '';
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-          <div>
-            <div className="text-center mb-2 font-medium dark:text-gray-200">RR</div>
-            <div className="flex items-center space-x-2">
-              <div className="flex-1">
-                <AutoComplete
-                  value={damperSettings.rr.bump != null ? damperSettings.rr.bump.toString() : ''}
-                  onChange={(value) => {
-                    const numValue = parseInt(value);
-                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
-                      setDamperSettings(prev => ({
-                        ...prev,
-                        rr: { ...prev.rr, bump: numValue }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 21 }, (_, i) => ({ 
-                    value: i.toString()
-                  }))}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = damperSettings.rr.bump != null ? damperSettings.rr.bump.toString() : '';
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
-                />
-              </div>
-              <div className="text-gray-500">/</div>
-              <div className="flex-1">
-                <AutoComplete
-                  value={damperSettings.rr.rebound != null ? damperSettings.rr.rebound.toString() : ''}
-                  onChange={(value) => {
-                    const numValue = parseInt(value);
-                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 20) {
-                      setDamperSettings(prev => ({
-                        ...prev,
-                        rr: { ...prev.rr, rebound: numValue }
-                      }));
-                    }
-                  }}
-                  className="w-full"
-                  options={Array.from({ length: 21 }, (_, i) => ({ 
-                    value: i.toString()
-                  }))}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      setTimeout(() => {
-                        const currentValue = damperSettings.rr.rebound != null ? damperSettings.rr.rebound.toString() : '';
-                        const selectedItem = document.querySelector(`.ant-select-item[title="${currentValue}"]`);
-                        if (selectedItem) {
-                          selectedItem.scrollIntoView({ block: 'center' });
-                        }
-                      }, 10);
-                    }
-                  }}
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 text-center">Rebound</label>
+                <StepNumber
+                  value={rearDamperRebound}
+                  onChange={setRearDamperRebound}
+                  min={0}
+                  max={damperConstraints.rearMax ?? 40}
+                  step={1}
+                  size="small"
+                  inputWidth={56}
+                  disabled={disabled}
                 />
               </div>
             </div>
           </div>
         </div>
       </div>
+      )}
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ const tireSettingsSchema = z.object({
 });
 
 const weatherConditionSchema = z.object({
-  condition: z.enum(['晴れ', '曇り', 'ウェット', 'フルウェット']).nullable(),
+  condition: z.enum(['sunny', 'cloudy', 'wet', 'full_wet', '晴れ', '曇り', 'ウェット', 'フルウェット']).nullable(),
   airTemp: nullableNum,
   trackTemp: nullableNum,
   humidity: nullableNum,
@@ -59,7 +59,13 @@ export const telemetryTraceSchema = z.object({
     weather: weatherConditionSchema,
     tireInfo: z.object({
       brand: z.string(),
+      manufacturer: z.string().optional(),
+      productName: z.string().optional(),
       compound: z.string(),
+      frontSize: z.string().optional(),
+      rearSize: z.string().optional(),
+      tireSetId: z.string().optional(),
+      tireSetCode: z.string().optional(),
     }),
     tireSettings: tireSettingsSchema,
     targetPressures: targetPressuresSchema,
@@ -94,6 +100,7 @@ export const telemetryTraceSchema = z.object({
       timeSeconds: z.number(),
     })).optional(),
     coachSummary: z.string().optional(),
+    nextAction: z.string().trim().min(1).max(300).optional(),
   }),
   qualityFlags: z.object({
     gpsDropout: z.boolean(),

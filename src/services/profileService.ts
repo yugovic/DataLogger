@@ -15,17 +15,21 @@ import {
   where,
   getDocs,
   serverTimestamp,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import logger from '../utils/logger';
+import type { SupportedLocale } from '../i18n/locale';
 
 const USERS_COLLECTION = 'users';
 const SETUPS_COLLECTION = 'setups';
+const SHARING_ENTITLEMENTS_COLLECTION = 'sharingEntitlements';
 
 /** プロフィール文書のうち本機能で参照する形 */
 export interface UserProfile {
   uid: string;
   displayName: Maybe<string>;
+  locale: Maybe<SupportedLocale>;
   /** 共有中（visibility==='shared'）のセットアップが1件以上あるか */
   sharingActive: boolean;
 }
@@ -43,11 +47,26 @@ export const getUserProfile = async (uid: string): Promise<UserProfile> => {
     return {
       uid,
       displayName: (data?.displayName as string | undefined) ?? null,
+      locale: data?.locale === 'ja-JP' || data?.locale === 'en' ? data.locale : null,
       // 旧プロフィール（sharingActive 無し）は未共有として扱う
       sharingActive: data?.sharingActive === true,
     };
   } catch (error) {
     logger.error('プロフィールの取得に失敗しました:', error);
+    throw error;
+  }
+};
+
+/** 表示言語だけをプロフィールへ保存する。ほかのプロフィール値は変更しない。 */
+export const updateUserLocale = async (uid: string, locale: SupportedLocale): Promise<void> => {
+  try {
+    await setDoc(
+      doc(db, USERS_COLLECTION, uid),
+      { locale, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  } catch (error) {
+    logger.error('表示言語の更新に失敗しました:', error);
     throw error;
   }
 };
@@ -102,7 +121,23 @@ export const recomputeSharingActive = async (uid: string): Promise<boolean> => {
       where('userId', '==', uid),
     );
     const snap = await getDocs(q);
-    const hasShared = snap.docs.some((d) => d.data().visibility === 'shared');
+    const sharedSetup = snap.docs.find((d) => d.data().visibility === 'shared');
+    const hasShared = Boolean(sharedSetup);
+
+    const entitlementRef = doc(db, SHARING_ENTITLEMENTS_COLLECTION, uid);
+    if (sharedSetup) {
+      // Firestore rules が参照先の所有者と visibility を再検証するため、自己申告で
+      // entitlement を作っても共有データが無ければ認可されない。
+      await setDoc(entitlementRef, {
+        setupId: sharedSetup.id,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await deleteDoc(entitlementRef).catch((error: unknown) => {
+        const code = (error as { code?: string })?.code;
+        if (code !== 'not-found') throw error;
+      });
+    }
 
     await setDoc(
       doc(db, USERS_COLLECTION, uid),
@@ -113,6 +148,17 @@ export const recomputeSharingActive = async (uid: string): Promise<boolean> => {
     return hasShared;
   } catch (error) {
     logger.error('共有状態の再計算に失敗しました:', error);
+    throw error;
+  }
+};
+
+/** Firestore rules と同じ権利証明の有無をUIゲートでも使用する。 */
+export const hasSharingEntitlement = async (uid: string): Promise<boolean> => {
+  try {
+    const snap = await getDoc(doc(db, SHARING_ENTITLEMENTS_COLLECTION, uid));
+    return snap.exists() && typeof snap.data().setupId === 'string';
+  } catch (error) {
+    logger.error('共有権利の確認に失敗しました:', error);
     throw error;
   }
 };

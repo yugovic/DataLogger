@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Input, Button, message, Divider } from 'antd';
 import { MailOutlined, LockOutlined, GoogleOutlined } from '@ant-design/icons';
 import { signInWithEmail, signInWithGoogle, getAuthErrorMessage } from '../../services/authService';
+import { useTranslation } from 'react-i18next';
 
 interface LoginProps {
   onSuccess?: () => void;
@@ -10,23 +11,24 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
+  const { t } = useTranslation(['auth', 'errors']);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleEmailLogin = async () => {
     if (!email || !password) {
-      message.error('メールアドレスとパスワードを入力してください');
+      message.error(t('auth:errors.missingCredentials'));
       return;
     }
 
     setLoading(true);
     try {
       await signInWithEmail(email, password);
-      message.success('ログインしました');
+      message.success(t('auth:success.login'));
       onSuccess?.();
     } catch (error: any) {
-      message.error(getAuthErrorMessage(error.code));
+      message.error(getAuthErrorMessage(error.code, t));
     } finally {
       setLoading(false);
     }
@@ -36,18 +38,18 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
     setLoading(true);
     try {
       await signInWithGoogle();
-      message.success('ログインしました');
+      message.success(t('auth:success.login'));
       onSuccess?.();
     } catch (error: any) {
-      message.error(getAuthErrorMessage(error.code));
+      message.error(getAuthErrorMessage(error.code, t));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto w-full max-w-[22rem] overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.10)] dark:border-slate-800 dark:bg-slate-900">
-      <div className="p-6 sm:p-7">
+    <div className="mx-auto w-full min-w-0 max-w-[22rem] overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.10)] dark:border-slate-800 dark:bg-slate-900">
+      <div className="min-w-0 p-5 sm:p-7">
         <div className="mb-7 flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-md bg-slate-950 text-white dark:bg-white dark:text-slate-950">
             <span className="text-sm font-black">VL</span>
@@ -58,14 +60,14 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
           </div>
         </div>
         <div className="mb-5">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Driver Access</p>
-          <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">ログイン</h3>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{t('auth:driverAccess')}</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{t('auth:login')}</h3>
         </div>
       
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <Input
           prefix={<MailOutlined className="text-gray-400" />}
-          placeholder="メールアドレス"
+          placeholder={t('auth:email')}
           type="email"
           size="large"
           value={email}
@@ -75,7 +77,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
         
         <Input.Password
           prefix={<LockOutlined className="text-gray-400" />}
-          placeholder="パスワード"
+          placeholder={t('auth:password')}
           size="large"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -90,10 +92,10 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
           onClick={handleEmailLogin}
           className="bg-slate-950 hover:!bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:!bg-slate-200"
         >
-          ログイン
+          {t('auth:login')}
         </Button>
         
-        <Divider>または</Divider>
+        <Divider>{t('auth:or')}</Divider>
         
         <Button
           size="large"
@@ -102,17 +104,17 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
           loading={loading}
           onClick={handleGoogleLogin}
         >
-          Googleでログイン
+          {t('auth:googleLogin')}
         </Button>
         
         <div className="text-center mt-4">
-          <span className="text-gray-600 dark:text-gray-400">アカウントをお持ちでない方は</span>
+          <span className="text-gray-600 dark:text-gray-400">{t('auth:noAccount')}</span>
           <Button
             type="link"
             onClick={onSignUpClick}
             className="p-0 ml-1"
           >
-            新規登録
+            {t('auth:signUp')}
           </Button>
         </div>
       </div>

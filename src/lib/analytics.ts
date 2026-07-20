@@ -12,17 +12,27 @@ import app from './firebase';
 // イベント名のunion型（WP2で計測が必要なもの + 後続WPのために予約）
 export type AnalyticsEventName =
   | 'setup_saved'
+  | 'setup_started'
   | 'setup_updated'
   | 'setup_deleted'
   | 'setup_shared'
+  | 'share_disabled'
   | 'telemetry_imported'
+  | 'telemetry_attach_succeeded'
+  | 'telemetry_attach_failed'
+  | 'telemetry_trace_save_failed'
+  | 'lap_detection_failed'
   | 'telemetry_trace_saved'
   | 'comparison_viewed'
+  | 'debrief_viewed'
+  | 'next_action_saved'
+  | 'setup_save_failed'
   | 'public_share_created'
   | 'public_share_viewed'
   | 'public_share_cta_clicked'
   | 'login'
   | 'sign_up'
+  | 'onboarding_completed'
   | 'session_highlight_shown'
   | 'session_highlight_image_saved'
   | 'session_highlight_shared';
@@ -30,17 +40,27 @@ export type AnalyticsEventName =
 // イベントごとのパラメータ型（個人情報禁止）
 export type AnalyticsEventParams = {
   setup_saved: { circuit?: string; car_model?: string };
+  setup_started: { source: 'new' | 'copy' };
   setup_updated: { circuit?: string; car_model?: string };
   setup_deleted: { circuit?: string; car_model?: string };
   setup_shared: { circuit?: string; car_model?: string };
+  share_disabled: { circuit?: string; car_model?: string };
   telemetry_imported: { format?: string; circuit?: string };
+  telemetry_attach_succeeded: { format?: string; circuit?: string };
+  telemetry_attach_failed: { reason?: string };
+  telemetry_trace_save_failed: { format?: string; circuit?: string };
+  lap_detection_failed: { format?: string; reason?: string };
   telemetry_trace_saved: { format?: string; circuit?: string; car_model?: string };
   comparison_viewed: { circuit?: string; car_model?: string };
+  debrief_viewed: { circuit?: string; car_model?: string };
+  next_action_saved: { circuit?: string; car_model?: string };
+  setup_save_failed: { stage: 'setup' | 'telemetry'; reason?: string };
   public_share_created: { setupId?: string; hasLoggerEvidence: boolean };
   public_share_viewed: { shareId: string };
   public_share_cta_clicked: { shareId?: string };
   login: Record<string, never>;
   sign_up: Record<string, never>;
+  onboarding_completed: { skipped: boolean };
   session_highlight_shown: { circuit?: string; badge_count?: number };
   session_highlight_image_saved: { circuit?: string };
   session_highlight_shared: { circuit?: string; method?: string };

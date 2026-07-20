@@ -80,6 +80,8 @@ export interface TelemetryTrace {
     maxLatG: number | null;
     sectorTimes?: { sectorId: string; name: string; timeSeconds: number }[];
     coachSummary?: string;
+    /** ユーザーが確定した、次回ひとつだけ試すこと。自動提案は保存前に編集可能。 */
+    nextAction?: string;
   };
 
   qualityFlags: TelemetryTraceQualityFlags;

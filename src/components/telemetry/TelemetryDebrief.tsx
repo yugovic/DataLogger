@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Empty, Spin, Tag, message } from 'antd';
+import { Button, Empty, Input, Spin, Tag, message } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckCircleOutlined,
@@ -15,6 +15,7 @@ import type { TelemetryTrace, TelemetryTraceQualityFlags } from '../../types/tel
 import {
   getComparableTraceCandidates,
   getTelemetryTrace,
+  updateTelemetryTrace,
   type ComparableTraceCandidate,
 } from '../../services/telemetryTraceService';
 import { getSetup } from '../../services/setupService';
@@ -26,10 +27,14 @@ import {
   traceToLapProfile,
   type CoachingReadout,
 } from '../../lib/telemetry';
-import { buildCompareSections, compareRow, formatDelta } from '../../lib/setupFields';
+import { buildCompareSections, compareRow, formatDelta, resolveCompareSections } from '../../lib/setupFields';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { formatLapSeconds } from './evidence';
 import { SingleLapTelemetryView } from './SingleLapTelemetryView';
 import logger from '../../utils/logger';
+import { useAuth } from '../../contexts/AuthContext';
+import { trackEvent } from '../../lib/analytics';
 
 interface SetupDiffItem {
   section: string;
@@ -40,6 +45,8 @@ interface SetupDiffItem {
 }
 
 export const TelemetryDebrief: React.FC = () => {
+  const { t } = useTranslation();
+  const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
@@ -53,6 +60,8 @@ export const TelemetryDebrief: React.FC = () => {
   const [referenceSetup, setReferenceSetup] = useState<CarSetup | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [nextActionDraft, setNextActionDraft] = useState('');
+  const [savingNextAction, setSavingNextAction] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -79,6 +88,11 @@ export const TelemetryDebrief: React.FC = () => {
         setReference(defaultReference);
         setSetup(currentSetup);
         setReferenceSetup(refSetup);
+        setNextActionDraft(currentTrace.summary.nextAction ?? '');
+        void trackEvent('debrief_viewed', {
+          circuit: currentTrace.circuit,
+          car_model: currentTrace.carModel,
+        });
       } catch (error) {
         logger.error('テレメトリデブリーフの読み込みに失敗しました:', error);
         setLoadError('テレメトリデブリーフの読み込みに失敗しました');
@@ -111,12 +125,36 @@ export const TelemetryDebrief: React.FC = () => {
   }, [trace, reference]);
 
   const setupDiffs = useMemo(
-    () => (setup && referenceSetup ? buildSetupDiffs(referenceSetup, setup) : []),
-    [setup, referenceSetup],
+    () => (setup && referenceSetup ? buildSetupDiffs(referenceSetup, setup, t) : []),
+    [setup, referenceSetup, t],
   );
 
   const lossText = debrief?.coaching.annotations.find((a) => a.kind === 'loss')?.text ?? '明確な最大ロスは検出されていません';
   const gainText = debrief?.coaching.annotations.find((a) => a.kind === 'gain')?.text ?? '明確な最大ゲインは検出されていません';
+
+  useEffect(() => {
+    if (!debrief || nextActionDraft.trim()) return;
+    setNextActionDraft(debrief.nextAction);
+  }, [debrief, nextActionDraft]);
+
+  const saveNextAction = async () => {
+    const text = nextActionDraft.trim();
+    if (!trace?.id || !text || currentUser?.uid !== trace.ownerId) return;
+    setSavingNextAction(true);
+    try {
+      await updateTelemetryTrace(trace.id, {
+        summary: { ...trace.summary, nextAction: text },
+      });
+      setTrace({ ...trace, summary: { ...trace.summary, nextAction: text } });
+      void trackEvent('next_action_saved', { circuit: trace.circuit, car_model: trace.carModel });
+      message.success('次回試すことを保存しました');
+    } catch (error) {
+      logger.error('次走アクションの保存に失敗しました:', error);
+      message.error('次回試すことを保存できませんでした');
+    } finally {
+      setSavingNextAction(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -175,6 +213,39 @@ export const TelemetryDebrief: React.FC = () => {
                       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">注意ラベル</h3>
                       <CautionTags cautions={debrief.cautions} qualityFlags={trace.qualityFlags} />
                     </div>
+                  </div>
+                </section>
+
+                <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="min-w-0 flex-1">
+                      <label htmlFor="next-action" className="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        次回ひとつだけ試すこと
+                      </label>
+                      <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                        提案をそのまま使うか、自分の言葉に直して次の走行へ残します。
+                      </p>
+                      <Input.TextArea
+                        id="next-action"
+                        value={nextActionDraft}
+                        onChange={(event) => setNextActionDraft(event.target.value)}
+                        maxLength={300}
+                        autoSize={{ minRows: 2, maxRows: 4 }}
+                        className="mt-3"
+                        disabled={currentUser?.uid !== trace.ownerId}
+                      />
+                    </div>
+                    {currentUser?.uid === trace.ownerId && (
+                      <Button
+                        type="primary"
+                        onClick={saveNextAction}
+                        loading={savingNextAction}
+                        disabled={!nextActionDraft.trim() || nextActionDraft.trim() === trace.summary.nextAction}
+                        className="w-full sm:w-auto"
+                      >
+                        次走へ保存
+                      </Button>
+                    )}
                   </div>
                 </section>
 
@@ -341,7 +412,8 @@ function buildCautions(current: TelemetryTrace, reference: TelemetryTrace): stri
   const trackA = reference.conditions.weather.trackTemp;
   const trackB = current.conditions.weather.trackTemp;
   if (trackA != null && trackB != null && Math.abs(trackB - trackA) >= 8) cautions.push(`路温差 ${Math.abs(trackB - trackA).toFixed(0)}度`);
-  if (current.conditions.tireInfo.brand !== reference.conditions.tireInfo.brand) cautions.push('タイヤ銘柄差');
+  if ((current.conditions.tireInfo.productName || current.conditions.tireInfo.brand) !==
+      (reference.conditions.tireInfo.productName || reference.conditions.tireInfo.brand)) cautions.push('タイヤ銘柄差');
   if (current.conditions.tireInfo.compound !== reference.conditions.tireInfo.compound) cautions.push('コンパウンド差');
   if (current.lap.type !== 'NORMAL') cautions.push('非計測ラップ');
   return cautions;
@@ -381,11 +453,11 @@ const QualityTag: React.FC<{ flags: TelemetryTraceQualityFlags }> = ({ flags }) 
   return <Tag color="green" icon={<RiseOutlined />}>Verified</Tag>;
 };
 
-function buildSetupDiffs(reference: CarSetup, current: CarSetup): SetupDiffItem[] {
-  const skipSections = new Set(['セッション情報', 'ラップタイム']);
+function buildSetupDiffs(reference: CarSetup, current: CarSetup, t: TFunction): SetupDiffItem[] {
+  const skipSections = new Set(['compare.sections.session', 'compare.sections.lapTime']);
   const diffs: SetupDiffItem[] = [];
-  for (const section of buildCompareSections()) {
-    if (skipSections.has(section.title)) continue;
+  for (const section of resolveCompareSections(buildCompareSections(), t)) {
+    if (skipSections.has(section.titleKey)) continue;
     for (const row of section.rows) {
       const result = compareRow(row, reference, current);
       if (result.kind === 'same' || result.kind === 'both-null') continue;

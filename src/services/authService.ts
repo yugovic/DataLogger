@@ -13,6 +13,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
+import type { TFunction } from 'i18next';
 
 // Googleプロバイダーの設定
 const googleProvider = new GoogleAuthProvider();
@@ -114,34 +115,55 @@ export const getCurrentUser = () => {
 };
 
 // エラーメッセージの日本語化
-export const getAuthErrorMessage = (errorCode: string): string => {
+export const getAuthErrorMessage = (errorCode: string, t?: TFunction): string => {
+  const key = (() => {
   switch (errorCode) {
     case 'auth/email-already-in-use':
-      return 'このメールアドレスは既に使用されています。';
+      return 'emailAlreadyInUse';
     case 'auth/weak-password':
-      return 'パスワードは6文字以上で設定してください。';
+      return 'weakPassword';
     case 'auth/invalid-email':
-      return 'メールアドレスの形式が正しくありません。';
+      return 'invalidEmail';
     case 'auth/user-not-found':
-      return 'ユーザーが見つかりません。';
+      return 'userNotFound';
     case 'auth/wrong-password':
-      return 'パスワードが間違っています。';
+      return 'wrongPassword';
     case 'auth/user-disabled':
-      return 'このアカウントは無効化されています。';
+      return 'userDisabled';
     case 'auth/too-many-requests':
-      return 'ログイン試行回数が多すぎます。しばらく待ってから再度お試しください。';
+      return 'tooManyRequests';
     case 'auth/popup-closed-by-user':
-      return 'ログインがキャンセルされました。';
+      return 'popupClosed';
     case 'auth/popup-blocked':
-      return 'ポップアップがブロックされました。ポップアップを許可してください。';
+      return 'popupBlocked';
     case 'auth/cancelled-popup-request':
-      return '別のポップアップリクエストが進行中です。';
+      return 'popupInProgress';
     case 'auth/operation-not-allowed':
-      return 'この認証方法は無効になっています。Firebase Consoleで有効化してください。';
+      return 'operationNotAllowed';
     case 'auth/unauthorized-domain':
-      return 'このドメインは認証されていません。Firebase Consoleで承認してください。';
+      return 'unauthorizedDomain';
     default:
       console.error('認証エラーコード:', errorCode);
-      return `エラーが発生しました。(${errorCode})`;
+      return 'unknown';
   }
+  })();
+
+  if (t) return t(`errors:auth.${key}`);
+
+  const fallback: Record<string, string> = {
+    emailAlreadyInUse: 'このメールアドレスは既に使用されています。',
+    weakPassword: 'パスワードは6文字以上で設定してください。',
+    invalidEmail: 'メールアドレスの形式が正しくありません。',
+    userNotFound: 'ユーザーが見つかりません。',
+    wrongPassword: 'パスワードが間違っています。',
+    userDisabled: 'このアカウントは無効化されています。',
+    tooManyRequests: 'ログイン試行回数が多すぎます。しばらく待ってから再度お試しください。',
+    popupClosed: 'ログインがキャンセルされました。',
+    popupBlocked: 'ポップアップがブロックされました。ポップアップを許可してください。',
+    popupInProgress: '別のポップアップリクエストが進行中です。',
+    operationNotAllowed: 'この認証方法は無効になっています。',
+    unauthorizedDomain: 'このドメインは認証されていません。',
+    unknown: `認証処理に失敗しました。(${errorCode})`,
+  };
+  return fallback[key];
 };

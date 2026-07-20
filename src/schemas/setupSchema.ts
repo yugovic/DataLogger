@@ -25,6 +25,12 @@ const MOD_CATEGORIES = [
   'other',
 ] as const;
 const MOD_LEVELS = ['NORMAL', 'LIGHT', 'MIDDLE', 'FULL'] as const;
+const ADJUSTMENT_GROUPS = [
+  'tire', 'damper', 'spring', 'ride_height', 'anti_roll_bar', 'alignment', 'brake',
+  'aero', 'drivetrain', 'engine', 'electronics', 'weight_balance', 'other',
+] as const;
+const ADJUSTMENT_POSITIONS = ['vehicle', 'front', 'rear', 'fl', 'fr', 'rl', 'rr'] as const;
+const ADJUSTMENT_VALUE_TYPES = ['number', 'select', 'text', 'boolean'] as const;
 
 // ─── サブスキーマ ──────────────────────────────────────────
 
@@ -42,7 +48,7 @@ const tireSettingsSchema = z.object({
 });
 
 const weatherConditionSchema = z.object({
-  condition: z.enum(['晴れ', '曇り', 'ウェット', 'フルウェット']).nullable(),
+  condition: z.enum(['sunny', 'cloudy', 'wet', 'full_wet', '晴れ', '曇り', 'ウェット', 'フルウェット']).nullable(),
   airTemp: nullableNum(-20, 60),     // ℃
   trackTemp: nullableNum(-20, 80),   // ℃
   humidity: nullableNum(0, 100),     // %
@@ -91,6 +97,34 @@ const alignmentSettingsSchema = z.object({
 const targetPressuresSchema = z.object({
   front: nullableNum(0, 500), // kPa
   rear: nullableNum(0, 500),  // kPa
+}).optional();
+
+const setupAdjustmentValueSchema = z.object({
+  definitionId: z.string().min(1),
+  group: z.enum(ADJUSTMENT_GROUPS),
+  label: z.string().min(1),
+  position: z.enum(ADJUSTMENT_POSITIONS),
+  valueType: z.enum(ADJUSTMENT_VALUE_TYPES),
+  unit: z.string().optional(),
+  value: z.union([z.number(), z.string(), z.boolean()]).nullable(),
+});
+
+// ドライバー評価（各値 0〜4 の主観評価、未入力は null）。デモ初期値は保存しない。
+const drivingRating = nullableNum(0, 4);
+const drivingFeedbackSchema = z.object({
+  lowSpeedEntry: drivingRating,
+  lowSpeedMiddle: drivingRating,
+  lowSpeedExit: drivingRating,
+  highSpeedEntry: drivingRating,
+  highSpeedMiddle: drivingRating,
+  highSpeedExit: drivingRating,
+  brakeInitial: drivingRating,
+  brakeMiddle: drivingRating,
+  brakeStability: drivingRating,
+  accelResponse: drivingRating,
+  accelTraction: drivingRating,
+  balance: drivingRating,
+  confidence: drivingRating,
 }).optional();
 
 const lapEvidenceSchema = z.object({
@@ -153,17 +187,32 @@ export const carSetupSchema = z.object({
   targetPressures: targetPressuresSchema,
   tireInfo: z.object({
     brand: z.string(),
+    manufacturer: z.string().max(60).optional(),
+    productName: z.string().max(80).optional(),
     compound: z.string(),
+    frontSize: z.string().optional(),
+    rearSize: z.string().optional(),
+    tireSetId: z.string().optional(),
+    tireSetCode: z.string().max(40).optional(),
   }),
+  tireUsage: z.object({ heatCyclesAdded: nullableNum(0, 100) }).optional(),
   sessionInfo: sessionInfoSchema,
   suspensionSettings: suspensionSettingsSchema,
   alignmentSettings: alignmentSettingsSchema,
+  brakeSettings: z.object({
+    frontPad: z.string(), rearPad: z.string(), frontRotor: z.string(), rearRotor: z.string(),
+    balance: nullableNum(0, 100),
+  }).optional(),
+  aeroSettings: z.object({ front: nullableNum(0, 100), rear: nullableNum(0, 100) }).optional(),
+  engineSettings: z.object({ ecuMap: z.string(), boost: nullableNum(0, 500) }).optional(),
+  adjustmentValues: z.array(setupAdjustmentValueSchema).optional(),
   notes: z.string().optional(),
   knowledge: z.object({
     intention: z.string().optional(),
     result: z.string().optional(),
     learning: z.string().optional(),
   }).optional(),
+  drivingFeedback: drivingFeedbackSchema,
   lapTimeData: lapTimeDataSchema,
   telemetry: setupTelemetryRefsSchema,
   images: z.array(z.string()).optional(),

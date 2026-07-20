@@ -6,14 +6,29 @@ service cloud.firestore {
     // 事業要件: 「自分のデータを共有した人だけが、他人の共有データを閲覧できる」
     // 相互性を UI の建前ではなく **このルールで強制** する（BUSINESS_PLAN Phase 0c）。
     //
-    // sharingActive は users/{uid} プロフィールに保持し、共有中セットアップが
-    // 1件以上あれば true（profileService.recomputeSharingActive が更新）。
-    // get() による参照はルール権限で実行されるため、プロフィールの read を
-    // 他人に開放する必要はない（下の users ルールで read は本人のみに限定する）。
+    // 認可の根拠は users/{uid}.sharingActive のような自己申告フラグに置かない。
+    // sharingEntitlements/{uid}.setupId が、本人所有かつ現在 shared のセットアップを
+    // 指していることをルール内で毎回検証する。クライアントが entitlement を直接
+    // 書いても、実際の共有データが無ければ閲覧権限は成立しない。
     function requesterSharingActive() {
       return request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sharingActive == true;
+        && exists(/databases/$(database)/documents/sharingEntitlements/$(request.auth.uid))
+        && get(/databases/$(database)/documents/sharingEntitlements/$(request.auth.uid)).data.setupId is string
+        && exists(/databases/$(database)/documents/setups/$(get(/databases/$(database)/documents/sharingEntitlements/$(request.auth.uid)).data.setupId))
+        && get(/databases/$(database)/documents/setups/$(get(/databases/$(database)/documents/sharingEntitlements/$(request.auth.uid)).data.setupId)).data.userId == request.auth.uid
+        && get(/databases/$(database)/documents/setups/$(get(/databases/$(database)/documents/sharingEntitlements/$(request.auth.uid)).data.setupId)).data.visibility == 'shared';
+    }
+
+    function validSharingEntitlement(userId) {
+      return request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['setupId', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['setupId', 'updatedAt'])
+        && request.resource.data.setupId is string
+        && request.resource.data.updatedAt == request.time
+        && exists(/databases/$(database)/documents/setups/$(request.resource.data.setupId))
+        && get(/databases/$(database)/documents/setups/$(request.resource.data.setupId)).data.userId == userId
+        && get(/databases/$(database)/documents/setups/$(request.resource.data.setupId)).data.visibility == 'shared';
     }
 
     // visibility は 'private' | 'shared' のいずれかに限定する。
@@ -23,6 +38,20 @@ service cloud.firestore {
       return !('visibility' in data.keys())
         || data.visibility == 'private'
         || data.visibility == 'shared';
+    }
+
+    function validTireSet(data) {
+      return data.code is string && data.code.size() > 0 && data.code.size() <= 40
+        && data.manufacturer is string && data.manufacturer.size() > 0 && data.manufacturer.size() <= 60
+        && data.productName is string && data.productName.size() > 0 && data.productName.size() <= 80
+        && data.compound is string && data.compound.size() <= 40
+        && data.frontSize is string && data.frontSize.size() <= 40
+        && data.rearSize is string && data.rearSize.size() <= 40
+        && data.notes is string && data.notes.size() <= 500
+        && data.initialDistanceKm is number && data.initialDistanceKm >= 0 && data.initialDistanceKm <= 100000
+        && data.initialLaps is int && data.initialLaps >= 0 && data.initialLaps <= 100000
+        && data.initialHeatCycles is int && data.initialHeatCycles >= 0 && data.initialHeatCycles <= 10000
+        && (data.status == 'active' || data.status == 'stored' || data.status == 'retired');
     }
 
     // 公開共有リンクは未認証閲覧を許可するため、作成時に表示用summaryの形を固定する。
@@ -140,6 +169,13 @@ service cloud.firestore {
       );
     }
 
+    // Give-to-Get の権利証明。本人が所有する shared セットアップだけを参照できる。
+    // read/delete は本人のみ。create/update は validSharingEntitlement で実体を検証する。
+    match /sharingEntitlements/{userId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if validSharingEntitlement(userId);
+    }
+
     // テスト用コレクション
     match /test/{document=**} {
       allow read, write: if request.auth != null;
@@ -167,6 +203,19 @@ service cloud.firestore {
         request.auth.uid == request.resource.data.userId;
       allow update, delete: if request.auth != null &&
         request.auth.uid == resource.data.userId;
+    }
+
+    // ユーザー所有の物理タイヤセット。走行実績は setups を原本として集計する。
+    match /tireSets/{tireSetId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.userId &&
+        validTireSet(request.resource.data);
+      allow update: if request.auth != null &&
+        request.auth.uid == resource.data.userId &&
+        request.resource.data.userId == resource.data.userId &&
+        validTireSet(request.resource.data);
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
   }
 }

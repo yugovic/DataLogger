@@ -1,19 +1,47 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
-import { AutoComplete, Input, Tabs, message, Modal, Select } from 'antd';
+import { AutoComplete, Input, InputNumber, Tabs, message, Modal, Select, Tooltip } from 'antd';
 import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
-import { saveSetup, getUserSetups, getSetup, updateSetup, getSetupsByCarModel } from './src/services/setupService';
-import { getUserVehicles, addVehicle } from './src/services/vehicleService';
+import { saveSetup, getUserSetups, getUserSetupsForTireUsage, getSetup, updateSetup, getSetupsByCarModel, deleteSetup } from './src/services/setupService';
+import { getUserVehicles, addVehicle, updateVehicle } from './src/services/vehicleService';
 import type { Vehicle } from './src/types/vehicle';
-import type { CarSetup as CarSetupType, KnowledgeNote, LapTime, WeatherType, SetupVisibility, LapTimeSource, LapEvidence, TargetPressures, SetupTelemetryRefs } from './src/types/setup';
-import { toNumberOrNull, toIntOrNull, calcPressureDiff } from './src/lib/units';
+import type { CarSetup as CarSetupType, LapTime, WeatherType, SetupTelemetryRefs, DrivingFeedback } from './src/types/setup';
+import {
+  useSetupDraft,
+  setupToDraft,
+  copySetupToDraft,
+  inheritSetupSettings,
+  draftToSetupInput,
+  emptyTelemetryRefs,
+  createEmptyDraft,
+  serializeDraft,
+  isDraftDirty,
+} from './src/lib/setupDraft';
+import type { SetupDraft } from './src/lib/setupDraft';
+import { buildCopyPath, buildSetupPath, isNewSave as computeIsNewSave } from './src/lib/setupNavigation';
+import {
+  suspensionConstraintsFromConfig,
+  alignmentConstraintsFromConfig,
+} from './src/lib/vehicleSetupConstraints';
+import { buildDuplicatePreview, buildInheritPreview } from './src/lib/setupLoadPreview';
+import { useUnsavedChangesGuard } from './src/hooks/useUnsavedChangesGuard';
+import { findVehicleByCarModel, splitCarModel } from './src/lib/vehicleRegistration';
 import { checkFirestoreConnection } from './src/utils/initFirestore';
 import { BasicInfoTab } from './src/components/setup/tabs/BasicInfoTab';
 import { SuspensionTab } from './src/components/setup/tabs/SuspensionTab';
+import { AlignmentTab } from './src/components/setup/tabs/AlignmentTab';
 import { DrivingTab } from './src/components/setup/tabs/DrivingTab';
+import { VehicleAdjustmentsTab } from './src/components/setup/tabs/VehicleAdjustmentsTab';
+import { DynamicSetupTab } from './src/components/setup/tabs/DynamicSetupTab';
+import {
+  activeAdjustmentDefinitions,
+  adjustmentDefinitionsFromValues,
+  reconcileAdjustmentValues,
+  setAdjustmentValue,
+} from './src/lib/setupAdjustments';
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
 import { SessionHighlightModal } from './src/components/setup/SessionHighlightModal';
 import { computeSessionHighlight } from './src/lib/sessionHighlights';
@@ -27,6 +55,15 @@ import { buildTelemetryTraceFromImport } from './src/lib/telemetry';
 import { saveTelemetryTrace, getComparableTraceCandidates } from './src/services/telemetryTraceService';
 import type { ComparableTraceCandidate } from './src/services/telemetryTraceService';
 import logger from './src/utils/logger';
+import { getUserTireSets } from './src/services/tireSetService';
+import { calculateTireSetUsage } from './src/lib/tireSetUsage';
+import { TIRE_PRODUCT_CATALOG } from './src/lib/tireCatalog';
+import type { TireSet } from './src/types/tire';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from './src/contexts/LocaleContext';
+import { formatDateTime } from './src/i18n/formatters';
+import { WEATHER_CODES } from './src/lib/weather';
+import { trackEvent } from './src/lib/analytics';
 interface DropdownState {
 isOpen: boolean;
 position: { top: number; left: number };
@@ -38,12 +75,6 @@ const toLocalDatetimeInput = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
-const emptyTelemetryRefs = (): SetupTelemetryRefs => ({
-  traceIds: [],
-  primaryTraceId: null,
-  importStatus: 'none',
-});
-
 const mergeTraceRef = (current: SetupTelemetryRefs, traceId: string): SetupTelemetryRefs => ({
   traceIds: Array.from(new Set([traceId, ...current.traceIds])),
   primaryTraceId: traceId,
@@ -52,6 +83,8 @@ const mergeTraceRef = (current: SetupTelemetryRefs, traceId: string): SetupTelem
 
 const App: React.FC = () => {
 const { currentUser } = useAuth();
+const { t } = useTranslation(['common', 'setup']);
+const { locale } = useLocale();
 const { id: setupId } = useParams<{ id: string }>();
 const location = useLocation();
 const navigate = useNavigate();
@@ -60,6 +93,17 @@ const copyId = searchParams.get('copy');
 const [isViewMode, setIsViewMode] = useState(false);
 const [, setLoadingSetup] = useState(false);
 const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+const [tireSets, setTireSets] = useState<TireSet[]>([]);
+const [tireUsageSetups, setTireUsageSetups] = useState<CarSetupType[]>([]);
+// 自由入力は例外導線。ユーザーが明示的に選んだ場合だけ入力欄を開く。
+const [manualVehicleEntry, setManualVehicleEntry] = useState(false);
+const setupStartedTrackedRef = useRef(false);
+
+useEffect(() => {
+  if (setupId || setupStartedTrackedRef.current) return;
+  setupStartedTrackedRef.current = true;
+  void trackEvent('setup_started', { source: copyId ? 'copy' : 'new' });
+}, [setupId, copyId]);
 
 // Firestore接続確認
 useEffect(() => {
@@ -72,45 +116,45 @@ useEffect(() => {
   }
 }, [currentUser]);
 
-// 登録車両を取得（プルダウン候補として使用）
-const migrationRanRef = useRef(false);
 useEffect(() => {
   if (!currentUser) return;
-  if (migrationRanRef.current) {
-    // 移行済みの場合は車両リスト取得のみ
-    getUserVehicles(currentUser.uid).then(list => setVehicles(list));
-    return;
-  }
-  migrationRanRef.current = true;
-  getUserVehicles(currentUser.uid).then(list => {
-    setVehicles(list);
-    // 既存セットアップに車種があるが、車両管理に未登録の場合は自動登録
-    getUserSetups(currentUser.uid, 100).then(setups => {
-      const setupCarModels = new Set(setups.map(s => s.carModel).filter(Boolean));
-      const vehicleNames = new Set(list.map(v => `${v.make} ${v.model}`));
-      const missing = [...setupCarModels].filter(m => !vehicleNames.has(m!));
-      if (missing.length > 0) {
-        Promise.all(missing.map(name => {
-          const parts = name!.split(' ');
-          const make = parts[0] || 'Unknown';
-          const model = parts.slice(1).join(' ') || 'Unknown';
-          return addVehicle({
-            userId: currentUser.uid,
-            make,
-            model,
-            year: new Date().getFullYear(),
-            isActive: true,
-          }).catch(e => logger.error('Auto-migrate vehicle failed:', e));
-        })).then(() => {
-          getUserVehicles(currentUser.uid).then(updated => setVehicles(updated));
-        });
-      }
-    });
-  }).catch(e => logger.error('Failed to fetch vehicles:', e));
+  getUserTireSets(currentUser.uid).then(async (nextTireSets) => {
+    setTireSets(nextTireSets);
+    if (nextTireSets.length > 0) {
+      setTireUsageSetups(await getUserSetupsForTireUsage(currentUser.uid));
+    } else {
+      setTireUsageSetups([]);
+    }
+  }).catch((error) => logger.error('Failed to fetch tire sets:', error));
+}, [currentUser]);
+
+// 登録車両を取得（プルダウン候補として使用）。
+// 過去のセットアップから車両を自動作成しない。未登録車種は保存時にユーザーへ確認する。
+useEffect(() => {
+  if (!currentUser) return;
+  getUserVehicles(currentUser.uid)
+    .then(setVehicles)
+    .catch(e => logger.error('Failed to fetch vehicles:', e));
 }, [currentUser]);
 const [isSaving, setIsSaving] = useState(false);
+// 連打・保存中の再送信を同期的にブロックするガード（isSaving の setState 反映前でも効く）
+const savingRef = useRef(false);
 const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
 const [isInheriting, setIsInheriting] = useState(false);
+// 読込導線の実行前プレビュー（複製 / 引き継ぎ）。確認するまで draft は書き換えない。
+const [pendingLoad, setPendingLoad] = useState<{ kind: 'duplicate' | 'inherit'; source: CarSetupType } | null>(null);
+// 複製元セレクタ（WP: 直近1件固定から、直近10件までの候補選択に拡張）
+const [pickerOpen, setPickerOpen] = useState(false);
+const [pickerLoading, setPickerLoading] = useState(false);
+const [pickerList, setPickerList] = useState<CarSetupType[]>([]);
+const [isDeleting, setIsDeleting] = useState(false);
+type VehicleRegistrationChoice = 'register' | 'without' | 'cancel';
+const [vehicleRegistrationPrompt, setVehicleRegistrationPrompt] = useState<{
+  candidate: ReturnType<typeof splitCarModel>;
+  inactiveVehicle: Vehicle | null;
+} | null>(null);
+const [registrationYear, setRegistrationYear] = useState(new Date().getFullYear());
+const vehicleRegistrationResolverRef = useRef<((choice: VehicleRegistrationChoice) => void) | null>(null);
 const [settingsModal, setSettingsModal] = useState(false);
 const [currentSettingView, setCurrentSettingView] = useState('account');
 const [dropdownState, setDropdownState] = useState<DropdownState>({
@@ -119,22 +163,219 @@ position: { top: 0, left: 0 },
 currentInput: '',
 options: []
 });
-// 状態管理 — 全入力は空値スタート（デモ初期値禁止）
-const [weatherCondition, setWeatherCondition] = useState<WeatherType | ''>('');
-const [bestLap, setBestLap] = useState('');
-const [totalLaps, setTotalLaps] = useState('');
+// canonical フォーム state（新規・読込・コピー・引き継ぎ・保存が同じ変換関数を通る）
+// 初期 draft を保持し、未保存離脱ガードの基準スナップショットの初期値と一致させる。
+const initialDraftRef = useRef<SetupDraft>(createEmptyDraft());
+const { draft, setField, replaceDraft } = useSetupDraft(initialDraftRef.current);
+
+// ── 未保存離脱ガード用のダーティ判定 ──────────────────────────────────
+// 基準スナップショット（保存済み/読込直後の draft の直列化）。
+// これと現在の draft が異なれば「未保存の変更あり」とみなす。
+const baselineRef = useRef<string>(serializeDraft(initialDraftRef.current));
+// blocker/beforeunload から同期的に読むため draft も ref で保持する。
+const draftRef = useRef(draft);
+draftRef.current = draft;
+const [isDirty, setIsDirty] = useState(false);
+
+// 基準スナップショットを更新し、クリーン状態に戻す（読込完了・保存成功時に呼ぶ）。
+const resetBaseline = useCallback((d: SetupDraft) => {
+  baselineRef.current = serializeDraft(d);
+  setIsDirty(false);
+}, []);
+
+// draft が変わるたびにダーティ状態を再計算する。
+useEffect(() => {
+  setIsDirty(isDraftDirty(baselineRef.current, draft));
+}, [draft]);
+
+// 閲覧モードでは編集不可のため常にクリーン扱い。blocker は同期的にこれを読む。
+const hasUnsavedChanges = useCallback(
+  () => !isViewMode && isDraftDirty(baselineRef.current, draftRef.current),
+  [isViewMode],
+);
+
+useUnsavedChangesGuard({
+  hasUnsavedChanges,
+  isDirty: isDirty && !isViewMode,
+  enabled: !isViewMode,
+});
+
+// JSX からは従来どおりの変数名で参照する（draft を分解した読み取りビュー）
+const {
+  weatherCondition, bestLap, totalLaps, detailedLaps, sessionDate, driver,
+  lapSource, lapEvidence, telemetryRefs,
+  tirePressures, targetPressures,
+  airTemp, trackTemp, humidity, pressure,
+  tireBrand, tireProductName, tireCompound, tireSetId, tireHeatCyclesAdded, distance, fuel,
+  frontTireSize, rearTireSize,
+  frontDamperCompression, frontDamperRebound, rearDamperCompression, rearDamperRebound,
+  frontSpringRate, rearSpringRate, frontRideHeight, rearRideHeight, frontStabilizer, rearStabilizer,
+  frontCamber, rearCamber, frontToe, rearToe, caster,
+  frontBrakePad, rearBrakePad, frontBrakeRotor, rearBrakeRotor, brakeBalance,
+  frontAero, rearAero, ecuMap, boost,
+  adjustmentValues,
+  notes, knowledge, drivingFeedback,
+  circuit, carModel, sessionType,
+} = draft;
+const selectedVehicleId = draft.vehicleId;
+
+// 選択中の登録車両の setupConfig → フォーム表示制約（未選択・未設定なら制約なし）
+const selectedVehicleSetupConfig = useMemo(
+  () => vehicles.find((v) => v.id === selectedVehicleId)?.setupConfig ?? null,
+  [vehicles, selectedVehicleId],
+);
+const selectedAdjustmentDefinitions = useMemo(() => {
+  const configured = activeAdjustmentDefinitions(selectedVehicleSetupConfig?.adjustmentDefinitions);
+  return configured.length > 0 ? configured : adjustmentDefinitionsFromValues(adjustmentValues);
+}, [selectedVehicleSetupConfig, adjustmentValues]);
+const usesDynamicSetup = selectedAdjustmentDefinitions.length > 0;
+const displayedAdjustmentValues = useMemo(
+  () => reconcileAdjustmentValues(selectedAdjustmentDefinitions, adjustmentValues),
+  [selectedAdjustmentDefinitions, adjustmentValues],
+);
+const suspensionConstraints = useMemo(
+  () => suspensionConstraintsFromConfig(selectedVehicleSetupConfig),
+  [selectedVehicleSetupConfig],
+);
+const alignmentConstraints = useMemo(
+  () => alignmentConstraintsFromConfig(selectedVehicleSetupConfig),
+  [selectedVehicleSetupConfig],
+);
+const availableTireSets = useMemo(
+  () => tireSets.filter((set) =>
+    set.status !== 'retired' && (!set.primaryVehicleId || set.primaryVehicleId === selectedVehicleId),
+  ),
+  [tireSets, selectedVehicleId],
+);
+const selectedTireSet = useMemo(
+  () => tireSets.find((set) => set.id === tireSetId) ?? null,
+  [tireSets, tireSetId],
+);
+const selectedTireUsage = useMemo(
+  () => selectedTireSet
+    ? calculateTireSetUsage(selectedTireSet, tireUsageSetups.filter((setup) => setup.id !== setupId))
+    : null,
+  [selectedTireSet, tireUsageSetups, setupId],
+);
+const tireSetOptions = useMemo(() => {
+  const options = [...availableTireSets];
+  if (selectedTireSet && !options.some((set) => set.id === selectedTireSet.id)) options.push(selectedTireSet);
+  return options.map((set) => ({
+    value: set.id as string,
+    label: `${set.code} / ${set.manufacturer} ${set.productName}${set.compound ? ` / ${set.compound}` : ''}`,
+  }));
+}, [availableTireSets, selectedTireSet]);
+const tireManufacturerOptions = useMemo(() => Array.from(new Set([
+  ...TIRE_PRODUCT_CATALOG.map((entry) => entry.manufacturer),
+  ...tireSets.map((set) => set.manufacturer),
+  ...tireUsageSetups.map((setup) => setup.tireInfo.manufacturer ?? setup.tireInfo.brand),
+].filter(Boolean))).map((value) => ({ value })), [tireSets, tireUsageSetups]);
+const tireProductOptions = useMemo(() => Array.from(new Set([
+  ...TIRE_PRODUCT_CATALOG
+    .filter((entry) => !tireBrand || entry.manufacturer === tireBrand)
+    .map((entry) => entry.productName),
+  ...tireSets
+    .filter((set) => !tireBrand || set.manufacturer === tireBrand)
+    .map((set) => set.productName),
+  ...tireUsageSetups
+    .filter((setup) => !tireBrand || (setup.tireInfo.manufacturer ?? setup.tireInfo.brand) === tireBrand)
+    .map((setup) => setup.tireInfo.productName ?? ''),
+].filter(Boolean))).map((value) => ({ value })), [tireBrand, tireSets, tireUsageSetups]);
+const tireCompoundOptions = useMemo(() => Array.from(new Set([
+  ...tireSets
+    .filter((set) => !tireProductName || set.productName === tireProductName)
+    .map((set) => set.compound),
+  ...tireUsageSetups
+    .filter((setup) => !tireProductName || setup.tireInfo.productName === tireProductName)
+    .map((setup) => setup.tireInfo.compound),
+].filter(Boolean))).map((value) => ({ value })), [tireProductName, tireSets, tireUsageSetups]);
+
+// draft フィールド用のセッター（value に関数を渡すと functional update）。
+// これらを通すことで、全項目が単一の canonical state に集約される。
+const setWeatherCondition = (v: WeatherType | '') => setField('weatherCondition', v);
+const setBestLap = (v: string) => setField('bestLap', v);
+const setTotalLaps = (v: string) => setField('totalLaps', v);
+const setDetailedLaps = (v: LapTime[]) => setField('detailedLaps', v);
+const setSessionDate = (v: Date) => setField('sessionDate', v);
+const setDriver = (v: string) => setField('driver', v);
+const setLapSource = setField.bind(null, 'lapSource') as (v: typeof draft.lapSource) => void;
+const setLapEvidence = setField.bind(null, 'lapEvidence') as (v: typeof draft.lapEvidence) => void;
+const setTelemetryRefs = (v: SetupTelemetryRefs | ((prev: SetupTelemetryRefs) => SetupTelemetryRefs)) => setField('telemetryRefs', v);
+const setTirePressures = (v: typeof draft.tirePressures | ((prev: typeof draft.tirePressures) => typeof draft.tirePressures)) => setField('tirePressures', v);
+const setTargetPressures = (v: typeof draft.targetPressures | ((prev: typeof draft.targetPressures) => typeof draft.targetPressures)) => setField('targetPressures', v);
+const setAirTemp = (v: string) => setField('airTemp', v);
+const setTrackTemp = (v: string) => setField('trackTemp', v);
+const setHumidity = (v: string) => setField('humidity', v);
+const setPressure = (v: string) => setField('pressure', v);
+const setTireBrand = (v: string) => setField('tireBrand', v);
+const setTireProductName = (v: string) => setField('tireProductName', v);
+const setTireCompound = (v: string) => setField('tireCompound', v);
+const setDistance = (v: string) => setField('distance', v);
+const setFuel = (v: string) => setField('fuel', v);
+const setFrontDamperCompression = (v: number | null) => setField('frontDamperCompression', v);
+const setFrontDamperRebound = (v: number | null) => setField('frontDamperRebound', v);
+const setRearDamperCompression = (v: number | null) => setField('rearDamperCompression', v);
+const setRearDamperRebound = (v: number | null) => setField('rearDamperRebound', v);
+const setFrontSpringRate = (v: string) => setField('frontSpringRate', v);
+const setRearSpringRate = (v: string) => setField('rearSpringRate', v);
+const setFrontRideHeight = (v: string) => setField('frontRideHeight', v);
+const setRearRideHeight = (v: string) => setField('rearRideHeight', v);
+const setFrontStabilizer = (v: string) => setField('frontStabilizer', v);
+const setRearStabilizer = (v: string) => setField('rearStabilizer', v);
+const setFrontCamber = (v: string) => setField('frontCamber', v);
+const setRearCamber = (v: string) => setField('rearCamber', v);
+const setFrontToe = (v: string) => setField('frontToe', v);
+const setRearToe = (v: string) => setField('rearToe', v);
+const setCaster = (v: string) => setField('caster', v);
+const setVehicleAdjustment = (key: 'frontTireSize' | 'rearTireSize' | 'frontBrakePad' | 'rearBrakePad' | 'frontBrakeRotor' | 'rearBrakeRotor' | 'brakeBalance' | 'frontAero' | 'rearAero' | 'ecuMap' | 'boost', value: string) => setField(key, value);
+const setDynamicAdjustment = (
+  definition: (typeof selectedAdjustmentDefinitions)[number],
+  value: (typeof adjustmentValues)[number]['value'],
+) => setField('adjustmentValues', (current) => setAdjustmentValue(current, definition, value));
+const setNotes = (v: string) => setField('notes', v);
+const setKnowledge = (v: typeof draft.knowledge) => setField('knowledge', v);
+const setCircuit = (v: string) => setField('circuit', v);
+const setCarModel = (v: string) => setField('carModel', v);
+const setSelectedVehicleId = (v: string | null) => setField('vehicleId', v);
+const setSessionType = (v: typeof draft.sessionType) => setField('sessionType', v);
+const handleTireSetSelect = (value: string | undefined) => {
+  const selected = tireSets.find((set) => set.id === value);
+  setField('tireSetId', selected?.id ?? '');
+  setField('tireSetCode', selected?.code ?? '');
+  if (!selected) return;
+  setTireBrand(selected.manufacturer);
+  setTireProductName(selected.productName);
+  setTireCompound(selected.compound);
+  setField('frontTireSize', selected.frontSize);
+  setField('rearTireSize', selected.rearSize);
+};
+const onFeedbackChange = (key: keyof DrivingFeedback, value: number | null) =>
+  setField('drivingFeedback', (prev) => ({ ...prev, [key]: value }));
+
+const requestVehicleRegistration = (
+  candidate: ReturnType<typeof splitCarModel>,
+  inactiveVehicle: Vehicle | null,
+): Promise<VehicleRegistrationChoice> => {
+  setRegistrationYear(inactiveVehicle?.year ?? new Date().getFullYear());
+  setVehicleRegistrationPrompt({ candidate, inactiveVehicle });
+  return new Promise((resolve) => {
+    vehicleRegistrationResolverRef.current = resolve;
+  });
+};
+
+const settleVehicleRegistration = (choice: VehicleRegistrationChoice) => {
+  vehicleRegistrationResolverRef.current?.(choice);
+  vehicleRegistrationResolverRef.current = null;
+  setVehicleRegistrationPrompt(null);
+};
+
+useEffect(() => () => {
+  // 画面が閉じられた場合も保存処理の Promise を残さない。
+  vehicleRegistrationResolverRef.current?.('cancel');
+  vehicleRegistrationResolverRef.current = null;
+}, []);
+
 const [showLapTimeModal, setShowLapTimeModal] = useState(false);
-const [detailedLaps, setDetailedLaps] = useState<LapTime[]>([]);
-// セッション日時: 新規は現在日時、既存データ読込時は保存済み日時を復元
-const [sessionDate, setSessionDate] = useState<Date>(new Date());
-// ドライバー名: state → 保存 → 読込 → 表示の一貫配線
-const [driver, setDriver] = useState<string>('');
-// 共有設定・ロガー証憑: 編集保存で既存値を消さないための保全state（UIはWP5/WP6が追加）
-const [visibility, setVisibility] = useState<SetupVisibility>('private');
-const [anonymized, setAnonymized] = useState<boolean>(false);
-const [lapSource, setLapSource] = useState<LapTimeSource>('manual');
-const [lapEvidence, setLapEvidence] = useState<LapEvidence | null>(null);
-const [telemetryRefs, setTelemetryRefs] = useState<SetupTelemetryRefs>(emptyTelemetryRefs);
 const [pendingTelemetryResult, setPendingTelemetryResult] = useState<TelemetryImportResult | null>(null);
 const [showTelemetryImport, setShowTelemetryImport] = useState(false);
 const [compareCandidates, setCompareCandidates] = useState<ComparableTraceCandidate[]>([]);
@@ -156,6 +397,10 @@ const handleTelemetryAttach = (payload: LapAttachPayload, result: TelemetryImpor
   }));
   setPendingTelemetryResult(result);
   setShowTelemetryImport(false);
+  void trackEvent('telemetry_attach_succeeded', {
+    format: payload.evidence.format,
+    circuit: result.track?.name,
+  });
   message.success('ロガーのラップタイムを証憑つきで添付しました。保存時に走行ログも作成します');
 };
 
@@ -207,12 +452,6 @@ currentInput: inputValue,
 options: options
 });
 };
-const [tirePressures, setTirePressures] = useState({
-fl: { before: "", after: "", diff: "" },
-fr: { before: "", after: "", diff: "" },
-rl: { before: "", after: "", diff: "" },
-rr: { before: "", after: "", diff: "" }
-});
 const calculatePressureDiff = (before: string, after: string): string => {
   const b = parseInt(before, 10);
   const a = parseInt(after, 10);
@@ -249,59 +488,6 @@ return () => {
 document.removeEventListener('mousedown', handleClickOutside);
 };
 }, []);
-// 環境データ — 全て空値スタート
-const [airTemp, setAirTemp] = useState('');
-const [trackTemp, setTrackTemp] = useState('');
-const [humidity, setHumidity] = useState('');
-const [pressure, setPressure] = useState('');
-const [tireBrand, setTireBrand] = useState('');
-const [tireCompound, setTireCompound] = useState('');
-const [distance, setDistance] = useState('');
-const [fuel, setFuel] = useState('');
-
-// サスペンション用状態 — 全て空値スタート
-const [frontDamperCompression, setFrontDamperCompression] = useState<number | null>(null);
-const [frontDamperRebound, setFrontDamperRebound] = useState<number | null>(null);
-const [rearDamperCompression, setRearDamperCompression] = useState<number | null>(null);
-const [rearDamperRebound, setRearDamperRebound] = useState<number | null>(null);
-const [frontSpringRate, setFrontSpringRate] = useState('');
-const [rearSpringRate, setRearSpringRate] = useState('');
-const [frontRideHeight, setFrontRideHeight] = useState('');
-const [rearRideHeight, setRearRideHeight] = useState('');
-const [frontStabilizer, setFrontStabilizer] = useState('');
-const [rearStabilizer, setRearStabilizer] = useState('');
-
-// アライメント用状態 — 全て空値スタート
-const [frontCamber, setFrontCamber] = useState('');
-const [rearCamber, setRearCamber] = useState('');
-const [frontToe, setFrontToe] = useState('');
-const [rearToe, setRearToe] = useState('');
-const [caster, setCaster] = useState('');
-
-// ドライビング用状態
-const [notes, setNotes] = useState('');
-const [knowledge, setKnowledge] = useState<KnowledgeNote>({
-  intention: '',
-  result: '',
-  learning: ''
-});
-
-// セッション情報用状態 — 空値スタート
-const [circuit, setCircuit] = useState('');
-const [carModel, setCarModel] = useState('');
-const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
-const [sessionType, setSessionType] = useState<'practice' | 'qualifying' | 'race'>('practice');
-
-// 目標温間圧 — 空値スタート（未設定は空文字）
-const [targetPressures, setTargetPressures] = useState({ front: '', rear: '' });
-
-// ダンパー設定の状態管理 — 空値スタート
-const [damperSettings, setDamperSettings] = useState({
-  fl: { bump: null as number | null, rebound: null as number | null },
-  fr: { bump: null as number | null, rebound: null as number | null },
-  rl: { bump: null as number | null, rebound: null as number | null },
-  rr: { bump: null as number | null, rebound: null as number | null }
-});
 
 // 保存処理
 const handleSave = async () => {
@@ -310,113 +496,82 @@ const handleSave = async () => {
     return;
   }
 
+  // 連打・保存後の再送信による重複作成を防止する。savingRef は setState と違い
+  // 同期的に更新されるため、同一ティック内の二度押しも確実に弾く。
+  if (savingRef.current) return;
+  savingRef.current = true;
+
   setIsSaving(true);
   try {
-    const trimmedKnowledge = {
-      intention: knowledge.intention?.trim() || '',
-      result: knowledge.result?.trim() || '',
-      learning: knowledge.learning?.trim() || ''
-    };
-    const hasKnowledge = Object.values(trimmedKnowledge).some((value) => value.length > 0);
-    // フォームデータを収集
-    // タイヤ空気圧: diff は導出値（before/after どちらかが null なら null）
-    const buildTirePressure = (tp: { before: string; after: string }) => {
-      const before = toNumberOrNull(tp.before);
-      const after = toNumberOrNull(tp.after);
-      return { before, after, diff: calcPressureDiff(before, after) };
-    };
+    let draftForSave = draft;
 
-    const setupData: Omit<CarSetupType, 'id' | 'createdAt' | 'updatedAt'> = {
-      userId: currentUser.uid,
-      driver: driver.trim() || null,
-      visibility,            // 既存値を保全（共有UIはWP6）
-      anonymized,
-      carModel: carModel,
-      vehicleId: selectedVehicleId,
-      circuit: circuit,
-      date: sessionDate,  // 保存済み日時を保持（new Date() 直書き禁止）
-      sessionType: sessionType,
-      weather: {
-        condition: (weatherCondition as WeatherType) || null,
-        airTemp: toNumberOrNull(airTemp),
-        trackTemp: toNumberOrNull(trackTemp),
-        humidity: toNumberOrNull(humidity),
-        pressure: toNumberOrNull(pressure)
-      },
-      tireSettings: {
-        fl: buildTirePressure(tirePressures.fl),
-        fr: buildTirePressure(tirePressures.fr),
-        rl: buildTirePressure(tirePressures.rl),
-        rr: buildTirePressure(tirePressures.rr),
-      },
-      targetPressures: {
-        front: toNumberOrNull(targetPressures.front),
-        rear: toNumberOrNull(targetPressures.rear),
-      } as TargetPressures,
-      tireInfo: {
-        brand: tireBrand,
-        compound: tireCompound
-      },
-      sessionInfo: {
-        distance: toNumberOrNull(distance),
-        fuel: toNumberOrNull(fuel)
-      },
-      // ラップタイムデータを保存（ロガー由来の証憑は編集保存でも保全する）
-      lapTimeData: {
-        bestLap: bestLap || null,
-        totalLaps: toIntOrNull(totalLaps),
-        laps: detailedLaps || [],
-        source: lapSource,
-        evidence: lapEvidence
-      },
-      telemetry: telemetryRefs,
-      suspensionSettings: {
-        frontDamper: {
-          compression: frontDamperCompression,
-          rebound: frontDamperRebound
-        },
-        rearDamper: {
-          compression: rearDamperCompression,
-          rebound: rearDamperRebound
-        },
-        springRate: {
-          front: toNumberOrNull(frontSpringRate),
-          rear: toNumberOrNull(rearSpringRate)
-        },
-        rideHeight: {
-          front: toNumberOrNull(frontRideHeight),
-          rear: toNumberOrNull(rearRideHeight)
-        },
-        antiRollBar: {
-          front: toNumberOrNull(frontStabilizer),
-          rear: toNumberOrNull(rearStabilizer)
+    // 自由入力された車種が車両管理に未登録なら、保存前にユーザーへ明示的に確認する。
+    // 非アクティブ車両も検索対象に含め、削除済み車両を別ドキュメントとして再生成しない。
+    if (!draft.vehicleId && draft.carModel.trim()) {
+      const allVehicles = await getUserVehicles(currentUser.uid, true);
+      const matchingVehicle = findVehicleByCarModel(allVehicles, draft.carModel);
+
+      if (matchingVehicle?.isActive !== false && matchingVehicle?.id) {
+        // 自由入力でも既存の有効車両と一致した場合は、その車両へ安全に紐付ける。
+        draftForSave = { ...draftForSave, vehicleId: matchingVehicle.id };
+        setSelectedVehicleId(matchingVehicle.id);
+      } else {
+        const candidate = splitCarModel(draft.carModel);
+        const choice = await requestVehicleRegistration(
+          candidate,
+          matchingVehicle?.isActive === false ? matchingVehicle : null,
+        );
+        if (choice === 'cancel') return;
+
+        if (choice === 'register') {
+          let vehicleId: string;
+          if (matchingVehicle?.id && matchingVehicle.isActive === false) {
+            await updateVehicle(matchingVehicle.id, { isActive: true });
+            vehicleId = matchingVehicle.id;
+            message.success('削除済みの車両を復元しました');
+          } else {
+            // 確認中に別処理で同名車両が作成されていないか再確認して重複を避ける。
+            const latestVehicles = await getUserVehicles(currentUser.uid, true);
+            const latestMatch = findVehicleByCarModel(latestVehicles, candidate.name);
+            if (latestMatch?.id) {
+              if (latestMatch.isActive === false) {
+                await updateVehicle(latestMatch.id, { isActive: true });
+              }
+              vehicleId = latestMatch.id;
+            } else {
+              vehicleId = await addVehicle({
+                userId: currentUser.uid,
+                make: candidate.make,
+                model: candidate.model,
+                year: registrationYear,
+                isActive: true,
+              });
+            }
+            message.success('車両管理にも登録しました');
+          }
+          draftForSave = { ...draftForSave, vehicleId };
+          setSelectedVehicleId(vehicleId);
+          setVehicles(await getUserVehicles(currentUser.uid));
         }
-      },
-      alignmentSettings: {
-        camber: {
-          front: toNumberOrNull(frontCamber),
-          rear: toNumberOrNull(rearCamber)
-        },
-        toe: {
-          front: toNumberOrNull(frontToe),
-          rear: toNumberOrNull(rearToe)
-        },
-        caster: toNumberOrNull(caster)
-      },
-      knowledge: hasKnowledge ? trimmedKnowledge : undefined,
-      notes: notes
-    };
+      }
+    }
 
-    // 新規保存か更新かを判定
+    // canonical な変換関数を通して保存ペイロードを生成（未入力は null、デモ初期値は保存しない）
+    const setupData = draftToSetupInput(draftForSave, currentUser.uid);
+    // 保存成功時に基準スナップショットを更新するための、保存された draft の写し。
+    // 保存後にテレメトリ参照を追記する場合はこの写しも更新する。
+    let savedDraft: SetupDraft = draftForSave;
+
+    // 新規保存か更新かを判定（新規保存成功後は saved ID の URL へ遷移し、以後は更新経路になる）
     let savedSetupId = setupId;
-    const isNewSave = !(setupId && !isViewMode);
-    if (setupId && !isViewMode) {
+    const isNew = computeIsNewSave({ setupId, isViewMode });
+    if (!isNew) {
       // 編集モードから保存する場合は更新
-      await updateSetup(setupId, setupData);
+      await updateSetup(setupId!, setupData);
       message.success('セットアップデータを更新しました');
       logger.log('Updated setup with ID:', setupId);
     } else {
-      // 新規作成
+      // 新規作成（セットアップ本体はここで1回だけ作成する）
       const newSetupId = await saveSetup(setupData);
       savedSetupId = newSetupId;
       message.success('セットアップデータを保存しました');
@@ -448,7 +603,7 @@ const handleSave = async () => {
         }
 
         // ハイライトモーダルは新規保存のみ表示（更新・編集保存では出さない）
-        if (isNewSave && savedSetupId) {
+        if (isNew && savedSetupId) {
           const currentSetupFull: CarSetupType = {
             ...setupData,
             id: savedSetupId,
@@ -468,50 +623,81 @@ const handleSave = async () => {
     }
 
     if (savedSetupId && pendingTelemetryResult && lapSource === 'logger') {
-      const trace = buildTelemetryTraceFromImport({
-        ownerId: currentUser.uid,
-        setupId: savedSetupId,
-        setup: setupData,
-        fileName: pendingTelemetryResult.fileName,
-        fileSizeBytes: pendingTelemetryResult.fileSizeBytes,
-        session: pendingTelemetryResult.session,
-        detection: pendingTelemetryResult.detection,
-        trackId: pendingTelemetryResult.track?.id ?? null,
-        lineSource: pendingTelemetryResult.lineSource,
-      });
+      // セットアップ本体の保存と走行ログ保存は別の成功単位として扱う。
+      // 後段が失敗しても新規保存済みIDへ遷移し、再保存で重複セットアップを作らない。
+      try {
+        const trace = buildTelemetryTraceFromImport({
+          ownerId: currentUser.uid,
+          setupId: savedSetupId,
+          setup: setupData,
+          fileName: pendingTelemetryResult.fileName,
+          fileSizeBytes: pendingTelemetryResult.fileSizeBytes,
+          session: pendingTelemetryResult.session,
+          detection: pendingTelemetryResult.detection,
+          trackId: pendingTelemetryResult.track?.id ?? null,
+          lineSource: pendingTelemetryResult.lineSource,
+        });
 
-      if (trace) {
-        const traceId = await saveTelemetryTrace(trace);
-        const nextTelemetry = mergeTraceRef(telemetryRefs, traceId);
-        await updateSetup(savedSetupId, { telemetry: nextTelemetry });
-        setTelemetryRefs(nextTelemetry);
-        setPendingTelemetryResult(null);
-        message.success(
-          trace.lap.valid
-            ? '比較用テレメトリトレースを保存しました'
-            : '単独確認用の走行ログを保存しました（比較には完全なNORMALラップが必要です）',
-        );
+        if (trace) {
+          const traceId = await saveTelemetryTrace(trace);
+          const nextTelemetry = mergeTraceRef(telemetryRefs, traceId);
+          await updateSetup(savedSetupId, { telemetry: nextTelemetry });
+          setTelemetryRefs(nextTelemetry);
+          savedDraft = { ...savedDraft, telemetryRefs: nextTelemetry };
+          setPendingTelemetryResult(null);
+          message.success(
+            trace.lap.valid
+              ? '比較用テレメトリトレースを保存しました'
+              : '単独確認用の走行ログを保存しました（比較には完全なNORMALラップが必要です）',
+          );
 
-        // P0-1: 保存後に比較候補を自動検索してプロンプト表示
-        if (trace.lap.valid && trace.lap.type === 'NORMAL') {
-          try {
-            const traceWithId = { ...trace, id: traceId, createdAt: new Date(), updatedAt: new Date() } as import('./src/types/telemetryTrace').TelemetryTrace;
-            const candidates = await getComparableTraceCandidates(traceWithId);
-            if (candidates.length > 0) {
-              setCompareCandidates(candidates);
-              setSavedTraceId(traceId);
-              setShowComparePrompt(true);
+          if (trace.lap.valid && trace.lap.type === 'NORMAL') {
+            try {
+              const traceWithId = { ...trace, id: traceId, createdAt: new Date(), updatedAt: new Date() } as import('./src/types/telemetryTrace').TelemetryTrace;
+              const candidates = await getComparableTraceCandidates(traceWithId);
+              if (candidates.length > 0) {
+                setCompareCandidates(candidates);
+                setSavedTraceId(traceId);
+                setShowComparePrompt(true);
+              }
+            } catch (e) {
+              logger.error('比較候補の取得に失敗しました:', e);
             }
-          } catch (e) {
-            logger.error('比較候補の取得に失敗しました:', e);
           }
+        } else {
+          void trackEvent('telemetry_trace_save_failed', {
+            format: pendingTelemetryResult.session.meta.format,
+            circuit: pendingTelemetryResult.track?.name,
+          });
+          message.warning('セットアップは保存しましたが、走行ログを作成できませんでした。ラップを確認して再保存してください', 8);
         }
-      } else {
-        message.warning('走行ログは保存できませんでした（解析できるラップが必要です）');
+      } catch (telemetryError) {
+        logger.error('セットアップ保存後の走行ログ保存に失敗しました:', telemetryError);
+        void trackEvent('telemetry_trace_save_failed', {
+          format: pendingTelemetryResult.session.meta.format,
+          circuit: pendingTelemetryResult.track?.name,
+        });
+        void trackEvent('setup_save_failed', { stage: 'telemetry', reason: 'trace_save_failed' });
+        message.warning('セットアップは保存済みです。走行ログのみ保存できなかったため、通信を確認してもう一度「保存」してください', 10);
       }
+    }
+
+    // 保存成功。基準スナップショットを更新して未保存状態を解消する。
+    // これを navigate より前に同期実行することで、保存後の replace 遷移も
+    // 離脱ガードにブロックされない（hasUnsavedChanges() が false を返す）。
+    resetBaseline(savedDraft);
+
+    // 新規保存が成功した後だけ、保存済みレコードの URL へ replace 遷移する。
+    // 順序: (1)本体保存 → (2)ベストラップ比較・ハイライト → (3)テレメトリ保存 →
+    // (4)比較候補表示 → (5)ここで遷移。本体保存より後にあるため、途中失敗時は
+    // ここへ到達せず、setupId は未設定のまま（＝重複作成しない）。遷移後は
+    // setupId が入るため、以後の保存は同一 ID の更新経路になる。
+    if (isNew && savedSetupId) {
+      navigate(buildSetupPath(savedSetupId), { replace: true });
     }
   } catch (error: any) {
     logger.error('Save error:', error);
+    void trackEvent('setup_save_failed', { stage: 'setup', reason: error?.code ?? 'unknown' });
     // zodバリデーションエラーは項目名付きの読める日本語として表示
     const rawMsg: string = error?.message || 'エラーが発生しました';
     const errorMessage = error?.code === 'permission-denied'
@@ -521,12 +707,15 @@ const handleSave = async () => {
         : `保存に失敗しました: ${rawMsg}`;
     message.error(errorMessage, 6); // 長めに表示（6秒）
   } finally {
+    savingRef.current = false;
     setIsSaving(false);
   }
 };
 
-// 前回のセットアップデータを読み込む処理
-const handleLoadPrevious = async () => {
+// 「直近セッションを複製」— 実行前プレビューを開く。
+// ここでは最新1件を取得してプレビューを提示するだけで、draft はまだ書き換えない
+// （ユーザーがモーダルで確認 → confirmPendingLoad で初めて複製を適用する）。
+const openDuplicatePreview = async () => {
   if (!currentUser) {
     message.error('ログインが必要です');
     return;
@@ -536,124 +725,29 @@ const handleLoadPrevious = async () => {
   try {
     // 最新1件のセットアップデータを取得
     const previousSetups = await getUserSetups(currentUser.uid, 1);
-    
+
     if (previousSetups.length === 0) {
-      message.warning('前回のセットアップデータが見つかりません');
+      message.warning('直近のセッションが見つかりません');
       return;
     }
 
-    const previousData = previousSetups[0];
-
-    // 前回読込: セッション日時は今（新規セッションとして開始）、前回の値を引き継ぎ
-    setSessionDate(new Date());
-
-    // ドライバー名も引き継ぎ
-    setDriver(previousData.driver ?? '');
-
-    // 基本情報（null は空文字に変換）
-    setWeatherCondition(previousData.weather.condition ?? '');
-    setAirTemp(previousData.weather.airTemp != null ? previousData.weather.airTemp.toString() : '');
-    setTrackTemp(previousData.weather.trackTemp != null ? previousData.weather.trackTemp.toString() : '');
-    setHumidity(previousData.weather.humidity != null ? previousData.weather.humidity.toString() : '');
-    setPressure(previousData.weather.pressure != null ? previousData.weather.pressure.toString() : '');
-
-    // タイヤ情報
-    setTireBrand(previousData.tireInfo.brand);
-    setTireCompound(previousData.tireInfo.compound);
-    setDistance(previousData.sessionInfo.distance != null ? previousData.sessionInfo.distance.toString() : '');
-    setFuel(previousData.sessionInfo.fuel != null ? previousData.sessionInfo.fuel.toString() : '');
-
-    // タイヤ圧設定（null は空文字に変換）
-    const fmtDiff = (diff: number | null | undefined): string => {
-      if (diff == null) return '';
-      return diff >= 0 ? `+${diff}` : diff.toString();
-    };
-    setTirePressures({
-      fl: {
-        before: previousData.tireSettings.fl.before != null ? previousData.tireSettings.fl.before.toString() : '',
-        after: previousData.tireSettings.fl.after != null ? previousData.tireSettings.fl.after.toString() : '',
-        diff: fmtDiff(previousData.tireSettings.fl.diff)
-      },
-      fr: {
-        before: previousData.tireSettings.fr.before != null ? previousData.tireSettings.fr.before.toString() : '',
-        after: previousData.tireSettings.fr.after != null ? previousData.tireSettings.fr.after.toString() : '',
-        diff: fmtDiff(previousData.tireSettings.fr.diff)
-      },
-      rl: {
-        before: previousData.tireSettings.rl.before != null ? previousData.tireSettings.rl.before.toString() : '',
-        after: previousData.tireSettings.rl.after != null ? previousData.tireSettings.rl.after.toString() : '',
-        diff: fmtDiff(previousData.tireSettings.rl.diff)
-      },
-      rr: {
-        before: previousData.tireSettings.rr.before != null ? previousData.tireSettings.rr.before.toString() : '',
-        after: previousData.tireSettings.rr.after != null ? previousData.tireSettings.rr.after.toString() : '',
-        diff: fmtDiff(previousData.tireSettings.rr.diff)
-      }
-    });
-
-    // サスペンション設定（null はそのまま）
-    if (previousData.suspensionSettings) {
-      setFrontDamperCompression(previousData.suspensionSettings.frontDamper.compression ?? null);
-      setFrontDamperRebound(previousData.suspensionSettings.frontDamper.rebound ?? null);
-      setRearDamperCompression(previousData.suspensionSettings.rearDamper.compression ?? null);
-      setRearDamperRebound(previousData.suspensionSettings.rearDamper.rebound ?? null);
-      setFrontSpringRate(previousData.suspensionSettings.springRate.front != null ? previousData.suspensionSettings.springRate.front.toString() : '');
-      setRearSpringRate(previousData.suspensionSettings.springRate.rear != null ? previousData.suspensionSettings.springRate.rear.toString() : '');
-      setFrontRideHeight(previousData.suspensionSettings.rideHeight.front != null ? previousData.suspensionSettings.rideHeight.front.toString() : '');
-      setRearRideHeight(previousData.suspensionSettings.rideHeight.rear != null ? previousData.suspensionSettings.rideHeight.rear.toString() : '');
-      setFrontStabilizer(previousData.suspensionSettings.antiRollBar.front != null ? previousData.suspensionSettings.antiRollBar.front.toString() : '');
-      setRearStabilizer(previousData.suspensionSettings.antiRollBar.rear != null ? previousData.suspensionSettings.antiRollBar.rear.toString() : '');
-    }
-
-    // アライメント設定（null は空文字に変換）
-    if (previousData.alignmentSettings) {
-      setFrontCamber(previousData.alignmentSettings.camber.front != null ? previousData.alignmentSettings.camber.front.toString() : '');
-      setRearCamber(previousData.alignmentSettings.camber.rear != null ? previousData.alignmentSettings.camber.rear.toString() : '');
-      setFrontToe(previousData.alignmentSettings.toe.front != null ? previousData.alignmentSettings.toe.front.toString() : '');
-      setRearToe(previousData.alignmentSettings.toe.rear != null ? previousData.alignmentSettings.toe.rear.toString() : '');
-      setCaster(previousData.alignmentSettings.caster != null ? previousData.alignmentSettings.caster.toString() : '');
-    }
-
-    // ドライビングノート
-    if (previousData.notes) {
-      setNotes(previousData.notes);
-    }
-    setKnowledge({
-      intention: previousData.knowledge?.intention ?? '',
-      result: previousData.knowledge?.result ?? '',
-      learning: previousData.knowledge?.learning ?? ''
-    });
-
-    // セッション情報
-    setCarModel(previousData.carModel);
-    setSelectedVehicleId(previousData.vehicleId ?? null);
-    setCircuit(previousData.circuit);
-    setSessionType(previousData.sessionType);
-
-    // ダンパー設定（null はそのまま）
-    setDamperSettings({
-      fl: { bump: previousData.suspensionSettings?.frontDamper.compression ?? null, rebound: previousData.suspensionSettings?.frontDamper.rebound ?? null },
-      fr: { bump: previousData.suspensionSettings?.frontDamper.compression ?? null, rebound: previousData.suspensionSettings?.frontDamper.rebound ?? null },
-      rl: { bump: previousData.suspensionSettings?.rearDamper.compression ?? null, rebound: previousData.suspensionSettings?.rearDamper.rebound ?? null },
-      rr: { bump: previousData.suspensionSettings?.rearDamper.compression ?? null, rebound: previousData.suspensionSettings?.rearDamper.rebound ?? null }
-    });
-
-    message.success(`前回のセットアップデータを読み込みました（${previousData.date.toLocaleDateString('ja-JP')}）`);
+    setPickerOpen(false);
+    setPendingLoad({ kind: 'duplicate', source: previousSetups[0] });
   } catch (error: any) {
     logger.error('Load previous data error:', error);
-    const errorMessage = error?.code === 'permission-denied' 
-      ? 'アクセス権限がありません。再度ログインしてください' 
-      : `前回のデータ読み込みに失敗しました: ${error?.message || 'エラーが発生しました'}`;
+    const errorMessage = error?.code === 'permission-denied'
+      ? 'アクセス権限がありません。再度ログインしてください'
+      : `直近セッションの取得に失敗しました: ${error?.message || 'エラーが発生しました'}`;
     message.error(errorMessage);
   } finally {
     setIsLoadingPrevious(false);
   }
 };
 
-// 同一車種の最新セットアップから「セッション非依存の設定」だけを引き継ぐ。
+// 「同じ車種の設定を引き継ぐ」— 実行前プレビューを開く。
 // 引き継ぐ: タイヤ銘柄/コンパウンド・サスペンション・アライメント・ダンパー
 // 引き継がない: 空気圧の実測値・天候・ラップタイム・走行距離/燃料（=セッション固有値）
-const handleInheritFromPrevious = async () => {
+const openInheritPreview = async () => {
   if (!currentUser) {
     message.error('ログインが必要です');
     return;
@@ -670,56 +764,98 @@ const handleInheritFromPrevious = async () => {
       message.warning(`「${carModel}」の過去のセットアップが見つかりません`);
       return;
     }
-    const src = sameModel[0]; // date desc 取得済みなので先頭が最新
-
-    // タイヤ銘柄・コンパウンド（セッション非依存）
-    setTireBrand(src.tireInfo.brand);
-    setTireCompound(src.tireInfo.compound);
-
-    // サスペンション設定（セッション非依存）
-    if (src.suspensionSettings) {
-      setFrontDamperCompression(src.suspensionSettings.frontDamper.compression ?? null);
-      setFrontDamperRebound(src.suspensionSettings.frontDamper.rebound ?? null);
-      setRearDamperCompression(src.suspensionSettings.rearDamper.compression ?? null);
-      setRearDamperRebound(src.suspensionSettings.rearDamper.rebound ?? null);
-      setFrontSpringRate(src.suspensionSettings.springRate.front != null ? src.suspensionSettings.springRate.front.toString() : '');
-      setRearSpringRate(src.suspensionSettings.springRate.rear != null ? src.suspensionSettings.springRate.rear.toString() : '');
-      setFrontRideHeight(src.suspensionSettings.rideHeight.front != null ? src.suspensionSettings.rideHeight.front.toString() : '');
-      setRearRideHeight(src.suspensionSettings.rideHeight.rear != null ? src.suspensionSettings.rideHeight.rear.toString() : '');
-      setFrontStabilizer(src.suspensionSettings.antiRollBar.front != null ? src.suspensionSettings.antiRollBar.front.toString() : '');
-      setRearStabilizer(src.suspensionSettings.antiRollBar.rear != null ? src.suspensionSettings.antiRollBar.rear.toString() : '');
-      setDamperSettings({
-        fl: { bump: src.suspensionSettings.frontDamper.compression ?? null, rebound: src.suspensionSettings.frontDamper.rebound ?? null },
-        fr: { bump: src.suspensionSettings.frontDamper.compression ?? null, rebound: src.suspensionSettings.frontDamper.rebound ?? null },
-        rl: { bump: src.suspensionSettings.rearDamper.compression ?? null, rebound: src.suspensionSettings.rearDamper.rebound ?? null },
-        rr: { bump: src.suspensionSettings.rearDamper.compression ?? null, rebound: src.suspensionSettings.rearDamper.rebound ?? null }
-      });
-    }
-
-    // アライメント設定（セッション非依存）
-    if (src.alignmentSettings) {
-      setFrontCamber(src.alignmentSettings.camber.front != null ? src.alignmentSettings.camber.front.toString() : '');
-      setRearCamber(src.alignmentSettings.camber.rear != null ? src.alignmentSettings.camber.rear.toString() : '');
-      setFrontToe(src.alignmentSettings.toe.front != null ? src.alignmentSettings.toe.front.toString() : '');
-      setRearToe(src.alignmentSettings.toe.rear != null ? src.alignmentSettings.toe.rear.toString() : '');
-      setCaster(src.alignmentSettings.caster != null ? src.alignmentSettings.caster.toString() : '');
-    }
-
-    // ドライバー名（車両に紐づく運転者として引き継ぐ）
-    if (src.driver) setDriver(src.driver);
-
-    const srcDate = src.date instanceof Date ? src.date : new Date(src.date);
-    message.success(`${srcDate.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })}のセットアップから引き継ぎました`);
+    // date desc 取得済みなので先頭が最新
+    setPickerOpen(false);
+    setPendingLoad({ kind: 'inherit', source: sameModel[0] });
   } catch (error: unknown) {
     logger.error('Inherit setup error:', error);
     const err = error as { code?: string; message?: string } | undefined;
     const errorMessage = err?.code === 'permission-denied'
       ? 'アクセス権限がありません。再度ログインしてください'
-      : `引き継ぎに失敗しました: ${err?.message || 'エラーが発生しました'}`;
+      : `引き継ぎ元の取得に失敗しました: ${err?.message || 'エラーが発生しました'}`;
     message.error(errorMessage);
   } finally {
     setIsInheriting(false);
   }
+};
+
+// プレビュー確認後に実際の複製 / 引き継ぎを適用する。
+// pathname を変えない draft 上書きは WP3 の未保存ガード対象外のため、
+// ダーティな編集中データの上書き確認はこのプレビューモーダルで明示的に行う。
+const confirmPendingLoad = () => {
+  if (!pendingLoad) return;
+  const { kind, source } = pendingLoad;
+  const srcDate = source.date instanceof Date ? source.date : new Date(source.date);
+
+  if (kind === 'duplicate') {
+    // 新規セッションとして直近の記録を複製（コピーと同じ変換関数を通す）。
+    // セッション日時は今、ラップ・証憑・テレメトリ・共有状態は初期化される。
+    replaceDraft(copySetupToDraft(source));
+    message.success(`直近セッション（${srcDate.toLocaleDateString('ja-JP')}）を複製しました`);
+  } else {
+    // セッション非依存の設定だけを現在の draft へ上書き（純粋関数を通す）。
+    replaceDraft(inheritSetupSettings(draft, source));
+    message.success(
+      `${srcDate.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })}のセットアップから引き継ぎました`,
+    );
+  }
+  setPendingLoad(null);
+};
+
+// 複製元セレクタ: 確認モーダル内で「別のセッションを選ぶ」を押した際に候補一覧を取得する。
+// duplicate は直近10件、inherit は同一車種の直近10件（既存の取得関数をそのまま再利用）。
+const openSourcePicker = async () => {
+  if (!currentUser || !pendingLoad) return;
+  setPickerLoading(true);
+  try {
+    const list = pendingLoad.kind === 'inherit'
+      ? await getSetupsByCarModel(currentUser.uid, carModel)
+      : await getUserSetups(currentUser.uid, 10);
+    setPickerList(list.slice(0, 10));
+    setPickerOpen(true);
+  } catch (error: any) {
+    logger.error('Load source candidates error:', error);
+    message.error('候補の取得に失敗しました');
+  } finally {
+    setPickerLoading(false);
+  }
+};
+
+// 候補一覧から選択 → プレビューの対象を差し替えて確認画面へ戻る（適用ロジックは増やさない）
+const selectPickerSource = (source: CarSetupType) => {
+  setPendingLoad((prev) => (prev ? { ...prev, source } : prev));
+  setPickerOpen(false);
+};
+
+// 詳細画面（閲覧モード）からの削除。成功後は履歴一覧へ遷移する。
+const handleDeleteSetup = () => {
+  if (!setupId) return;
+  const shared = draft.visibility === 'shared';
+  Modal.confirm({
+    title: 'この走行データを削除しますか？',
+    content: (
+      <div>
+        <p>この操作は取り消せません。</p>
+        {shared && <p className="text-red-500">共有プールからも削除されます。</p>}
+      </div>
+    ),
+    okText: '削除する',
+    cancelText: 'キャンセル',
+    okButtonProps: { danger: true },
+    onOk: async () => {
+      setIsDeleting(true);
+      try {
+        await deleteSetup(setupId);
+        message.success('削除しました');
+        navigate('/history');
+      } catch (error) {
+        logger.error('Delete setup error:', error);
+        message.error('削除に失敗しました');
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+  });
 };
 
 // URLパラメータからセットアップデータを読み込む
@@ -741,126 +877,12 @@ useEffect(() => {
         return;
       }
 
-      // セッション日時を保存済み値から復元（Critical指摘#1）
-      setSessionDate(setupData.date instanceof Date ? setupData.date : new Date(setupData.date));
-
-      // ドライバー名を復元
-      setDriver(setupData.driver ?? '');
-
-      // 基本情報の設定（null は空文字に変換して表示）
-      setWeatherCondition(setupData.weather.condition ?? '');
-      setAirTemp(setupData.weather.airTemp != null ? setupData.weather.airTemp.toString() : '');
-      setTrackTemp(setupData.weather.trackTemp != null ? setupData.weather.trackTemp.toString() : '');
-      setHumidity(setupData.weather.humidity != null ? setupData.weather.humidity.toString() : '');
-      setPressure(setupData.weather.pressure != null ? setupData.weather.pressure.toString() : '');
-
-      // タイヤ情報
-      setTireBrand(setupData.tireInfo.brand);
-      setTireCompound(setupData.tireInfo.compound);
-      setDistance(setupData.sessionInfo.distance != null ? setupData.sessionInfo.distance.toString() : '');
-      setFuel(setupData.sessionInfo.fuel != null ? setupData.sessionInfo.fuel.toString() : '');
-
-      // タイヤ圧設定（null は空文字に変換）
-      const formatDiff = (diff: number | null | undefined): string => {
-        if (diff == null) return '';
-        return diff >= 0 ? `+${diff}` : diff.toString();
-      };
-      setTirePressures({
-        fl: {
-          before: setupData.tireSettings.fl.before != null ? setupData.tireSettings.fl.before.toString() : '',
-          after: setupData.tireSettings.fl.after != null ? setupData.tireSettings.fl.after.toString() : '',
-          diff: formatDiff(setupData.tireSettings.fl.diff)
-        },
-        fr: {
-          before: setupData.tireSettings.fr.before != null ? setupData.tireSettings.fr.before.toString() : '',
-          after: setupData.tireSettings.fr.after != null ? setupData.tireSettings.fr.after.toString() : '',
-          diff: formatDiff(setupData.tireSettings.fr.diff)
-        },
-        rl: {
-          before: setupData.tireSettings.rl.before != null ? setupData.tireSettings.rl.before.toString() : '',
-          after: setupData.tireSettings.rl.after != null ? setupData.tireSettings.rl.after.toString() : '',
-          diff: formatDiff(setupData.tireSettings.rl.diff)
-        },
-        rr: {
-          before: setupData.tireSettings.rr.before != null ? setupData.tireSettings.rr.before.toString() : '',
-          after: setupData.tireSettings.rr.after != null ? setupData.tireSettings.rr.after.toString() : '',
-          diff: formatDiff(setupData.tireSettings.rr.diff)
-        }
-      });
-
-      // 目標温間圧（旧データに存在しない場合は空値スタート）
-      setTargetPressures({
-        front: setupData.targetPressures?.front != null ? setupData.targetPressures.front.toString() : '',
-        rear: setupData.targetPressures?.rear != null ? setupData.targetPressures.rear.toString() : '',
-      });
-
-      // サスペンション設定（null は null のまま保持）
-      if (setupData.suspensionSettings) {
-        setFrontDamperCompression(setupData.suspensionSettings.frontDamper.compression ?? null);
-        setFrontDamperRebound(setupData.suspensionSettings.frontDamper.rebound ?? null);
-        setRearDamperCompression(setupData.suspensionSettings.rearDamper.compression ?? null);
-        setRearDamperRebound(setupData.suspensionSettings.rearDamper.rebound ?? null);
-        setFrontSpringRate(setupData.suspensionSettings.springRate.front != null ? setupData.suspensionSettings.springRate.front.toString() : '');
-        setRearSpringRate(setupData.suspensionSettings.springRate.rear != null ? setupData.suspensionSettings.springRate.rear.toString() : '');
-        setFrontRideHeight(setupData.suspensionSettings.rideHeight.front != null ? setupData.suspensionSettings.rideHeight.front.toString() : '');
-        setRearRideHeight(setupData.suspensionSettings.rideHeight.rear != null ? setupData.suspensionSettings.rideHeight.rear.toString() : '');
-        setFrontStabilizer(setupData.suspensionSettings.antiRollBar.front != null ? setupData.suspensionSettings.antiRollBar.front.toString() : '');
-        setRearStabilizer(setupData.suspensionSettings.antiRollBar.rear != null ? setupData.suspensionSettings.antiRollBar.rear.toString() : '');
-      }
-
-      // アライメント設定（null は空文字に変換）
-      if (setupData.alignmentSettings) {
-        setFrontCamber(setupData.alignmentSettings.camber.front != null ? setupData.alignmentSettings.camber.front.toString() : '');
-        setRearCamber(setupData.alignmentSettings.camber.rear != null ? setupData.alignmentSettings.camber.rear.toString() : '');
-        setFrontToe(setupData.alignmentSettings.toe.front != null ? setupData.alignmentSettings.toe.front.toString() : '');
-        setRearToe(setupData.alignmentSettings.toe.rear != null ? setupData.alignmentSettings.toe.rear.toString() : '');
-        setCaster(setupData.alignmentSettings.caster != null ? setupData.alignmentSettings.caster.toString() : '');
-      }
-
-      // ドライビングノート
-      if (setupData.notes) {
-        setNotes(setupData.notes);
-      }
-      setKnowledge({
-        intention: setupData.knowledge?.intention ?? '',
-        result: setupData.knowledge?.result ?? '',
-        learning: setupData.knowledge?.learning ?? ''
-      });
-
-      // セッション情報
-      setCarModel(setupData.carModel);
-      setSelectedVehicleId(setupData.vehicleId ?? null);
-      setCircuit(setupData.circuit);
-      setSessionType(setupData.sessionType);
-
-      // ラップタイムデータ（ロガー証憑も復元し、編集保存での消失を防ぐ）
-      if (setupData.lapTimeData) {
-        setBestLap(setupData.lapTimeData.bestLap ?? '');
-        setTotalLaps(setupData.lapTimeData.totalLaps != null ? setupData.lapTimeData.totalLaps.toString() : '');
-        setDetailedLaps(setupData.lapTimeData.laps || []);
-        setLapSource(setupData.lapTimeData.source ?? 'manual');
-        setLapEvidence(setupData.lapTimeData.evidence ?? null);
-      } else {
-        setBestLap('');
-        setTotalLaps('');
-        setDetailedLaps([]);
-        setLapSource('manual');
-        setLapEvidence(null);
-      }
-      setTelemetryRefs(setupData.telemetry ?? emptyTelemetryRefs());
+      // 既存データ → draft へ一括変換（ラップ・証憑・テレメトリ・共有設定も復元）
+      const nextDraft = setupToDraft(setupData);
+      replaceDraft(nextDraft);
+      // 読込直後の draft を基準スナップショットにする（この時点は未変更＝クリーン）
+      resetBaseline(nextDraft);
       setPendingTelemetryResult(null);
-
-      // 共有設定の保全
-      setVisibility(setupData.visibility ?? 'private');
-      setAnonymized(setupData.anonymized ?? false);
-
-      // ダンパー設定（null はそのまま）
-      setDamperSettings({
-        fl: { bump: setupData.suspensionSettings?.frontDamper.compression ?? null, rebound: setupData.suspensionSettings?.frontDamper.rebound ?? null },
-        fr: { bump: setupData.suspensionSettings?.frontDamper.compression ?? null, rebound: setupData.suspensionSettings?.frontDamper.rebound ?? null },
-        rl: { bump: setupData.suspensionSettings?.rearDamper.compression ?? null, rebound: setupData.suspensionSettings?.rearDamper.rebound ?? null },
-        rr: { bump: setupData.suspensionSettings?.rearDamper.compression ?? null, rebound: setupData.suspensionSettings?.rearDamper.rebound ?? null }
-      });
 
     } catch (error: any) {
       logger.error('Error loading setup:', error);
@@ -874,7 +896,7 @@ useEffect(() => {
   };
 
   loadSetupData();
-}, [setupId]);
+}, [setupId, replaceDraft, resetBaseline]);
 
 // URLパラメータでcopyが指定された場合の処理
 useEffect(() => {
@@ -890,117 +912,12 @@ useEffect(() => {
         return;
       }
 
-      // 基本情報の設定（新規作成モードなのでIDはセットしない。コピー先の日時は現在日時）
-      // セッション日時は「今」（コピーは新規セッションとして記録）
-      setSessionDate(new Date());
-
-      // ドライバー名もコピー
-      setDriver(setupData.driver ?? '');
-
-      // 基本情報（null は空文字に変換）
-      setWeatherCondition(setupData.weather.condition ?? '');
-      setAirTemp(setupData.weather.airTemp != null ? setupData.weather.airTemp.toString() : '');
-      setTrackTemp(setupData.weather.trackTemp != null ? setupData.weather.trackTemp.toString() : '');
-      setHumidity(setupData.weather.humidity != null ? setupData.weather.humidity.toString() : '');
-      setPressure(setupData.weather.pressure != null ? setupData.weather.pressure.toString() : '');
-
-      // タイヤ情報
-      setTireBrand(setupData.tireInfo.brand);
-      setTireCompound(setupData.tireInfo.compound);
-      setDistance(setupData.sessionInfo.distance != null ? setupData.sessionInfo.distance.toString() : '');
-      setFuel(setupData.sessionInfo.fuel != null ? setupData.sessionInfo.fuel.toString() : '');
-
-      // タイヤ圧設定（null は空文字に変換）
-      const formatDiffCopy = (diff: number | null | undefined): string => {
-        if (diff == null) return '';
-        return diff >= 0 ? `+${diff}` : diff.toString();
-      };
-      setTirePressures({
-        fl: {
-          before: setupData.tireSettings.fl.before != null ? setupData.tireSettings.fl.before.toString() : '',
-          after: setupData.tireSettings.fl.after != null ? setupData.tireSettings.fl.after.toString() : '',
-          diff: formatDiffCopy(setupData.tireSettings.fl.diff)
-        },
-        fr: {
-          before: setupData.tireSettings.fr.before != null ? setupData.tireSettings.fr.before.toString() : '',
-          after: setupData.tireSettings.fr.after != null ? setupData.tireSettings.fr.after.toString() : '',
-          diff: formatDiffCopy(setupData.tireSettings.fr.diff)
-        },
-        rl: {
-          before: setupData.tireSettings.rl.before != null ? setupData.tireSettings.rl.before.toString() : '',
-          after: setupData.tireSettings.rl.after != null ? setupData.tireSettings.rl.after.toString() : '',
-          diff: formatDiffCopy(setupData.tireSettings.rl.diff)
-        },
-        rr: {
-          before: setupData.tireSettings.rr.before != null ? setupData.tireSettings.rr.before.toString() : '',
-          after: setupData.tireSettings.rr.after != null ? setupData.tireSettings.rr.after.toString() : '',
-          diff: formatDiffCopy(setupData.tireSettings.rr.diff)
-        }
-      });
-
-      // 目標温間圧はコピー時に引き継ぐ（実測値ではなく設定値のため）
-      setTargetPressures({
-        front: setupData.targetPressures?.front != null ? setupData.targetPressures.front.toString() : '',
-        rear: setupData.targetPressures?.rear != null ? setupData.targetPressures.rear.toString() : '',
-      });
-
-      // サスペンション設定（null はそのまま）
-      if (setupData.suspensionSettings) {
-        setFrontDamperCompression(setupData.suspensionSettings.frontDamper.compression ?? null);
-        setFrontDamperRebound(setupData.suspensionSettings.frontDamper.rebound ?? null);
-        setRearDamperCompression(setupData.suspensionSettings.rearDamper.compression ?? null);
-        setRearDamperRebound(setupData.suspensionSettings.rearDamper.rebound ?? null);
-        setFrontSpringRate(setupData.suspensionSettings.springRate.front != null ? setupData.suspensionSettings.springRate.front.toString() : '');
-        setRearSpringRate(setupData.suspensionSettings.springRate.rear != null ? setupData.suspensionSettings.springRate.rear.toString() : '');
-        setFrontRideHeight(setupData.suspensionSettings.rideHeight.front != null ? setupData.suspensionSettings.rideHeight.front.toString() : '');
-        setRearRideHeight(setupData.suspensionSettings.rideHeight.rear != null ? setupData.suspensionSettings.rideHeight.rear.toString() : '');
-        setFrontStabilizer(setupData.suspensionSettings.antiRollBar.front != null ? setupData.suspensionSettings.antiRollBar.front.toString() : '');
-        setRearStabilizer(setupData.suspensionSettings.antiRollBar.rear != null ? setupData.suspensionSettings.antiRollBar.rear.toString() : '');
-      }
-
-      // アライメント設定（null は空文字に変換）
-      if (setupData.alignmentSettings) {
-        setFrontCamber(setupData.alignmentSettings.camber.front != null ? setupData.alignmentSettings.camber.front.toString() : '');
-        setRearCamber(setupData.alignmentSettings.camber.rear != null ? setupData.alignmentSettings.camber.rear.toString() : '');
-        setFrontToe(setupData.alignmentSettings.toe.front != null ? setupData.alignmentSettings.toe.front.toString() : '');
-        setRearToe(setupData.alignmentSettings.toe.rear != null ? setupData.alignmentSettings.toe.rear.toString() : '');
-        setCaster(setupData.alignmentSettings.caster != null ? setupData.alignmentSettings.caster.toString() : '');
-      }
-
-      // ドライビングノート
-      if (setupData.notes) {
-        setNotes(setupData.notes);
-      }
-      setKnowledge({
-        intention: setupData.knowledge?.intention ?? '',
-        result: setupData.knowledge?.result ?? '',
-        learning: setupData.knowledge?.learning ?? ''
-      });
-
-      // セッション情報
-      setCarModel(setupData.carModel);
-      setSelectedVehicleId(setupData.vehicleId ?? null);
-      setCircuit(setupData.circuit);
-      setSessionType(setupData.sessionType);
-
-      // ラップタイム・証憑・共有設定はコピーしない（新規セッションへの偽データ混入防止）
-      setBestLap('');
-      setTotalLaps('');
-      setDetailedLaps([]);
-      setLapSource('manual');
-      setLapEvidence(null);
-      setTelemetryRefs(emptyTelemetryRefs());
+      // コピー元 → 新規 draft へ変換（日時=今、ラップ・証憑・テレメトリ・共有状態は初期化）
+      const nextDraft = copySetupToDraft(setupData);
+      replaceDraft(nextDraft);
+      // コピー読込直後を基準スナップショットにする（この時点は未変更＝クリーン）
+      resetBaseline(nextDraft);
       setPendingTelemetryResult(null);
-      setVisibility('private');
-      setAnonymized(false);
-      
-      // ダンパー設定（null はそのまま）
-      setDamperSettings({
-        fl: { bump: setupData.suspensionSettings?.frontDamper.compression ?? null, rebound: setupData.suspensionSettings?.frontDamper.rebound ?? null },
-        fr: { bump: setupData.suspensionSettings?.frontDamper.compression ?? null, rebound: setupData.suspensionSettings?.frontDamper.rebound ?? null },
-        rl: { bump: setupData.suspensionSettings?.rearDamper.compression ?? null, rebound: setupData.suspensionSettings?.rearDamper.rebound ?? null },
-        rr: { bump: setupData.suspensionSettings?.rearDamper.compression ?? null, rebound: setupData.suspensionSettings?.rearDamper.rebound ?? null }
-      });
 
       message.success('セットアップデータをコピーしました');
     } catch (error: any) {
@@ -1015,20 +932,41 @@ useEffect(() => {
   };
 
   loadCopyData();
-}, [copyId]);
+}, [copyId, replaceDraft, resetBaseline]);
 
 const handleRegisteredVehicleSelect = (vehicleId: string) => {
-  if (vehicleId === '') {
+  if (vehicleId === '__manual__') {
+    if (selectedVehicleId !== null) {
+      setField('adjustmentValues', []);
+      setField('tireSetId', '');
+      setField('tireSetCode', '');
+      setField('tireHeatCyclesAdded', '');
+    }
     setSelectedVehicleId(null);
+    setManualVehicleEntry(true);
     return;
   }
 
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === vehicleId);
+  setManualVehicleEntry(false);
+  if (vehicleId !== selectedVehicleId) {
+    setField('adjustmentValues', []);
+    setField('tireSetId', '');
+    setField('tireSetCode', '');
+    setField('tireHeatCyclesAdded', '');
+  }
   setSelectedVehicleId(vehicleId);
   if (selectedVehicle) {
     setCarModel(`${selectedVehicle.make} ${selectedVehicle.model}`);
   }
 };
+
+// 既存の未登録車種データを開いた場合は、その保存値を編集できるよう自由入力を復元する。
+useEffect(() => {
+  if ((setupId || copyId) && carModel.trim() && !selectedVehicleId) {
+    setManualVehicleEntry(true);
+  }
+}, [setupId, copyId, carModel, selectedVehicleId]);
 
 return (
 <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -1046,10 +984,10 @@ return (
 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
   {/* 日時 */}
   <div className="col-span-2 sm:col-span-1">
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">日時</p>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup:dateTime')}</p>
     {isViewMode ? (
       <span className="block text-sm text-gray-800 dark:text-gray-200 font-medium py-1">
-        {sessionDate.toLocaleDateString('ja-JP')} {sessionDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+        {formatDateTime(sessionDate, locale)}
       </span>
     ) : (
       <input
@@ -1063,7 +1001,7 @@ return (
   {/* サーキット */}
   <div>
     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-      サーキット <span className="text-red-500">*</span>
+      {t('setup:circuit')} <span className="text-red-500">*</span>
     </p>
     <AutoComplete
       value={circuit}
@@ -1079,49 +1017,45 @@ return (
       ]}
     />
   </div>
-  {/* 登録車両 */}
-  <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">登録車両</p>
+  {/* 車両: 登録車両を選ぶ。未登録の場合だけ車種名を直接入力する。 */}
+  <div className="col-span-2 sm:col-span-1 xl:col-span-2">
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+      {t('setup:vehicle')} <span className="text-red-500">*</span>
+    </p>
     <Select
-      value={selectedVehicleId ?? ''}
+      value={selectedVehicleId ?? (manualVehicleEntry ? '__manual__' : undefined)}
       onChange={handleRegisteredVehicleSelect}
       className="w-full"
       disabled={isViewMode}
+      placeholder={t('setup:selectVehicle')}
       options={[
-        { value: '', label: '選択しない' },
         ...vehicles
           .filter((vehicle) => vehicle.id)
           .map((vehicle) => ({
             value: vehicle.id as string,
             label: `${vehicle.make} ${vehicle.model}`,
           })),
+        { value: '__manual__', label: t('setup:manualVehicle') },
       ]}
     />
-  </div>
-  {/* 車種 */}
-  <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-      車種 <span className="text-red-500">*</span>
-    </p>
-    <AutoComplete
-      value={carModel}
-      onChange={(value) => {
-        setCarModel(value);
-        setSelectedVehicleId(null);
-      }}
-      className="w-full"
-      placeholder="車種名"
-      disabled={isViewMode}
-      options={[...new Set(vehicles.map(v => `${v.make} ${v.model}`))].map(name => ({ value: name }))}
-    />
+    {manualVehicleEntry && !selectedVehicleId && (
+      <AutoComplete
+        value={carModel}
+        onChange={setCarModel}
+        className="mt-2 w-full"
+        placeholder={t('setup:manualVehiclePlaceholder')}
+        disabled={isViewMode}
+        options={[...new Set(vehicles.map(v => `${v.make} ${v.model}`))].map(name => ({ value: name }))}
+      />
+    )}
   </div>
   {/* ドライバー名 */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">ドライバー名</p>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup:driver')}</p>
     <AutoComplete
       value={driver}
       onChange={setDriver}
-      placeholder="ドライバー名"
+      placeholder={t('setup:driver')}
       className="w-full"
       disabled={isViewMode}
       options={driver ? [{ value: driver }] : []}
@@ -1129,20 +1063,16 @@ return (
   </div>
   {/* セッション種別 */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">セッション種別</p>
-    <AutoComplete
-      value={sessionType === 'practice' ? '練習走行' : sessionType === 'qualifying' ? '予選' : 'レース'}
-      onChange={(value) => {
-        if (value === '練習走行') setSessionType('practice');
-        else if (value === '予選') setSessionType('qualifying');
-        else if (value === 'レース') setSessionType('race');
-      }}
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup:sessionType')}</p>
+    <Select
+      value={sessionType}
+      onChange={setSessionType}
       className="w-full"
       disabled={isViewMode}
       options={[
-        { value: '練習走行' },
-        { value: '予選' },
-        { value: 'レース' }
+        { value: 'practice', label: t('common:sessionType.practice') },
+        { value: 'qualifying', label: t('common:sessionType.qualifying') },
+        { value: 'race', label: t('common:sessionType.race') }
       ]}
     />
   </div>
@@ -1161,36 +1091,38 @@ return (
       <button
         className="flex items-center bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm"
         onClick={() => {
-          window.location.href = '/';
+          if (setupId) navigate(buildCopyPath(setupId));
         }}
       >
         <i className="fas fa-copy mr-1 sm:mr-2"></i>
         <span className="hidden sm:inline">コピーして新規作成</span>
         <span className="sm:hidden">コピー</span>
       </button>
+      <button
+        className={`flex items-center bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 ml-1 pl-3 sm:pl-4 border-l border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+        onClick={handleDeleteSetup}
+        disabled={isDeleting}
+      >
+        <i className="fas fa-trash mr-1 sm:mr-2"></i>
+        <span className="hidden sm:inline">削除</span>
+        <span className="sm:hidden">削除</span>
+      </button>
     </>
   ) : (
-    <button
-      onClick={handleInheritFromPrevious}
-      disabled={isInheriting}
-      title="同一車種の前回セットアップから、タイヤ銘柄・サスペンション・アライメントを引き継ぎます（空気圧の実測値・天候・ラップタイムは引き継ぎません）"
-      className={`flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm ${isInheriting ? 'opacity-50 cursor-not-allowed' : ''}`}
-    >
-      {isInheriting ? (
-        <i className="fas fa-spinner fa-spin mr-2"></i>
-      ) : (
-        <i className="fas fa-bolt mr-2"></i>
-      )}
-      <span className="hidden sm:inline">前回のセットアップから引き継ぐ</span>
-      <span className="sm:hidden">引き継ぐ</span>
-    </button>
+    <Tooltip title="同じ車種の前回記録から車両設定を選んで反映します。実測値やラップは変更しません。">
+      <button
+        onClick={openInheritPreview}
+        disabled={isInheriting}
+        className={`flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm ${isInheriting ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        {isInheriting ? <i className="fas fa-spinner fa-spin mr-2"></i> : <i className="fas fa-bolt mr-2"></i>}
+        <span className="hidden sm:inline">前回設定を引き継ぐ</span>
+        <span className="sm:hidden">引き継ぐ</span>
+        <i className="fas fa-info-circle ml-2 text-gray-400" aria-hidden="true"></i>
+      </button>
+    </Tooltip>
   )}
 </div>
-{!isViewMode && (
-  <div className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-    「前回のセットアップから引き継ぐ」では、タイヤ銘柄・サスペンション・アライメントを引き継ぎます（空気圧の実測値・天候・ラップタイムは引き継ぎません）
-  </div>
-)}
 </div>
 {/* データ表示セクション */}
 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -1198,61 +1130,50 @@ return (
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex flex-wrap items-center gap-2 mb-4">
 <i className="fas fa-temperature-high text-blue-500 dark:text-blue-400 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">環境データ</h3>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup:environment')}</h3>
 <div className="ml-auto text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-気温: {airTemp !== '' ? `${airTemp}°C` : '—'} &nbsp; 路温: {trackTemp !== '' ? `${trackTemp}°C` : '—'}
+{t('setup:airTemperature')}: {airTemp !== '' ? `${airTemp}°C` : '—'} &nbsp; {t('setup:shortTrackTemperature')}: {trackTemp !== '' ? `${trackTemp}°C` : '—'}
 </div>
 </div>
 <div className="mb-4">
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">天候</label>
-<AutoComplete
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup:weather')}</label>
+<Select
 value={weatherCondition}
 onChange={setWeatherCondition}
 className="w-full"
 disabled={isViewMode}
-options={[
-{ value: '晴れ' },
-{ value: '曇り' },
-{ value: 'ウェット' },
-{ value: 'フルウェット' }
-]}
-suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
-onOpenChange={(open) => {
-  if (open) {
-    setTimeout(() => {
-      const selectedItem = document.querySelector(`.ant-select-item[title="${weatherCondition}"]`);
-      if (selectedItem) {
-        selectedItem.scrollIntoView({ block: 'center' });
-      }
-    }, 10);
-  }
-}}
+options={WEATHER_CODES.map((value) => ({ value, label: t(`common:weather.${value}`) }))}
 />
 </div>
 <div className="grid grid-cols-2 gap-4">
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">気温 (°C)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup:airTemperature')} (°C)</label>
 <Input
 value={airTemp}
 onChange={(e) => setAirTemp(e.target.value)}
 className="w-full"
 disabled={isViewMode}
+inputMode="decimal"
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">路面温度 (°C)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup:trackTemperature')} (°C)</label>
 <Input
 value={trackTemp}
 onChange={(e) => setTrackTemp(e.target.value)}
 className="w-full"
+disabled={isViewMode}
+inputMode="decimal"
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">湿度 (%)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup:humidity')} (%)</label>
 <Input
 value={humidity}
 onChange={(e) => setHumidity(e.target.value)}
 className="w-full"
+disabled={isViewMode}
+inputMode="decimal"
 />
 </div>
 <div>
@@ -1261,6 +1182,8 @@ className="w-full"
 value={pressure}
 onChange={(e) => setPressure(e.target.value)}
 className="w-full"
+disabled={isViewMode}
+inputMode="decimal"
 />
 </div>
 </div>
@@ -1271,18 +1194,44 @@ className="w-full"
 <i className="fas fa-tire text-blue-500 dark:text-blue-400 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">タイヤ情報</h3>
 </div>
+{(selectedVehicleSetupConfig?.tire?.tireSetManagementEnabled || tireSetId) && (
+  <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/60 dark:bg-blue-900/20">
+    <label htmlFor="tire-set-select" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">使用タイヤセット</label>
+    <Select
+      id="tire-set-select"
+      value={tireSetId || undefined}
+      onChange={handleTireSetSelect}
+      options={tireSetOptions}
+      allowClear
+      showSearch
+      optionFilterProp="label"
+      placeholder="登録済みセットを選択"
+      className="w-full"
+      disabled={isViewMode}
+    />
+    {selectedTireUsage && (
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
+        <span>使用前 {selectedTireUsage.distanceKm.toLocaleString()} km</span>
+        <span>{selectedTireUsage.laps.toLocaleString()} 周</span>
+        <span>{selectedTireUsage.heatCycles.toLocaleString()} サイクル</span>
+      </div>
+    )}
+    {!isViewMode && tireSetOptions.length === 0 && (
+      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">車両管理から最初のタイヤセットを登録してください。</div>
+    )}
+  </div>
+)}
 <div className="grid grid-cols-2 gap-4 mb-4">
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ブランド</label>
+<label htmlFor="tire-manufacturer" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">メーカー</label>
 <AutoComplete
+id="tire-manufacturer"
 value={tireBrand}
 onChange={setTireBrand}
 className="w-full"
-options={[
-{ value: 'ADVAN' },
-{ value: 'BRIDGESTONE' },
-{ value: 'MICHELIN' }
-]}
+disabled={isViewMode}
+options={tireManufacturerOptions}
+placeholder="例: 横浜ゴム"
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 onOpenChange={(open) => {
   if (open) {
@@ -1297,16 +1246,27 @@ onOpenChange={(open) => {
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">コンパウンド</label>
+<label htmlFor="tire-product-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">製品名</label>
 <AutoComplete
+id="tire-product-name"
+value={tireProductName}
+onChange={setTireProductName}
+className="w-full"
+disabled={isViewMode}
+options={tireProductOptions}
+placeholder="例: ADVAN A050"
+/>
+</div>
+<div>
+<label htmlFor="tire-compound" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">コンパウンド</label>
+<AutoComplete
+id="tire-compound"
 value={tireCompound}
 onChange={setTireCompound}
 className="w-full"
-options={[
-{ value: 'A050' },
-{ value: 'RE71R' },
-{ value: 'PS4S' }
-]}
+disabled={isViewMode}
+options={tireCompoundOptions}
+placeholder="例: M"
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 onOpenChange={(open) => {
   if (open) {
@@ -1318,6 +1278,46 @@ onOpenChange={(open) => {
     }, 10);
   }
 }}
+/>
+</div>
+{tireSetId && (
+  <div>
+    <label htmlFor="tire-heat-cycles" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">今回のヒートサイクル加算</label>
+    <InputNumber
+      id="tire-heat-cycles"
+      value={tireHeatCyclesAdded === '' ? null : Number(tireHeatCyclesAdded)}
+      onChange={(value) => setField('tireHeatCyclesAdded', value === null ? '' : String(value))}
+      min={0}
+      max={100}
+      precision={0}
+      addonAfter="回"
+      className="w-full"
+      disabled={isViewMode}
+    />
+  </div>
+)}
+</div>
+<div className="grid grid-cols-2 gap-4 mb-4">
+<div>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">フロントサイズ</label>
+<AutoComplete
+value={frontTireSize}
+onChange={(value) => setField('frontTireSize', value)}
+className="w-full"
+disabled={isViewMode}
+options={(selectedVehicleSetupConfig?.tire.frontSize ?? []).map((value) => ({ value }))}
+placeholder="例: 245/40R18"
+/>
+</div>
+<div>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">リアサイズ</label>
+<AutoComplete
+value={rearTireSize}
+onChange={(value) => setField('rearTireSize', value)}
+className="w-full"
+disabled={isViewMode}
+options={(selectedVehicleSetupConfig?.tire.rearSize ?? []).map((value) => ({ value }))}
+placeholder="例: 275/35R18"
 />
 </div>
 </div>
@@ -1333,6 +1333,7 @@ onOpenChange={(open) => {
     step={1}
     unit="km"
     size="middle"
+    disabled={isViewMode}
   />
   </div>
 </div>
@@ -1347,6 +1348,7 @@ onOpenChange={(open) => {
     step={1}
     unit="L"
     size="middle"
+    disabled={isViewMode}
   />
   </div>
 </div>
@@ -1368,19 +1370,21 @@ onOpenChange={(open) => {
     ロガーから取込
   </button>
 )}
-<button
-  onClick={() => {
-    // 証憑つき（logger）のラップを手動編集する場合は事前に警告する
-    if (lapSource === 'logger') {
-      confirmManualEditOfEvidence(() => setShowLapTimeModal(true));
-    } else {
-      setShowLapTimeModal(true);
-    }
-  }}
-  className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm cursor-pointer whitespace-nowrap !rounded-button"
->
-  詳細入力
-</button>
+{!isViewMode && (
+  <button
+    onClick={() => {
+      // 証憑つき（logger）のラップを手動編集する場合は事前に警告する
+      if (lapSource === 'logger') {
+        confirmManualEditOfEvidence(() => setShowLapTimeModal(true));
+      } else {
+        setShowLapTimeModal(true);
+      }
+    }}
+    className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm cursor-pointer whitespace-nowrap !rounded-button"
+  >
+    詳細入力
+  </button>
+)}
 </div>
 </div>
 {/* ロガー証憑バッジ（manual 時は表示なし） */}
@@ -1390,14 +1394,15 @@ onOpenChange={(open) => {
       evidence={lapEvidence}
       onDetach={!isViewMode ? handleDetachEvidence : undefined}
     />
-    {setupId && (
-      <Link
-        to={`/telemetry/import?setup=${setupId}`}
+{setupId && !telemetryRefs.primaryTraceId && (
+      <button
+        type="button"
+        onClick={() => setShowTelemetryImport(true)}
         className="inline-flex items-center gap-1.5 text-sm text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 whitespace-nowrap"
       >
-        <i className="fas fa-chart-line"></i>
-        このセッションのテレメトリを分析
-      </Link>
+        <i className="fas fa-rotate"></i>
+        ロガーを再取込して走行ログを保存
+      </button>
     )}
     {telemetryRefs.primaryTraceId && (
       <>
@@ -1428,7 +1433,7 @@ onOpenChange={(open) => {
   onChange={(e) => setBestLap(e.target.value)}
   placeholder="例: 1:58.423"
   className="w-full"
-  disabled={lapSource === 'logger'}
+  disabled={isViewMode || lapSource === 'logger'}
 />
 </div>
 <div>
@@ -1439,7 +1444,8 @@ onOpenChange={(open) => {
   placeholder="例: 12"
   className="w-full"
   type="number"
-  disabled={lapSource === 'logger'}
+  inputMode="numeric"
+  disabled={isViewMode || lapSource === 'logger'}
 />
 </div>
 {lapSource === 'logger' && (
@@ -1457,26 +1463,91 @@ onOpenChange={(open) => {
   const tabItems = [
     {
       key: '1',
-      label: '基本設定',
+      label: usesDynamicSetup ? 'タイヤ・計測' : '基本設定',
       children: (
         <BasicInfoTab
           tirePressures={tirePressures}
           setTirePressures={setTirePressures}
-          damperSettings={damperSettings}
-          setDamperSettings={setDamperSettings}
+          frontDamperCompression={frontDamperCompression}
+          setFrontDamperCompression={setFrontDamperCompression}
+          frontDamperRebound={frontDamperRebound}
+          setFrontDamperRebound={setFrontDamperRebound}
+          rearDamperCompression={rearDamperCompression}
+          setRearDamperCompression={setRearDamperCompression}
+          rearDamperRebound={rearDamperRebound}
+          setRearDamperRebound={setRearDamperRebound}
           targetPressures={targetPressures}
           setTargetPressures={setTargetPressures}
           handleDropdownClick={handleDropdownClick}
+          disabled={isViewMode}
+          damperConstraints={usesDynamicSetup ? { visible: false } : suspensionConstraints.damper}
         />
       ),
     },
-    {
+    ...(usesDynamicSetup ? [{
+      key: '2',
+      label: 'セッティング',
+      children: (
+        <DynamicSetupTab
+          definitions={selectedAdjustmentDefinitions}
+          values={displayedAdjustmentValues}
+          onChange={setDynamicAdjustment}
+          disabled={isViewMode}
+        />
+      ),
+    }] : [{
       key: '2',
       label: 'サスペンション',
-      children: <SuspensionTab />,
-    },
-    {
+      children: (
+        <>
+          <SuspensionTab
+            frontSpringRate={frontSpringRate}
+            setFrontSpringRate={setFrontSpringRate}
+            rearSpringRate={rearSpringRate}
+            setRearSpringRate={setRearSpringRate}
+            frontRideHeight={frontRideHeight}
+            setFrontRideHeight={setFrontRideHeight}
+            rearRideHeight={rearRideHeight}
+            setRearRideHeight={setRearRideHeight}
+            frontStabilizer={frontStabilizer}
+            setFrontStabilizer={setFrontStabilizer}
+            rearStabilizer={rearStabilizer}
+            setRearStabilizer={setRearStabilizer}
+            disabled={isViewMode}
+            constraints={suspensionConstraints}
+          />
+          <div className="px-4 sm:px-6 pb-6">
+            <AlignmentTab
+              frontCamber={frontCamber}
+              setFrontCamber={setFrontCamber}
+              rearCamber={rearCamber}
+              setRearCamber={setRearCamber}
+              frontToe={frontToe}
+              setFrontToe={setFrontToe}
+              rearToe={rearToe}
+              setRearToe={setRearToe}
+              caster={caster}
+              setCaster={setCaster}
+              disabled={isViewMode}
+              constraints={alignmentConstraints}
+            />
+          </div>
+        </>
+      ),
+    }, {
       key: '3',
+      label: '車両調整',
+      children: (
+        <VehicleAdjustmentsTab
+          config={selectedVehicleSetupConfig}
+          values={{ frontBrakePad, rearBrakePad, frontBrakeRotor, rearBrakeRotor, brakeBalance, frontAero, rearAero, ecuMap, boost }}
+          onChange={setVehicleAdjustment}
+          disabled={isViewMode}
+        />
+      ),
+    }]),
+    {
+      key: '4',
       label: 'ドライバーフィードバック',
       children: (
         <DrivingTab
@@ -1484,6 +1555,9 @@ onOpenChange={(open) => {
           setNotes={setNotes}
           knowledge={knowledge}
           setKnowledge={setKnowledge}
+          feedback={drivingFeedback}
+          onFeedbackChange={onFeedbackChange}
+          disabled={isViewMode}
         />
       ),
     },
@@ -1491,35 +1565,96 @@ onOpenChange={(open) => {
   return <Tabs defaultActiveKey="1" className="px-6 pt-4" items={tabItems} />;
 })()}
 </div>
-{/* 保存ボタンと前回データ読み込みボタン */}
+{/* 固定アクション: 直近セッションの複製・保存（アイコン＋短いラベルで意味を明示） */}
 {!isViewMode && (
-  <div className="fixed bottom-8 right-8 z-50 flex items-center space-x-4">
-    <button 
-      onClick={handleLoadPrevious}
+  <div className="fixed bottom-6 right-4 sm:bottom-8 sm:right-8 z-50 flex items-center gap-3">
+    <button
+      onClick={openDuplicatePreview}
       disabled={isLoadingPrevious}
-      className={`bg-blue-500 text-white p-4 rounded-full hover:bg-blue-600 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center justify-center ${isLoadingPrevious ? 'opacity-50 cursor-not-allowed' : ''}`}
-      title="前回の値を読み込む"
+      className={`bg-blue-500 text-white px-4 py-3 rounded-full hover:bg-blue-600 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 ${isLoadingPrevious ? 'opacity-50 cursor-not-allowed' : ''}`}
+      title="直近セッションの内容を新規記録として複製します（ラップ・証憑・共有状態はリセット）"
     >
       {isLoadingPrevious ? (
-        <i className="fas fa-spinner fa-spin text-xl"></i>
+        <i className="fas fa-spinner fa-spin text-lg"></i>
       ) : (
-        <ReloadOutlined style={{ fontSize: '20px' }} />
+        <ReloadOutlined style={{ fontSize: '18px' }} />
       )}
+      <span className="text-sm font-medium">直近を複製</span>
     </button>
-    <button 
+    <button
       onClick={handleSave}
       disabled={isSaving}
-      className={`bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center justify-center ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`bg-gray-800 text-white px-4 py-3 rounded-full hover:bg-gray-700 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
       title="保存"
     >
       {isSaving ? (
-        <i className="fas fa-spinner fa-spin text-xl"></i>
+        <i className="fas fa-spinner fa-spin text-lg"></i>
       ) : (
-        <i className="fas fa-save text-xl"></i>
+        <i className="fas fa-save text-lg"></i>
       )}
+      <span className="text-sm font-medium">保存</span>
     </button>
   </div>
 )}
+
+{/* 未登録車種の保存確認。画面を開いただけでは車両を作成せず、ここで明示的に選択する。 */}
+<Modal
+  title={vehicleRegistrationPrompt?.inactiveVehicle ? '削除済みの車両が見つかりました' : '車両管理にも登録しますか？'}
+  open={vehicleRegistrationPrompt !== null}
+  closable={false}
+  maskClosable={false}
+  onCancel={() => settleVehicleRegistration('cancel')}
+  footer={[
+    <button
+      key="cancel"
+      type="button"
+      onClick={() => settleVehicleRegistration('cancel')}
+      className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300"
+    >
+      キャンセル
+    </button>,
+    <button
+      key="without"
+      type="button"
+      onClick={() => settleVehicleRegistration('without')}
+      className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200"
+    >
+      登録せず保存
+    </button>,
+    <button
+      key="register"
+      type="button"
+      onClick={() => settleVehicleRegistration('register')}
+      className="px-4 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700"
+    >
+      {vehicleRegistrationPrompt?.inactiveVehicle ? '復元して保存' : '登録して保存'}
+    </button>,
+  ]}
+>
+  {vehicleRegistrationPrompt && (
+    <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+      <p>
+        「{vehicleRegistrationPrompt.candidate.name}」は現在の登録車両にありません。
+        {vehicleRegistrationPrompt.inactiveVehicle
+          ? ' 以前削除した同名車両を復元して、このセットアップに紐付けられます。'
+          : ' セットアップだけを保存するか、車両管理にも登録するか選択してください。'}
+      </p>
+      {!vehicleRegistrationPrompt.inactiveVehicle && (
+        <div>
+          <label className="block mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">登録する年式</label>
+          <InputNumber
+            value={registrationYear}
+            onChange={(value) => setRegistrationYear(value ?? new Date().getFullYear())}
+            min={1900}
+            max={new Date().getFullYear() + 1}
+            precision={0}
+            className="w-full"
+          />
+        </div>
+      )}
+    </div>
+  )}
+</Modal>
 
 {/* ラップタイムモーダル */}
 <LapTimeModal
@@ -1554,6 +1689,146 @@ onOpenChange={(open) => {
   />
 )}
 
+{/* 読込導線の実行前プレビュー（複製 / 引き継ぎ） */}
+<Modal
+  title={
+    <span>
+      {pendingLoad?.kind === 'inherit' ? (
+        <>
+          <i className="fas fa-bolt text-amber-500 mr-2"></i>
+          同じ車種の設定を引き継ぐ
+        </>
+      ) : (
+        <>
+          <ReloadOutlined style={{ color: '#3b82f6' }} className="mr-2" />
+          直近セッションを複製
+        </>
+      )}
+    </span>
+  }
+  open={pendingLoad !== null}
+  onCancel={() => { setPendingLoad(null); setPickerOpen(false); }}
+  okText={pendingLoad?.kind === 'inherit' ? '引き継いで反映' : '複製して反映'}
+  cancelText="キャンセル"
+  onOk={confirmPendingLoad}
+  okButtonProps={isDirty ? { danger: true } : undefined}
+  footer={pickerOpen ? null : undefined}
+>
+  {pendingLoad && pickerOpen ? (
+    <div className="space-y-2 pt-1">
+      <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+        {pendingLoad.kind === 'inherit'
+          ? `「${pendingLoad.source.carModel}」の過去セッションから選ぶ（最大10件）`
+          : '直近のセッションから選ぶ（最大10件）'}
+      </div>
+      {pickerLoading ? (
+        <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">読み込み中...</div>
+      ) : pickerList.length === 0 ? (
+        <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">候補が見つかりません</div>
+      ) : (
+        <ul className="space-y-1 max-h-72 overflow-y-auto">
+          {pickerList.map((item) => {
+            const d = item.date instanceof Date ? item.date : new Date(item.date);
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => selectPickerSource(item)}
+                  className="w-full text-left px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm flex items-center justify-between gap-2"
+                >
+                  <span className="text-gray-800 dark:text-gray-200">
+                    {d.toLocaleDateString('ja-JP')} ・ {item.circuit || '（サーキット未設定）'}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{item.carModel}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <button
+        type="button"
+        onClick={() => { setPendingLoad(null); setPickerOpen(false); navigate('/history'); }}
+        className="text-sm text-blue-500 hover:text-blue-600 pt-1"
+      >
+        履歴一覧で探す
+      </button>
+    </div>
+  ) : pendingLoad && (() => {
+    const preview = pendingLoad.kind === 'inherit'
+      ? buildInheritPreview(pendingLoad.source)
+      : buildDuplicatePreview(pendingLoad.source);
+    const targetItems = pendingLoad.kind === 'inherit'
+      ? (preview as ReturnType<typeof buildInheritPreview>).inheritedItems
+      : (preview as ReturnType<typeof buildDuplicatePreview>).copiedItems;
+    const notAppliedTitle = pendingLoad.kind === 'inherit' ? '引き継がない項目（現在の入力を保持）' : '新規セッションとして初期化する項目';
+    const notAppliedItems = pendingLoad.kind === 'inherit'
+      ? (preview as ReturnType<typeof buildInheritPreview>).keptItems
+      : (preview as ReturnType<typeof buildDuplicatePreview>).resetItems;
+    return (
+      <div className="space-y-4 pt-1">
+        {/* コピー元の識別情報 */}
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-700/40 px-3 py-2.5 text-sm">
+          <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1">
+            <span className="text-gray-500 dark:text-gray-400">車種</span>
+            <span className="font-medium text-gray-800 dark:text-gray-200">{preview.carModel}</span>
+            <span className="text-gray-500 dark:text-gray-400">サーキット</span>
+            <span className="font-medium text-gray-800 dark:text-gray-200">{preview.circuit}</span>
+            <span className="text-gray-500 dark:text-gray-400">記録日時</span>
+            <span className="font-medium text-gray-800 dark:text-gray-200">{preview.dateLabel}</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={openSourcePicker}
+          className="text-xs text-blue-500 hover:text-blue-600"
+        >
+          別のセッションを選ぶ
+        </button>
+
+        {/* 反映される対象項目（値の有無を明示） */}
+        <div>
+          <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+            {pendingLoad.kind === 'inherit' ? '引き継ぐ項目' : '複製する項目'}
+          </div>
+          <ul className="space-y-1">
+            {targetItems.map((item) => (
+              <li key={item.label} className="flex items-center gap-2 text-sm">
+                {item.filled ? (
+                  <i className="fas fa-check-circle text-green-500 text-xs"></i>
+                ) : (
+                  <i className="fas fa-minus-circle text-gray-300 dark:text-gray-600 text-xs"></i>
+                )}
+                <span className={item.filled ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'}>
+                  {item.label}
+                  {!item.filled && <span className="ml-1 text-xs">（コピー元は未入力）</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* 反映されない項目 */}
+        <div>
+          <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">{notAppliedTitle}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">{notAppliedItems.join(' / ')}</div>
+        </div>
+
+        {/* 編集中データの上書き警告 */}
+        {isDirty && (
+          <div className="rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+            <i className="fas fa-exclamation-triangle mr-1.5"></i>
+            {pendingLoad.kind === 'inherit'
+              ? '編集中の設定値が上書きされます。空気圧やラップなどセッション固有値は保持されます。'
+              : '編集中の入力内容がすべて上書きされます。この操作は元に戻せません。'}
+          </div>
+        )}
+      </div>
+    );
+  })()}
+</Modal>
+
 {/* ロガー取込モーダル */}
 <Modal
   title={
@@ -1572,11 +1847,7 @@ onOpenChange={(open) => {
     <div className="pt-2">
       <TelemetryImport onAttach={handleTelemetryAttach} />
       <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500">
-        ラップ重ね比較や単独ラップ確認は{' '}
-        <Link to="/telemetry/import" className="text-blue-500 hover:text-blue-600">
-          ロガー取込・分析ページ
-        </Link>{' '}
-        で行えます
+        ここで取り込んだ走行ログは、セットアップ保存後にデブリーフと自己ベスト比較へつながります。
       </div>
     </div>
   )}

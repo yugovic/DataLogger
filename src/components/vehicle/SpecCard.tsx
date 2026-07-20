@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { buildSpecCardView, splitCarModel } from '../../lib/specCardView';
 import type { PublicVehicleProfile } from '../../lib/vehicleProfilePublic';
 import type { ModLevel } from '../../lib/modLevel';
+import { useTranslation } from 'react-i18next';
 
 interface SpecCardProps {
   carModel: string;
@@ -35,6 +36,7 @@ export const SpecCard: React.FC<SpecCardProps> = ({
   ownerLabel = null,
   photoUrl = null,
 }) => {
+  const { t } = useTranslation();
   const [flipped, setFlipped] = useState(false);
   const view = buildSpecCardView(profile);
   const theme = levelTheme[view.modLevel];
@@ -72,7 +74,7 @@ export const SpecCard: React.FC<SpecCardProps> = ({
       <div
         role="button"
         tabIndex={0}
-        aria-label={flipped ? 'カードの表面を見る' : 'カードを裏返して改造申告を見る'}
+        aria-label={t(flipped ? 'vehicle.specCard.showFront' : 'vehicle.specCard.showBack')}
         onClick={(e) => {
           e.stopPropagation();
           toggleFlip();
@@ -144,7 +146,7 @@ export const SpecCard: React.FC<SpecCardProps> = ({
               </h3>
               {ownerLabel && (
                 <div className="mt-1 truncate text-[11px] font-medium text-stone-400">
-                  オーナー: {ownerLabel}
+                  {t('vehicle.specCard.owner', { owner: ownerLabel })}
                 </div>
               )}
             </div>
@@ -157,7 +159,7 @@ export const SpecCard: React.FC<SpecCardProps> = ({
               Velocity Logger
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-stone-400">
-              {totalModItems > 0 ? `改造申告 ${totalModItems}件` : 'ノーマル車両'}
+              {totalModItems > 0 ? t('vehicle.specCard.modCount', { count: totalModItems }) : t('vehicle.specCard.stockVehicle')}
               <span aria-hidden="true">⇄</span>
             </span>
           </div>
@@ -195,7 +197,7 @@ export const SpecCard: React.FC<SpecCardProps> = ({
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto border-t border-white/10 px-4 py-2 [scrollbar-width:thin]">
             {view.modificationGroups.length === 0 ? (
               <p className="pt-2 text-sm font-medium text-stone-500">
-                ノーマル車両 — 改造申告はありません
+                {t('vehicle.specCard.noModifications')}
               </p>
             ) : (
               <dl className="divide-y divide-white/10">
@@ -234,7 +236,7 @@ export const SpecCard: React.FC<SpecCardProps> = ({
               Velocity Logger
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-stone-400">
-              表面へ
+              {t('vehicle.specCard.toFront')}
               <span aria-hidden="true">⇄</span>
             </span>
           </div>

@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Input, Button, message, Divider } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined, GoogleOutlined } from '@ant-design/icons';
 import { signUpWithEmail, signInWithGoogle, getAuthErrorMessage } from '../../services/authService';
+import { useTranslation } from 'react-i18next';
+import logger from '../../utils/logger';
 
 interface SignUpProps {
   onSuccess?: () => void;
@@ -10,6 +12,7 @@ interface SignUpProps {
 }
 
 export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
+  const { t } = useTranslation(['auth', 'errors']);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,31 +20,29 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
-    console.log('SignUp attempt:', { displayName, email, passwordLength: password.length });
-    
     if (!displayName || !email || !password) {
-      message.error('すべての項目を入力してください');
+      message.error(t('auth:errors.missingFields'));
       return;
     }
 
     if (password !== confirmPassword) {
-      message.error('パスワードが一致しません');
+      message.error(t('auth:errors.passwordMismatch'));
       return;
     }
 
     if (password.length < 6) {
-      message.error('パスワードは6文字以上で設定してください');
+      message.error(t('auth:errors.passwordTooShort'));
       return;
     }
 
     setLoading(true);
     try {
       await signUpWithEmail(email, password, displayName);
-      message.success('アカウントを作成しました');
+      message.success(t('auth:success.accountCreated'));
       onSuccess?.();
     } catch (error: any) {
-      console.error('SignUp error:', error);
-      message.error(getAuthErrorMessage(error.code));
+      logger.error('SignUp error:', error);
+      message.error(getAuthErrorMessage(error.code, t));
     } finally {
       setLoading(false);
     }
@@ -51,18 +52,18 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
     setLoading(true);
     try {
       await signInWithGoogle();
-      message.success('アカウントを作成しました');
+      message.success(t('auth:success.accountCreated'));
       onSuccess?.();
     } catch (error: any) {
-      message.error(getAuthErrorMessage(error.code));
+      message.error(getAuthErrorMessage(error.code, t));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto w-full max-w-[22rem] overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.10)] dark:border-slate-800 dark:bg-slate-900">
-      <div className="p-6 sm:p-7">
+    <div className="mx-auto w-full min-w-0 max-w-[22rem] overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.10)] dark:border-slate-800 dark:bg-slate-900">
+      <div className="min-w-0 p-5 sm:p-7">
         <div className="mb-7 flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-md bg-slate-950 text-white dark:bg-white dark:text-slate-950">
             <span className="text-sm font-black">VL</span>
@@ -73,14 +74,14 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
           </div>
         </div>
         <div className="mb-5">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Driver Access</p>
-          <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">新規アカウント作成</h3>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{t('auth:driverAccess')}</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{t('auth:signUp')}</h3>
         </div>
       
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <Input
           prefix={<UserOutlined className="text-gray-400" />}
-          placeholder="表示名"
+          placeholder={t('auth:displayName')}
           size="large"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
@@ -88,7 +89,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
         
         <Input
           prefix={<MailOutlined className="text-gray-400" />}
-          placeholder="メールアドレス"
+          placeholder={t('auth:email')}
           type="email"
           size="large"
           value={email}
@@ -97,7 +98,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
         
         <Input.Password
           prefix={<LockOutlined className="text-gray-400" />}
-          placeholder="パスワード（6文字以上）"
+          placeholder={t('auth:passwordMinimum')}
           size="large"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -105,7 +106,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
         
         <Input.Password
           prefix={<LockOutlined className="text-gray-400" />}
-          placeholder="パスワード（確認）"
+          placeholder={t('auth:passwordConfirm')}
           size="large"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
@@ -120,10 +121,10 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
           onClick={handleSignUp}
           className="bg-slate-950 hover:!bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:!bg-slate-200"
         >
-          アカウント作成
+          {t('auth:createAccount')}
         </Button>
         
-        <Divider>または</Divider>
+        <Divider>{t('auth:or')}</Divider>
         
         <Button
           size="large"
@@ -132,17 +133,17 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
           loading={loading}
           onClick={handleGoogleSignUp}
         >
-          Googleで登録
+          {t('auth:googleSignUp')}
         </Button>
         
         <div className="text-center mt-4">
-          <span className="text-gray-600 dark:text-gray-400">既にアカウントをお持ちの方は</span>
+          <span className="text-gray-600 dark:text-gray-400">{t('auth:hasAccount')}</span>
           <Button
             type="link"
             onClick={onLoginClick}
             className="p-0 ml-1"
           >
-            ログイン
+            {t('auth:login')}
           </Button>
         </div>
       </div>

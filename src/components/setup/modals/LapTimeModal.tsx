@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Tabs, Button, Select, message, Empty, Input, Alert } from 'antd';
 import { PlusOutlined, DeleteOutlined, CameraOutlined, CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons';
 import { LapTime, LapType } from '../../../types/setup';
+import { formatCompactLapTimeInput } from '../../../lib/lapTimeInput';
 
 const { Option } = Select;
 
@@ -282,35 +283,16 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
     setLaps(updatedLaps);
   };
 
+  // 入力途中の数字は変換せず保持し、ユーザーが6桁を続けて入力できるようにする。
+  const updateLapTimeRaw = (index: number, timeStr: string) => {
+    const updatedLaps = [...laps];
+    updatedLaps[index] = { ...updatedLaps[index], time: timeStr };
+    setLaps(updatedLaps);
+  };
+
   // 数字のみの入力を自動フォーマット
   const formatNumericInput = (input: string): string => {
-    // 数字以外を除去
-    const digits = input.replace(/\D/g, '');
-    
-    if (!digits) return '';
-    
-    // 右詰めでフォーマット
-    if (digits.length <= 3) {
-      // 3桁以下: ミリ秒のみ (0.xxx)
-      return `0:00.${digits.padStart(3, '0')}`;
-    } else if (digits.length <= 5) {
-      // 4-5桁: 秒とミリ秒 (xx.xxx)
-      const seconds = digits.slice(0, -3);
-      const millis = digits.slice(-3);
-      return `0:${seconds.padStart(2, '0')}.${millis}`;
-    } else if (digits.length <= 6) {
-      // 6桁: 1分xx秒xxx (1:xx.xxx)
-      const minutes = digits.slice(0, -5);
-      const seconds = digits.slice(-5, -3);
-      const millis = digits.slice(-3);
-      return `${minutes}:${seconds}.${millis}`;
-    } else {
-      // 7桁以上: xx分xx秒xxx (xx:xx.xxx)
-      const minutes = digits.slice(0, -5).slice(-2); // 最大2桁
-      const seconds = digits.slice(-5, -3);
-      const millis = digits.slice(-3);
-      return `${minutes}:${seconds}.${millis}`;
-    }
+    return formatCompactLapTimeInput(input);
   };
 
   const deleteLap = (index: number) => {
@@ -364,6 +346,10 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
           }
           // 数字のみの場合は自動フォーマット
           if (/^\d*$/.test(input)) {
+            if (input.length < 6) {
+              updateLapTimeRaw(index, input);
+              return;
+            }
             const formatted = formatNumericInput(input);
             updateLapTimeString(index, formatted);
             return;
@@ -389,12 +375,16 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
         }}
         onBlur={() => {
           setFocusedIndex(null);
+          if (/^\d+$/.test(lap.time)) {
+            updateLapTimeString(index, formatNumericInput(lap.time));
+            return;
+          }
           // 空のままなら元の値を復元
           if (!lap.time && (lap.minutes || lap.seconds || lap.milliseconds)) {
             updateLapTimeString(index, formatTime(lap.minutes || 0, lap.seconds || 0, lap.milliseconds || 0));
           }
         }}
-        placeholder="例: 158423 / 1:58.423 / 1.58.423"
+        placeholder="例: 123456 → 1:23.456"
         className="flex-1"
         onKeyDown={(e) => {
           if (e.key === 'Enter') {

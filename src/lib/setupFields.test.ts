@@ -7,7 +7,36 @@ import {
   pressureRange,
   compareRow,
   buildCompareSections,
+  resolveCompareSections,
 } from './setupFields';
+import type { TFunction } from 'i18next';
+
+const testT = ((key: string) => ({
+  'compare.sections.weather': 'Weather',
+  'compare.fields.weather': 'Weather condition',
+  'compare.fields.airTemp': 'Air temperature',
+  'common.sessionType.practice': 'Practice',
+  'common.weather.sunny': 'Sunny',
+}[key] ?? key)) as TFunction;
+
+describe('resolveCompareSections', () => {
+  it('固定の比較定義は表示文言ではなく翻訳キーを保持する', () => {
+    const sections = buildCompareSections();
+    expect(sections.every((section) => section.titleKey.startsWith('compare.sections.'))).toBe(true);
+    expect(sections.flatMap((section) => section.rows).every((row) => row.labelKey?.startsWith('compare.fields.'))).toBe(true);
+  });
+
+  it('見出し・項目名・列挙値をtranslatorで解決する', () => {
+    const setup = makeSetup({ sessionType: 'practice', weather: { condition: 'sunny', airTemp: 20, trackTemp: null, humidity: null, pressure: null } });
+    const resolved = resolveCompareSections(buildCompareSections([setup]), testT);
+    const weather = resolved.find((section) => section.titleKey === 'compare.sections.weather')!;
+    expect(weather.title).toBe('Weather');
+    expect(weather.rows.find((row) => row.labelKey === 'compare.fields.airTemp')?.label).toBe('Air temperature');
+    expect(weather.rows.find((row) => row.labelKey === 'compare.fields.weather')?.get(setup)).toBe('Sunny');
+    const session = resolved.find((section) => section.titleKey === 'compare.sections.session')!;
+    expect(session.rows.find((row) => row.labelKey === 'compare.fields.sessionType')?.get(setup)).toBe('Practice');
+  });
+});
 import { CarSetup } from '../types/setup';
 
 function makeSetup(overrides: Partial<CarSetup> = {}): CarSetup {
@@ -128,8 +157,8 @@ describe('pressureRange', () => {
 describe('compareRow', () => {
   const sections = buildCompareSections();
   const airTempRow = sections
-    .find((s) => s.title === '天候')!
-    .rows.find((r) => r.label === '気温')!;
+    .find((s) => s.titleKey === 'compare.sections.weather')!
+    .rows.find((r) => r.labelKey === 'compare.fields.airTemp')!;
 
   it('両者 null は both-null', () => {
     const r = compareRow(airTempRow, makeSetup(), makeSetup());
@@ -161,5 +190,31 @@ describe('compareRow', () => {
     const r = compareRow(airTempRow, a, b);
     expect(r.kind).toBe('same');
     expect(r.delta).toBe(0);
+  });
+});
+
+describe('dynamic adjustment compare rows', () => {
+  it('保存スナップショットから車両別セッティングを比較できる', () => {
+    const adjustment = {
+      definitionId: 'rear-damper',
+      group: 'damper' as const,
+      label: 'リア減衰力',
+      position: 'rear' as const,
+      valueType: 'number' as const,
+      unit: 'click',
+      value: 7,
+    };
+    const a = makeSetup({ adjustmentValues: [adjustment] });
+    const b = makeSetup({ adjustmentValues: [{ ...adjustment, value: 10 }] });
+    const section = buildCompareSections([a, b]).find((entry) => entry.titleKey === 'compare.sections.vehicleSpecific');
+    const row = section?.rows[0];
+
+    expect(row).toBeDefined();
+    expect(compareRow(row!, a, b)).toMatchObject({
+      aDisplay: '7 click',
+      bDisplay: '10 click',
+      kind: 'changed',
+      delta: 3,
+    });
   });
 });

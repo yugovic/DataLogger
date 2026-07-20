@@ -82,8 +82,60 @@ export interface VehicleProfile {
   weightKg: number | null;
 }
 
+/**
+ * 走行ごとに変更し、結果との比較に使うセッティング項目の分類。
+ * 車両の固定諸元や改造履歴はここには含めない。
+ */
+export type SetupAdjustmentGroup =
+  | 'tire'
+  | 'damper'
+  | 'spring'
+  | 'ride_height'
+  | 'anti_roll_bar'
+  | 'alignment'
+  | 'brake'
+  | 'aero'
+  | 'drivetrain'
+  | 'engine'
+  | 'electronics'
+  | 'weight_balance'
+  | 'other';
+
+export type SetupAdjustmentPosition =
+  | 'vehicle'
+  | 'front'
+  | 'rear'
+  | 'fl'
+  | 'fr'
+  | 'rl'
+  | 'rr';
+
+export type SetupAdjustmentValueType = 'number' | 'select' | 'text' | 'boolean';
+
+/** 車両側に保持する「入力できる項目」の定義。実際の走行時設定値は CarSetup 側に保存する。 */
+export interface SetupAdjustmentDefinition {
+  id: string;
+  group: SetupAdjustmentGroup;
+  label: string;
+  position: SetupAdjustmentPosition;
+  valueType: SetupAdjustmentValueType;
+  unit?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+  helpText?: string;
+  enabled: boolean;
+  order: number;
+}
+
 // 車両のセッティング可能項目の設定
 export interface VehicleSetupConfig {
+  /**
+   * 新しい可変セッティング定義。存在する場合、セットアップ入力画面はこの定義を優先する。
+   * 従来の固定フィールドは既存車両・既存データとの後方互換のため保持する。
+   */
+  adjustmentDefinitions?: SetupAdjustmentDefinition[];
   // サスペンション設定
   suspension: {
     damperAdjustable: boolean; // ダンパー調整可否
@@ -110,6 +162,7 @@ export interface VehicleSetupConfig {
   
   // タイヤ設定
   tire: {
+    tireSetManagementEnabled?: boolean; // 物理タイヤセットと使用距離を管理する
     frontSize: string[]; // フロント対応サイズ
     rearSize: string[]; // リア対応サイズ
     recommendedPressure?: {
@@ -124,6 +177,13 @@ export interface VehicleSetupConfig {
   brake: {
     padTypes: string[]; // 対応パッドタイプ
     rotorTypes?: string[]; // 対応ローター タイプ
+    balanceAdjustable?: boolean; // 前後ブレーキバランス調整可否
+  };
+
+  // エアロ設定
+  aero?: {
+    frontAdjustable: boolean; // フロントスプリッター等の調整可否
+    rearAdjustable: boolean; // リアウイング等の調整可否
   };
   
   // エンジン設定

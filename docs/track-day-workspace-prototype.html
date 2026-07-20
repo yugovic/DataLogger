@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>VELOCITY LOGGER 走行日ワークスペース</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f9fafb;
+      --surface: #fdfefe;
+      --surface-muted: #f3f4f6;
+      --panel-blue: #eff6ff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --faint: #9ca3af;
+      --line: #e5e7eb;
+      --line-strong: #d1d5db;
+      --blue: #3b82f6;
+      --blue-strong: #2563eb;
+      --blue-text: #1d4ed8;
+      --green: #15803d;
+      --green-soft: #dcfce7;
+      --amber: #a16207;
+      --amber-soft: #fef3c7;
+      --danger: #dc2626;
+      --header: rgb(255 255 255 / 0.92);
+      --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+      --shadow-lg: 0 10px 22px rgb(15 23 42 / 0.18);
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #111827;
+      --surface: #1f2937;
+      --surface-muted: #374151;
+      --panel-blue: rgb(30 58 138 / 0.2);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --faint: #6b7280;
+      --line: #374151;
+      --line-strong: #4b5563;
+      --blue: #60a5fa;
+      --blue-strong: #3b82f6;
+      --blue-text: #93c5fd;
+      --green: #86efac;
+      --green-soft: rgb(20 83 45 / 0.52);
+      --amber: #fde68a;
+      --amber-soft: rgb(113 63 18 / 0.48);
+      --danger: #f87171;
+      --header: rgb(15 23 42 / 0.92);
+      --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.18);
+      --shadow-lg: 0 10px 22px rgb(0 0 0 / 0.3);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--page); }
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", sans-serif;
+      line-height: 1.5;
+    }
+    button, input, textarea { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 2px solid rgb(59 130 246 / 0.42);
+      outline-offset: 2px;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      padding: 12px 24px;
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+      background: var(--header);
+      box-shadow: 0 1px 0 rgb(15 23 42 / 0.04);
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 1800px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand-wrap { display: flex; min-width: 188px; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 14px;
+      font-weight: 900;
+      box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+    }
+    [data-theme="dark"] .brand-mark { background: #f8fafc; color: #0f172a; }
+    .brand-name { margin: 0; color: var(--text); font-size: 19px; font-weight: 900; line-height: 0.92; }
+    .brand-name span { display: block; }
+    .brand-name small {
+      display: block;
+      margin-top: 3px;
+      color: var(--blue-strong);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.24em;
+    }
+    .desktop-nav { min-width: 0; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .nav-button {
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: transform 120ms var(--ease-out), background-color 140ms ease, color 140ms ease;
+    }
+    .nav-button.active { background: #0f172a; color: #f8fafc; box-shadow: var(--shadow-lg); }
+    [data-theme="dark"] .nav-button.active { background: #f8fafc; color: #0f172a; }
+    .header-actions { min-width: 188px; display: flex; justify-content: flex-end; gap: 4px; }
+    .icon-button {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: transform 120ms var(--ease-out), border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+    }
+    .mobile-menu { display: none; }
+
+    .page {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 112px;
+    }
+    .page-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .page-heading h2 { margin: 0 0 4px; color: var(--text); font-size: 24px; line-height: 1.25; }
+    .page-heading p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .ant-button {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 4px 15px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: transform 120ms var(--ease-out), border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+    }
+    .ant-button.primary { border-color: var(--blue-strong); background: var(--blue-strong); color: #f8fafc; }
+    .ant-button.text { border-color: transparent; background: transparent; color: var(--blue-text); }
+    .ant-button.small { min-height: 28px; padding: 2px 9px; font-size: 12px; }
+
+    .card { border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-sm); }
+    .day-info { margin-bottom: 24px; padding: 16px; }
+    .field-grid { display: grid; grid-template-columns: 1.05fr 1fr 1.45fr 0.85fr 0.9fr; gap: 12px; }
+    .field { min-width: 0; }
+    .field label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
+    .input-look {
+      width: 100%;
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 11px;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .input-look .fa-chevron-down { color: var(--faint); font-size: 10px; }
+    .day-purpose {
+      display: grid;
+      grid-template-columns: 116px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+    .day-purpose label { color: var(--muted); font-size: 12px; }
+    .day-purpose .input-look { white-space: normal; }
+
+    .run-workspace { overflow: hidden; }
+    .run-tabs-bar {
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .run-tabs {
+      min-width: 0;
+      display: flex;
+      align-items: stretch;
+      gap: 24px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .run-tab {
+      position: relative;
+      min-width: 126px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 14px 1px 12px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+      cursor: pointer;
+      transition: transform 120ms var(--ease-out), color 140ms ease;
+    }
+    .run-tab::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: -1px;
+      left: 0;
+      height: 2px;
+      background: transparent;
+    }
+    .run-tab.active { color: var(--blue-text); }
+    .run-tab.active::after { background: var(--blue-strong); }
+    .run-tab-main strong, .run-tab-main span { display: block; }
+    .run-tab-main strong { color: currentColor; font-size: 14px; }
+    .run-tab-main span { margin-top: 1px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .status-tag {
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .status-tag.ready { background: var(--amber-soft); color: var(--amber); }
+    .add-tab { flex: 0 0 auto; align-self: center; }
+
+    .run-panel { padding: 20px 24px 24px; }
+    .run-panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .run-panel-header h3 { margin: 0; color: var(--text); font-size: 20px; }
+    .run-panel-header p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+    .run-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .intent-strip {
+      display: grid;
+      grid-template-columns: 116px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 12px 14px;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      background: var(--panel-blue);
+    }
+    [data-theme="dark"] .intent-strip { border-color: rgb(30 64 175 / 0.6); }
+    .intent-strip label { color: var(--muted); font-size: 12px; }
+    .intent-strip strong { color: var(--text); font-size: 14px; }
+
+    .overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-bottom: 24px; }
+    .data-card { min-width: 0; padding: 24px; }
+    .card-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+    .card-title { display: flex; align-items: center; gap: 9px; }
+    .card-title i { color: var(--blue); }
+    .card-title h4 { margin: 0; color: var(--text); font-size: 18px; font-weight: 500; }
+    .card-meta { color: var(--muted); font-size: 12px; }
+    .two-col-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .mini-field label { display: block; margin-bottom: 5px; color: var(--text); font-size: 14px; font-weight: 500; }
+    .mini-field .input-look { min-height: 34px; }
+    .tire-summary { display: grid; gap: 11px; }
+    .summary-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
+    .summary-row span:first-child { color: var(--muted); }
+    .summary-row strong { color: var(--text); text-align: right; }
+    .lap-card-value { color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 30px; font-weight: 850; letter-spacing: -0.04em; }
+    .lap-delta { margin-top: 4px; color: var(--green); font-size: 12px; font-weight: 750; }
+    .logger-proof { margin-top: 14px; padding: 10px 12px; border-radius: 7px; background: #ecfdf5; color: #047857; font-size: 12px; }
+    [data-theme="dark"] .logger-proof { background: rgb(6 78 59 / 0.35); color: #6ee7b7; }
+    .logger-link { display: inline-flex; gap: 6px; margin-top: 12px; color: var(--blue-text); font-size: 13px; text-decoration: none; }
+
+    .setup-area { overflow: hidden; }
+    .setup-tabs { display: flex; gap: 28px; padding: 0 24px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+    .setup-tab {
+      position: relative;
+      padding: 14px 0 12px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 14px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: transform 120ms var(--ease-out), color 140ms ease;
+    }
+    .setup-tab.active { color: var(--blue-text); }
+    .setup-tab.active::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--blue-strong); }
+    .setup-content { padding: 24px; }
+    .setup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .blue-panel { position: relative; min-width: 0; padding: 24px; overflow: hidden; border-radius: 8px; background: var(--panel-blue); }
+    .blue-panel h4 { margin: 0; color: var(--text); font-size: 18px; font-weight: 500; }
+    .blue-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .blue-panel-head > div { display: flex; align-items: center; gap: 9px; }
+    .blue-panel-head i { color: var(--blue); }
+    .pressure-cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; position: relative; }
+    .wheel-cell { padding: 10px; border: 1px solid rgb(147 197 253 / 0.45); border-radius: 8px; background: color-mix(in srgb, var(--surface) 42%, transparent); }
+    .wheel-label { margin-bottom: 7px; text-align: center; color: var(--text); font-size: 14px; font-weight: 650; }
+    .pressure-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 30px; gap: 5px; align-items: center; margin-top: 5px; }
+    .pressure-row > span:first-child { color: var(--muted); font-size: 11px; }
+    .number-input { min-width: 0; display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); }
+    .number-input button { width: 28px; height: 30px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+    .number-input input { width: 44px; min-width: 0; padding: 4px 2px; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 13px; text-align: center; }
+    .unit { color: var(--muted); font-size: 10px; }
+    .pressure-status { display: flex; justify-content: space-between; margin-top: 7px; padding-top: 6px; border-top: 1px solid rgb(147 197 253 / 0.35); color: var(--muted); font-size: 10px; }
+    .pressure-status .good { color: var(--green); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .damper-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .damper-group { padding: 14px; border-radius: 8px; background: color-mix(in srgb, var(--surface) 48%, transparent); }
+    .damper-group > strong { display: block; margin-bottom: 10px; color: var(--text); font-size: 14px; }
+    .damper-group .mini-field + .mini-field { margin-top: 10px; }
+
+    .floating-actions {
+      position: fixed;
+      right: 32px;
+      bottom: 30px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .floating-button {
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border: 0;
+      border-radius: 999px;
+      color: #f8fafc;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 10px 20px rgb(15 23 42 / 0.22);
+      cursor: pointer;
+      transition: transform 120ms var(--ease-out), background-color 140ms ease;
+    }
+    .floating-button.blue { background: #3b82f6; }
+    .floating-button.dark { background: #1f2937; }
+    .short-label { display: none; }
+    [data-theme="dark"] .floating-button.dark { background: #f3f4f6; color: #111827; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgb(15 23 42 / 0.45);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 120ms ease, visibility 0s linear 120ms;
+    }
+    .modal-backdrop.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 180ms var(--ease-out), visibility 0s linear 0s;
+    }
+    .modal {
+      width: min(520px, 100%);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 20px 60px rgb(0 0 0 / 0.25);
+      opacity: 0;
+      transform: scale(0.97);
+      transform-origin: center;
+      transition: transform 140ms var(--ease-out), opacity 120ms ease;
+    }
+    .modal-backdrop.open .modal {
+      opacity: 1;
+      transform: scale(1);
+      transition: transform 220ms var(--ease-out), opacity 160ms ease;
+    }
+    .modal-head, .modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; }
+    .modal-head { border-bottom: 1px solid var(--line); }
+    .modal-head h3 { margin: 0; font-size: 16px; }
+    .modal-body { padding: 20px; }
+    .modal-body p { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+    .import-options { display: grid; gap: 9px; }
+    .import-option { padding: 13px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); text-align: left; cursor: pointer; transition: transform 120ms var(--ease-out), border-color 140ms ease, background-color 140ms ease; }
+    .import-option strong { display: block; color: var(--text); font-size: 13px; }
+    .import-option span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .modal-foot { justify-content: flex-end; border-top: 1px solid var(--line); }
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 92px;
+      z-index: 80;
+      padding: 10px 14px;
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-lg);
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(100%);
+      filter: blur(1px);
+      pointer-events: none;
+      transition: transform 120ms ease, opacity 100ms ease, filter 100ms ease;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+      transition: transform 180ms var(--ease-out), opacity 140ms ease, filter 140ms ease;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .nav-button:hover { background: var(--surface-muted); color: var(--text); }
+      .icon-button:hover { border-color: var(--line); background: var(--surface-muted); color: var(--text); }
+      .ant-button:hover { border-color: var(--blue); color: var(--blue-text); }
+      .ant-button.primary:hover { border-color: #1d4ed8; background: #1d4ed8; color: #f8fafc; }
+      .import-option:hover { border-color: var(--blue); background: var(--surface-muted); }
+    }
+
+    .nav-button:active:not(:focus-visible),
+    .icon-button:active:not(:focus-visible),
+    .ant-button:active:not(:focus-visible),
+    .run-tab:active:not(:focus-visible),
+    .setup-tab:active:not(:focus-visible),
+    .import-option:active:not(:focus-visible),
+    .floating-button:active:not(:focus-visible) {
+      transform: scale(0.97);
+    }
+
+    .number-input button:active:not(:focus-visible) { transform: scale(0.9); }
+
+    @media (max-width: 1080px) {
+      .desktop-nav .nav-button span { display: none; }
+      .brand-wrap, .header-actions { min-width: auto; }
+      .field-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .field.vehicle { grid-column: span 2; }
+      .overview-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    }
+    @media (max-width: 760px) {
+      .app-header { padding: 12px 16px; }
+      .desktop-nav, .header-actions { display: none; }
+      .mobile-menu { display: grid; }
+      .page { width: min(100% - 24px, 1280px); padding-top: 16px; }
+      .page-heading { align-items: center; }
+      .page-heading p { display: none; }
+      .page-heading h2 { font-size: 21px; }
+      .field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .field.date, .field.vehicle { grid-column: span 2; }
+      .day-purpose { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+      .run-tabs-bar { padding: 0 14px; }
+      .run-tabs { gap: 18px; }
+      .run-tab { min-width: 112px; }
+      .add-tab { align-self: stretch; margin: 8px 0; }
+      .add-tab .label-long { display: none; }
+      .run-panel { padding: 18px 16px 20px; }
+      .run-panel-header { display: block; }
+      .run-actions { justify-content: flex-start; margin-top: 12px; }
+      .intent-strip { grid-template-columns: minmax(0, 1fr) auto; }
+      .intent-strip label { grid-column: 1 / -1; }
+      .data-card { padding: 18px; }
+      .setup-tabs { padding: 0 18px; gap: 24px; }
+      .setup-content { padding: 16px; }
+      .setup-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+      .blue-panel { padding: 16px; }
+      .floating-actions { right: 12px; bottom: 16px; left: 12px; }
+      .floating-button { flex: 1; justify-content: center; min-width: 0; padding-inline: 10px; }
+      .floating-button .wide-label { display: none; }
+      .floating-button .short-label { display: inline; }
+      .toast { right: 12px; bottom: 78px; left: 12px; text-align: center; }
+    }
+    @media (max-width: 430px) {
+      .field-grid { grid-template-columns: minmax(0, 1fr); }
+      .field.date, .field.vehicle { grid-column: auto; }
+      .pressure-cells { grid-template-columns: minmax(0, 1fr); }
+      .damper-fields { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .nav-button,
+      .icon-button,
+      .ant-button,
+      .run-tab,
+      .setup-tab,
+      .import-option,
+      .floating-button,
+      .number-input button { transform: none !important; transition-property: border-color, background-color, color !important; transition-duration: 100ms !important; }
+      .modal,
+      .modal-backdrop,
+      .toast { transform: none !important; filter: none !important; transition: opacity 100ms linear, visibility 0s linear !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-wrap">
+        <div class="brand-mark">VL</div>
+        <h1 class="brand-name"><span>VELOCITY</span><small>LOGGER</small></h1>
+      </div>
+      <nav class="desktop-nav" aria-label="メインナビゲーション">
+        <button class="nav-button"><i class="fas fa-chart-pie"></i><span>ダッシュボード</span></button>
+        <button class="nav-button active"><i class="fas fa-wrench"></i><span>セットアップ記録</span></button>
+        <button class="nav-button"><i class="fas fa-history"></i><span>履歴一覧</span></button>
+        <button class="nav-button"><i class="fas fa-car"></i><span>車両管理</span></button>
+        <button class="nav-button"><i class="fas fa-database"></i><span>走行ログ</span></button>
+        <button class="nav-button"><i class="fas fa-share-square"></i><span>共有データ</span></button>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-button" id="theme-toggle" aria-label="テーマ切替"><i class="fas fa-moon"></i></button>
+        <button class="icon-button" aria-label="新規記録"><i class="fas fa-plus"></i></button>
+        <button class="icon-button" aria-label="通知"><i class="fas fa-bell"></i></button>
+        <button class="icon-button" aria-label="設定"><i class="fas fa-cog"></i></button>
+        <button class="icon-button" aria-label="ログアウト"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+      <button class="icon-button mobile-menu" aria-label="メニュー"><i class="fas fa-bars"></i></button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="page-heading">
+      <div>
+        <h2>セットアップ記録</h2>
+        <p>走行日と各セッションのセットアップを記録します</p>
+      </div>
+      <button class="ant-button" data-open-import><i class="fas fa-file-import"></i>過去データを追加</button>
+    </div>
+
+    <section class="card day-info" aria-label="走行日の基本情報">
+      <div class="field-grid">
+        <div class="field date"><label>日時</label><div class="input-look">2026/07/19 08:30</div></div>
+        <div class="field"><label>サーキット <span style="color:var(--danger)">*</span></label><div class="input-look">筑波サーキット<i class="fas fa-chevron-down"></i></div></div>
+        <div class="field vehicle"><label>車両 <span style="color:var(--danger)">*</span></label><div class="input-look">Toyota GR Yaris<i class="fas fa-chevron-down"></i></div></div>
+        <div class="field"><label>ドライバー名</label><div class="input-look">山田 太郎</div></div>
+        <div class="field"><label>走行種別</label><div class="input-look">練習走行<i class="fas fa-chevron-down"></i></div></div>
+      </div>
+      <div class="day-purpose">
+        <label>今日の目的</label>
+        <div class="input-look">リアの安定性を保ちながら、最終コーナーの立ち上がりを改善する</div>
+      </div>
+    </section>
+
+    <section class="card run-workspace" aria-label="走行セッション">
+      <div class="run-tabs-bar">
+        <div class="run-tabs" id="run-tabs"></div>
+        <button class="ant-button small add-tab" id="add-run"><i class="fas fa-plus"></i><span class="label-long">走行を追加</span></button>
+      </div>
+
+      <div class="run-panel">
+        <div class="run-panel-header">
+          <div><h3 id="run-title">2本目</h3><p id="run-subtitle">11:10開始 / 練習走行</p></div>
+          <div class="run-actions">
+            <button class="ant-button"><i class="fas fa-bolt"></i>前回設定を引き継ぐ</button>
+            <button class="ant-button" id="logger-action"><i class="fas fa-file-import"></i>ロガーを確認</button>
+          </div>
+        </div>
+
+        <div class="intent-strip">
+          <label>今回試すこと</label>
+          <strong id="run-intent">フロント減衰を1段上げ、旋回初期の反応を確認する</strong>
+          <button class="ant-button text small">編集</button>
+        </div>
+
+        <div class="overview-grid">
+          <section class="card data-card">
+            <div class="card-title-row"><div class="card-title"><i class="fas fa-temperature-high"></i><h4>環境データ</h4></div><span class="card-meta">気温 28°C / 路温 39°C</span></div>
+            <div class="two-col-fields">
+              <div class="mini-field"><label>天候</label><div class="input-look">晴れ<i class="fas fa-chevron-down"></i></div></div>
+              <div class="mini-field"><label>湿度 (%)</label><div class="input-look">62</div></div>
+              <div class="mini-field"><label>気温 (°C)</label><div class="input-look">28</div></div>
+              <div class="mini-field"><label>路面温度 (°C)</label><div class="input-look">39</div></div>
+            </div>
+          </section>
+
+          <section class="card data-card">
+            <div class="card-title-row"><div class="card-title"><i class="fas fa-circle-notch"></i><h4>タイヤ情報</h4></div></div>
+            <div class="tire-summary">
+              <div class="summary-row"><span>タイヤ</span><strong>YOKOHAMA ADVAN A050 M</strong></div>
+              <div class="summary-row"><span>サイズ</span><strong>245/40R18</strong></div>
+              <div class="summary-row"><span>使用前</span><strong>124 km / 3サイクル</strong></div>
+              <div class="summary-row"><span>燃料量</span><strong id="fuel-value">15 L</strong></div>
+            </div>
+          </section>
+
+          <section class="card data-card">
+            <div class="card-title-row"><div class="card-title"><i class="fas fa-stopwatch"></i><h4>ラップタイム</h4></div><button class="ant-button text small">詳細入力</button></div>
+            <div class="lap-card-value" id="lap-value">1:04.382</div>
+            <div class="lap-delta" id="lap-delta">1本目より 0.745秒速い</div>
+            <div class="logger-proof" id="logger-proof"><i class="fas fa-check-circle"></i> AIM CSV / 12ラップ / 証憑付き</div>
+            <a class="logger-link" href="#"><i class="fas fa-chart-line"></i>このセッションのテレメトリを分析</a>
+          </section>
+        </div>
+
+        <section class="card setup-area">
+          <div class="setup-tabs">
+            <button class="setup-tab active">基本設定</button>
+            <button class="setup-tab">セッティング</button>
+            <button class="setup-tab">ドライバーフィードバック</button>
+          </div>
+          <div class="setup-content">
+            <div class="setup-grid">
+              <section class="blue-panel">
+                <div class="blue-panel-head"><div><i class="fas fa-tachometer-alt"></i><h4>タイヤ空気圧</h4></div><span class="card-meta">走行前 → 走行後 (kPa)</span></div>
+                <div class="pressure-cells" id="pressure-cells"></div>
+              </section>
+              <section class="blue-panel">
+                <div class="blue-panel-head"><div><i class="fas fa-sliders-h"></i><h4>ダンパー設定</h4></div><span class="card-meta">単位 click</span></div>
+                <div class="damper-fields">
+                  <div class="damper-group"><strong>フロント</strong><div class="mini-field"><label>縮み側</label><div class="input-look" id="front-bump">7</div></div><div class="mini-field"><label>伸び側</label><div class="input-look">8</div></div></div>
+                  <div class="damper-group"><strong>リア</strong><div class="mini-field"><label>縮み側</label><div class="input-look">6</div></div><div class="mini-field"><label>伸び側</label><div class="input-look">7</div></div></div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div class="floating-actions">
+    <button class="floating-button blue" id="next-run"><i class="fas fa-copy"></i><span class="wide-label">次の走行を準備</span><span class="short-label">次の走行</span></button>
+    <button class="floating-button dark" id="save"><i class="fas fa-save"></i>保存</button>
+  </div>
+
+  <div class="modal-backdrop" id="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-head"><h3 id="import-title">過去データを追加</h3><button class="ant-button text small" data-close-import>閉じる</button></div>
+      <div class="modal-body">
+        <p>過去データは例外的な入口として追加し、保存後は通常の走行記録と同じ形式で表示します。</p>
+        <div class="import-options">
+          <button class="import-option" data-import-option><strong>ロガーファイルから作成</strong><span>日時、コース、ラップを読み取ります</span></button>
+          <button class="import-option" data-import-option><strong>ラップタイムを手入力</strong><span>分かる情報だけで過去の走行を追加します</span></button>
+          <button class="import-option" data-import-option><strong>現在の走行日に追加</strong><span>後から見つかったデータを選択中の走行日に関連付けます</span></button>
+        </div>
+      </div>
+      <div class="modal-foot"><button class="ant-button" data-close-import>キャンセル</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const runs = [
+      { id: 1, label: '1本目', time: '09:20', status: '解析済み', tone: '', lap: '1:05.127', delta: '基準セッション', intent: '現在のセットで基準タイムとバランスを確認する', logger: true, laps: 11, fuel: '20 L', bump: '6', pressure: [[190,190,185,185],[226,228,221,223]] },
+      { id: 2, label: '2本目', time: '11:10', status: '解析済み', tone: '', lap: '1:04.382', delta: '1本目より 0.745秒速い', intent: 'フロント減衰を1段上げ、旋回初期の反応を確認する', logger: true, laps: 12, fuel: '15 L', bump: '7', pressure: [[190,190,185,185],[225,228,220,221]] },
+      { id: 3, label: '3本目', time: '14:30予定', status: '準備中', tone: 'ready', lap: '未走行', delta: 'ロガー未追加', intent: 'リア冷間空気圧を5 kPa下げ、立ち上がりの安定性を確認する', logger: false, laps: 0, fuel: '15 L', bump: '7', pressure: [[190,190,180,180],['','','','']] }
+    ];
+    let selectedId = 2;
+    let toastTimer;
+    let lastModalTrigger = null;
+    const tabs = document.getElementById('run-tabs');
+    const toast = document.getElementById('toast');
+    const modal = document.getElementById('import-modal');
+    const wheels = ['FL','FR','RL','RR'];
+
+    function selectedRun() { return runs.find((run) => run.id === selectedId) || runs[0]; }
+    function showToast(text) {
+      clearTimeout(toastTimer);
+      toast.textContent = text;
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+    function renderTabs() {
+      tabs.innerHTML = runs.map((run) => `
+        <button class="run-tab ${run.id === selectedId ? 'active' : ''}" data-run-id="${run.id}" aria-pressed="${run.id === selectedId}">
+          <span class="run-tab-main"><strong>${run.label} ${run.time}</strong><span>${run.lap}</span></span>
+          <span class="status-tag ${run.tone}">${run.status}</span>
+        </button>
+      `).join('');
+      tabs.querySelectorAll('[data-run-id]').forEach((button) => button.addEventListener('click', () => { selectedId = Number(button.dataset.runId); render(); }));
+    }
+    function renderPressure(run) {
+      document.getElementById('pressure-cells').innerHTML = wheels.map((wheel, index) => {
+        const cold = run.pressure[0][index];
+        const hot = run.pressure[1][index];
+        const diff = hot === '' ? null : Number(hot) - Number(cold);
+        return `<div class="wheel-cell">
+          <div class="wheel-label">${wheel}</div>
+          <div class="pressure-row"><span>冷</span><div class="number-input"><button data-pressure-step="-1" data-row="0" data-wheel="${index}" aria-label="${wheel}冷間を下げる">−</button><input value="${cold}" data-pressure-input data-row="0" data-wheel="${index}" inputmode="numeric" aria-label="${wheel}冷間空気圧"><button data-pressure-step="1" data-row="0" data-wheel="${index}" aria-label="${wheel}冷間を上げる">+</button></div><span class="unit">kPa</span></div>
+          <div class="pressure-row"><span>温</span><div class="number-input"><button data-pressure-step="-1" data-row="1" data-wheel="${index}" aria-label="${wheel}温間を下げる">−</button><input value="${hot}" data-pressure-input data-row="1" data-wheel="${index}" inputmode="numeric" aria-label="${wheel}温間空気圧"><button data-pressure-step="1" data-row="1" data-wheel="${index}" aria-label="${wheel}温間を上げる">+</button></div><span class="unit">kPa</span></div>
+          <div class="pressure-status"><span>Δ${diff === null ? '未入力' : `${diff >= 0 ? '+' : ''}${diff}`}</span><span class="${diff === null ? '' : 'good'}">目標${hot === '' ? '未入力' : '+1'}</span></div>
+        </div>`;
+      }).join('');
+
+      document.querySelectorAll('[data-pressure-step]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const row = Number(button.dataset.row);
+          const wheel = Number(button.dataset.wheel);
+          const current = Number(run.pressure[row][wheel]);
+          const next = Math.min(400, Math.max(50, (Number.isFinite(current) && current > 0 ? current : 200) + Number(button.dataset.pressureStep)));
+          run.pressure[row][wheel] = next;
+          renderPressure(run);
+        });
+      });
+      document.querySelectorAll('[data-pressure-input]').forEach((input) => {
+        input.addEventListener('change', () => {
+          const row = Number(input.dataset.row);
+          const wheel = Number(input.dataset.wheel);
+          const value = input.value.trim();
+          run.pressure[row][wheel] = value === '' ? '' : Math.min(400, Math.max(50, Number(value) || 200));
+          renderPressure(run);
+        });
+      });
+    }
+    function render() {
+      const run = selectedRun();
+      renderTabs();
+      document.getElementById('run-title').textContent = run.label;
+      document.getElementById('run-subtitle').textContent = run.time.includes('予定') ? `${run.time} / 練習走行` : `${run.time}開始 / 練習走行`;
+      document.getElementById('run-intent').textContent = run.intent;
+      document.getElementById('lap-value').textContent = run.lap;
+      document.getElementById('lap-delta').textContent = run.delta;
+      document.getElementById('fuel-value').textContent = run.fuel;
+      document.getElementById('front-bump').textContent = run.bump;
+      document.getElementById('logger-action').innerHTML = run.logger ? '<i class="fas fa-file-import"></i>ロガーを確認' : '<i class="fas fa-file-import"></i>ロガーを追加';
+      document.getElementById('logger-proof').innerHTML = run.logger ? `<i class="fas fa-check-circle"></i> AIM CSV / ${run.laps}ラップ / 証憑付き` : '<i class="fas fa-info-circle"></i> ロガーはまだ追加されていません';
+      renderPressure(run);
+    }
+    function addRun() {
+      const pending = runs.find((run) => run.status === '準備中');
+      if (pending) { selectedId = pending.id; render(); showToast('準備中の走行を開きました'); return; }
+      const previous = runs[runs.length - 1];
+      const id = runs.length + 1;
+      runs.push({ ...previous, id, label: `${id}本目`, time: '時刻未定', status: '準備中', tone: 'ready', lap: '未走行', delta: 'ロガー未追加', logger: false, laps: 0, pressure: [previous.pressure[0].slice(), ['','','','']] });
+      selectedId = id;
+      render();
+      showToast(`${id}本目を前回の設定から作成しました`);
+    }
+
+    function openImport(trigger) {
+      lastModalTrigger = trigger;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      requestAnimationFrame(() => modal.querySelector('[data-import-option]')?.focus());
+    }
+
+    function closeImport() {
+      if (!modal.classList.contains('open')) return;
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      const focusDelay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 140;
+      window.setTimeout(() => lastModalTrigger?.focus(), focusDelay);
+    }
+
+    document.getElementById('add-run').addEventListener('click', addRun);
+    document.getElementById('next-run').addEventListener('click', addRun);
+    document.getElementById('save').addEventListener('click', () => showToast(`${selectedRun().label}を保存しました`));
+    document.getElementById('logger-action').addEventListener('click', () => showToast(selectedRun().logger ? 'ロガーの詳細を開く想定です' : 'ロガーファイルを選ぶ想定です'));
+    document.querySelectorAll('[data-open-import]').forEach((button) => button.addEventListener('click', () => openImport(button)));
+    document.querySelectorAll('[data-close-import]').forEach((button) => button.addEventListener('click', closeImport));
+    document.querySelectorAll('[data-import-option]').forEach((button) => button.addEventListener('click', () => { closeImport(); showToast(`${button.querySelector('strong').textContent}へ進む想定です`); }));
+    modal.addEventListener('click', (event) => { if (event.target === modal) closeImport(); });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeImport();
+      if (event.key === 'Tab' && modal.classList.contains('open')) {
+        const focusable = [...modal.querySelectorAll('button:not([disabled])')];
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    });
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const dark = document.documentElement.dataset.theme === 'dark';
+      document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+      document.querySelector('#theme-toggle i').className = dark ? 'fas fa-moon' : 'fas fa-sun';
+    });
+    document.querySelectorAll('.setup-tab').forEach((button) => button.addEventListener('click', () => {
+      document.querySelectorAll('.setup-tab').forEach((item) => item.classList.remove('active'));
+      button.classList.add('active');
+      if (button.textContent !== '基本設定') showToast(`${button.textContent}の内容へ切り替える想定です`);
+    }));
+    render();
+  </script>
+</body>
+</html>

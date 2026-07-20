@@ -7,6 +7,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { logout } from '../../services/authService';
 import { getUserVehicles, updateVehicle, addVehicle, generateDefaultSetupConfig } from '../../services/vehicleService';
 import { Vehicle } from '../../types/vehicle';
+import { useTranslation } from 'react-i18next';
+import { LocaleSelect } from './LocaleSelect';
 
 const EMPTY_VEHICLE_FORM = {
   make: '',
@@ -35,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useTheme();
   const { currentUser } = useAuth();
+  const { t } = useTranslation(['common', 'header']);
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
@@ -65,10 +68,10 @@ export const Header: React.FC<HeaderProps> = ({
         applyVehicle(first);
       })
       .catch(() => {
-        if (!cancelled) message.error('車両情報の取得に失敗しました');
+        if (!cancelled) message.error(t('header:vehicle.loadError'));
       });
     return () => { cancelled = true; };
-  }, [settingsModal, currentSettingView, currentUser, applyVehicle]);
+  }, [settingsModal, currentSettingView, currentUser, applyVehicle, t]);
 
   const handleVehicleSelect = (vehicleId: string) => {
     setSelectedVehicleId(vehicleId);
@@ -82,17 +85,17 @@ export const Header: React.FC<HeaderProps> = ({
   const handleVehicleSave = async () => {
     if (!currentUser) return;
     if (!vehicleForm.make.trim() || !vehicleForm.model.trim()) {
-      message.error('メーカーとモデルを入力してください');
+      message.error(t('header:vehicle.makeModelRequired'));
       return;
     }
     const yearText = vehicleForm.year.trim();
     const year = yearText === '' ? undefined : Number(yearText);
     if (year !== undefined && !Number.isInteger(year)) {
-      message.error('年式は整数で入力してください');
+      message.error(t('header:vehicle.yearInteger'));
       return;
     }
     if (!selectedVehicleId && year === undefined) {
-      message.error('新規登録には年式の入力が必要です');
+      message.error(t('header:vehicle.yearRequired'));
       return;
     }
     setVehicleSaving(true);
@@ -108,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
       };
       if (selectedVehicleId) {
         await updateVehicle(selectedVehicleId, fields);
-        message.success('車両情報を更新しました');
+        message.success(t('header:vehicle.updated'));
       } else {
         const newId = await addVehicle({
           ...fields,
@@ -118,12 +121,12 @@ export const Header: React.FC<HeaderProps> = ({
           setupConfig: generateDefaultSetupConfig()
         });
         setSelectedVehicleId(newId);
-        message.success('車両を登録しました');
+        message.success(t('header:vehicle.created'));
       }
       const list = await getUserVehicles(currentUser.uid);
       setVehicles(list);
     } catch (_error) {
-      message.error('車両情報の保存に失敗しました');
+      message.error(t('header:vehicle.saveError'));
     } finally {
       setVehicleSaving(false);
     }
@@ -132,10 +135,10 @@ export const Header: React.FC<HeaderProps> = ({
   const handleLogout = async () => {
     try {
       await logout();
-      message.success('ログアウトしました');
+      message.success(t('header:logoutSuccess'));
       navigate('/auth');
     } catch (_error) {
-      message.error('ログアウトに失敗しました');
+      message.error(t('header:logoutError'));
     }
   };
 
@@ -175,93 +178,93 @@ export const Header: React.FC<HeaderProps> = ({
       <button
         className={`${iconButtonClass} md:hidden`}
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        aria-label={mobileMenuOpen ? 'メニューを閉じる' : 'メニューを開く'}
+        aria-label={mobileMenuOpen ? t('common:menuClose') : t('common:menuOpen')}
       >
         {mobileMenuOpen ? <CloseOutlined style={{ fontSize: '20px' }} /> : <MenuOutlined style={{ fontSize: '20px' }} />}
       </button>
       {/* デスクトップナビゲーション */}
       <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex">
         <button
-          aria-label="ダッシュボード"
+          aria-label={t('common:nav.dashboard')}
           onClick={() => navigate('/dashboard')}
           className={`${navBaseClass} ${isActive('/dashboard') ? navActiveClass : navIdleClass}`}
         >
           <DashboardOutlined />
-          ダッシュボード
+          {t('common:nav.dashboard')}
         </button>
         <button
-          aria-label="セットアップ記録"
+          aria-label={t('common:nav.setup')}
           onClick={() => navigate('/')}
           className={`${navBaseClass} ${isActive('/') ? navActiveClass : navIdleClass}`}
         >
           <ToolOutlined />
-          セットアップ記録
+          {t('common:nav.setup')}
         </button>
         <button
-          aria-label="履歴一覧"
+          aria-label={t('common:nav.history')}
           onClick={() => navigate('/history')}
           className={`${navBaseClass} ${isActive('/history') ? navActiveClass : navIdleClass}`}
         >
           <HistoryOutlined />
-          履歴一覧
+          {t('common:nav.history')}
         </button>
         <button
-          aria-label="車両管理"
+          aria-label={t('common:nav.vehicles')}
           onClick={() => navigate('/vehicles')}
           className={`${navBaseClass} ${isActive('/vehicles') ? navActiveClass : navIdleClass}`}
         >
           <CarOutlined />
-          車両管理
+          {t('common:nav.vehicles')}
         </button>
         <button
-          aria-label="走行ログ"
+          aria-label={t('common:nav.telemetry')}
           onClick={() => navigate('/telemetry')}
           className={`${navBaseClass} ${isActiveSection('/telemetry') ? navActiveClass : navIdleClass}`}
         >
           <DatabaseOutlined />
-          走行ログ
+          {t('common:nav.telemetry')}
         </button>
         <button
-          aria-label="みんなの共有データ"
+          aria-label={t('common:nav.shared')}
           onClick={() => navigate('/shared')}
           className={`${navBaseClass} ${isActive('/shared') ? navActiveClass : navIdleClass}`}
         >
           <ExportOutlined />
-          共有データ
+          {t('common:nav.shared')}
         </button>
       </div>
       <div className="hidden items-center gap-2 md:flex">
         <button
           className={iconButtonClass}
           onClick={toggleDarkMode}
-          title={darkMode ? 'ライトモードに切替' : 'ダークモードに切替'}
+          title={darkMode ? t('common:lightMode') : t('common:darkMode')}
         >
           {darkMode ? <SunOutlined style={{ fontSize: '20px' }} /> : <MoonOutlined style={{ fontSize: '20px' }} />}
         </button>
-        <button className={iconButtonClass} title="新規記録">
+        <button className={iconButtonClass} title={t('common:newRecord')}>
           <PlusOutlined style={{ fontSize: '20px' }} />
         </button>
-        <button className={iconButtonClass} title="通知">
+        <button className={iconButtonClass} title={t('common:notifications')}>
           <BellOutlined style={{ fontSize: '20px' }} />
         </button>
         <button
           className={iconButtonClass}
           onClick={() => setSettingsModal(true)}
-          title="設定"
+          title={t('common:settings')}
         >
           <SettingOutlined style={{ fontSize: '20px' }} />
         </button>
         <button
           className={iconButtonClass}
           onClick={handleLogout}
-          title="ログアウト"
+          title={t('common:logout')}
         >
           <LogoutOutlined style={{ fontSize: '20px' }} />
         </button>
 
         {/* Settings Modal */}
         <Modal
-          title="設定"
+          title={t('common:settings')}
           open={settingsModal}
           onCancel={() => setSettingsModal(false)}
           width={600}
@@ -276,56 +279,68 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => setCurrentSettingView('account')}
                 >
                   <UserOutlined className="mr-3" />
-                  アカウント設定
+                  {t('common:accountSettings')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'vehicle' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('vehicle')}
                 >
                   <CarOutlined className="mr-3" />
-                  車両設定
+                  {t('common:vehicleSettings')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'notification' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('notification')}
                 >
                   <NotificationOutlined className="mr-3" />
-                  通知設定
+                  {t('common:notificationSettings')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'default' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('default')}
                 >
                   <DatabaseOutlined className="mr-3" />
-                  デフォルト値設定
+                  {t('common:defaultSettings')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'export' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('export')}
                 >
                   <ExportOutlined className="mr-3" />
-                  データエクスポート
+                  {t('common:dataExport')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'help' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('help')}
                 >
                   <QuestionCircleOutlined className="mr-3" />
-                  ヘルプ＆サポート
+                  {t('common:helpSupport')}
                 </button>
               </div>
             </div>
             <div className="flex-1 p-6 overflow-y-auto">
               {currentSettingView === 'account' && (
-                <div className="text-gray-600">アカウント設定の内容がここに表示されます</div>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                      {t('common:accountSettings')}
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      {t('common:accountSettingsDescription')}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700">
+                    <LocaleSelect showDescription />
+                  </div>
+                </div>
               )}
               {currentSettingView === 'vehicle' && (
                 <div className="p-4">
-                  <h3 className="text-lg font-medium mb-6">車両設定</h3>
+                  <h3 className="text-lg font-medium mb-6">{t('header:vehicle.title')}</h3>
                   <div className="space-y-6">
                     {vehicles.length > 0 && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">編集する車両</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.select')}</label>
                         <select
                           value={selectedVehicleId}
                           onChange={(e) => handleVehicleSelect(e.target.value)}
@@ -336,13 +351,13 @@ export const Header: React.FC<HeaderProps> = ({
                               {v.make} {v.model}{v.year ? ` (${v.year})` : ''}
                             </option>
                           ))}
-                          <option value="">＋ 新規車両として登録</option>
+                          <option value="">{t('header:vehicle.registerNew')}</option>
                         </select>
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">メーカー</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.make')}</label>
                         <input
                           type="text"
                           value={vehicleForm.make}
@@ -351,7 +366,7 @@ export const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">モデル</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.model')}</label>
                         <input
                           type="text"
                           value={vehicleForm.model}
@@ -362,7 +377,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">年式</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.year')}</label>
                         <input
                           type="text"
                           value={vehicleForm.year}
@@ -371,7 +386,7 @@ export const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">エンジン型式</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.engineType')}</label>
                         <input
                           type="text"
                           value={vehicleForm.engineType}
@@ -382,7 +397,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">駆動方式</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.drivetrain')}</label>
                         <input
                           type="text"
                           value={vehicleForm.drivetrain}
@@ -391,7 +406,7 @@ export const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">トランスミッション</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.transmission')}</label>
                         <input
                           type="text"
                           value={vehicleForm.transmission}
@@ -401,12 +416,12 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">備考</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.notes')}</label>
                       <textarea
                         rows={4}
                         value={vehicleForm.notes}
                         onChange={(e) => setVehicleField('notes', e.target.value)}
-                        placeholder="車両に関する特記事項があれば入力してください"
+                        placeholder={t('header:vehicle.notesPlaceholder')}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
@@ -416,7 +431,7 @@ export const Header: React.FC<HeaderProps> = ({
                         disabled={vehicleSaving}
                         className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {vehicleSaving ? '保存中…' : '保存'}
+                        {vehicleSaving ? t('common:saving') : t('common:save')}
                       </button>
                     </div>
                   </div>
@@ -424,14 +439,14 @@ export const Header: React.FC<HeaderProps> = ({
               )}
               {currentSettingView === 'notification' && (
                 <div className="space-y-8">
-                  <h3 className="text-lg font-medium mb-6">通知設定</h3>
+                  <h3 className="text-lg font-medium mb-6">{t('header:notification.title')}</h3>
                   <div className="space-y-6">
                     <div className="flex items-center justify-between py-3 border-b">
                       <div className="flex items-center space-x-3">
                         <i className="fas fa-bell text-blue-500"></i>
                         <div>
-                          <div className="font-medium">アプリ内通知</div>
-                          <div className="text-sm text-gray-500">アプリ使用中のポップアップ通知</div>
+                          <div className="font-medium">{t('header:notification.inApp')}</div>
+                          <div className="text-sm text-gray-500">{t('header:notification.inAppDescription')}</div>
                         </div>
                       </div>
                       <Switch defaultChecked />
@@ -440,8 +455,8 @@ export const Header: React.FC<HeaderProps> = ({
                       <div className="flex items-center space-x-3">
                         <i className="fas fa-envelope text-blue-500"></i>
                         <div>
-                          <div className="font-medium">メール通知</div>
-                          <div className="text-sm text-gray-500">登録メールアドレスへの通知</div>
+                          <div className="font-medium">{t('header:notification.email')}</div>
+                          <div className="text-sm text-gray-500">{t('header:notification.emailDescription')}</div>
                         </div>
                       </div>
                       <Switch defaultChecked />
@@ -450,58 +465,58 @@ export const Header: React.FC<HeaderProps> = ({
                       <div className="flex items-center space-x-3">
                         <i className="fas fa-mobile-alt text-blue-500"></i>
                         <div>
-                          <div className="font-medium">プッシュ通知</div>
-                          <div className="text-sm text-gray-500">モバイルデバイスへのプッシュ通知</div>
+                          <div className="font-medium">{t('header:notification.push')}</div>
+                          <div className="text-sm text-gray-500">{t('header:notification.pushDescription')}</div>
                         </div>
                       </div>
                       <Switch />
                     </div>
                   </div>
                   <div className="mt-8">
-                    <h4 className="text-base font-medium mb-4">通知を受け取るイベント</h4>
+                    <h4 className="text-base font-medium mb-4">{t('header:notification.events')}</h4>
                     <div className="space-y-4">
                       <div className="flex items-center space-x-3">
                         <Checkbox defaultChecked>
-                          <span className="ml-2">ラップタイム更新</span>
+                          <span className="ml-2">{t('header:notification.lapTime')}</span>
                         </Checkbox>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Checkbox defaultChecked>
-                          <span className="ml-2">セッション開始・終了</span>
+                          <span className="ml-2">{t('header:notification.session')}</span>
                         </Checkbox>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Checkbox defaultChecked>
-                          <span className="ml-2">メンテナンススケジュール</span>
+                          <span className="ml-2">{t('header:notification.maintenance')}</span>
                         </Checkbox>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Checkbox>
-                          <span className="ml-2">システムアップデート</span>
+                          <span className="ml-2">{t('header:notification.system')}</span>
                         </Checkbox>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Checkbox>
-                          <span className="ml-2">他のドライバーのアクティビティ</span>
+                          <span className="ml-2">{t('header:notification.drivers')}</span>
                         </Checkbox>
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-end mt-8">
                     <button className="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition-colors whitespace-nowrap">
-                      設定を保存
+                      {t('header:notification.save')}
                     </button>
                   </div>
                 </div>
               )}
               {currentSettingView === 'default' && (
-                <div className="text-gray-600">デフォルト値設定の内容がここに表示されます</div>
+                <div className="text-gray-600 dark:text-gray-300">{t('header:placeholders.default')}</div>
               )}
               {currentSettingView === 'export' && (
-                <div className="text-gray-600">データエクスポートの内容がここに表示されます</div>
+                <div className="text-gray-600 dark:text-gray-300">{t('header:placeholders.export')}</div>
               )}
               {currentSettingView === 'help' && (
-                <div className="text-gray-600">ヘルプ＆サポートの内容がここに表示されます</div>
+                <div className="text-gray-600 dark:text-gray-300">{t('header:placeholders.help')}</div>
               )}
             </div>
           </div>
@@ -517,63 +532,66 @@ export const Header: React.FC<HeaderProps> = ({
               className={`${mobileNavClass} ${isActive('/dashboard') ? navActiveClass : navIdleClass}`}
             >
               <DashboardOutlined className="mr-3" />
-              ダッシュボード
+              {t('common:nav.dashboard')}
             </button>
             <button
               onClick={() => { navigate('/'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActive('/') ? navActiveClass : navIdleClass}`}
             >
               <ToolOutlined className="mr-3" />
-              セットアップ記録
+              {t('common:nav.setup')}
             </button>
             <button
               onClick={() => { navigate('/history'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActive('/history') ? navActiveClass : navIdleClass}`}
             >
               <HistoryOutlined className="mr-3" />
-              履歴一覧
+              {t('common:nav.history')}
             </button>
             <button
               onClick={() => { navigate('/vehicles'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActive('/vehicles') ? navActiveClass : navIdleClass}`}
             >
               <CarOutlined className="mr-3" />
-              車両管理
+              {t('common:nav.vehicles')}
             </button>
             <button
               onClick={() => { navigate('/telemetry'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActiveSection('/telemetry') ? navActiveClass : navIdleClass}`}
             >
               <DatabaseOutlined className="mr-3" />
-              走行ログ
+              {t('common:nav.telemetry')}
             </button>
             <button
               onClick={() => { navigate('/shared'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActive('/shared') ? navActiveClass : navIdleClass}`}
             >
               <ExportOutlined className="mr-3" />
-              共有データ
+              {t('common:nav.shared')}
             </button>
           </nav>
           <div className="flex items-center justify-around border-t border-slate-200 p-3 dark:border-slate-800">
             <button
               className={iconButtonClass}
               onClick={toggleDarkMode}
+              aria-label={darkMode ? t('common:lightMode') : t('common:darkMode')}
             >
               {darkMode ? <SunOutlined style={{ fontSize: '20px' }} /> : <MoonOutlined style={{ fontSize: '20px' }} />}
             </button>
-            <button className={iconButtonClass}>
+            <button className={iconButtonClass} aria-label={t('common:notifications')}>
               <BellOutlined style={{ fontSize: '20px' }} />
             </button>
             <button
               className={iconButtonClass}
               onClick={() => { setSettingsModal(true); setMobileMenuOpen(false); }}
+              aria-label={t('common:settings')}
             >
               <SettingOutlined style={{ fontSize: '20px' }} />
             </button>
             <button
               className={iconButtonClass}
               onClick={handleLogout}
+              aria-label={t('common:logout')}
             >
               <LogoutOutlined style={{ fontSize: '20px' }} />
             </button>

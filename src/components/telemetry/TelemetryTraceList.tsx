@@ -29,12 +29,16 @@ import {
   type DeltaTResult,
   type LapProfile,
 } from '../../lib/telemetry';
-import { buildCompareSections, compareRow } from '../../lib/setupFields';
+import { buildCompareSections, compareRow, resolveCompareSections } from '../../lib/setupFields';
+import type { TFunction } from 'i18next';
 import { findTrackById } from '../../lib/tracks';
 import { formatLapSeconds } from './evidence';
 import { isSampleTelemetryTraceId, SAMPLE_TELEMETRY_SETUP_ID } from './sampleTelemetryTrace';
 import logger from '../../utils/logger';
 import telemetryMockCarUrl from '../../assets/telemetry-mock-car.png';
+import { isWetWeather } from '../../lib/weather';
+import { weatherTranslationKey } from '../../lib/weather';
+import { useTranslation } from 'react-i18next';
 
 type TraceQualityTone = 'verified' | 'usable' | 'limited';
 type PreviewCandidateKind = 'self_best' | 'previous' | 'condition_match';
@@ -81,6 +85,7 @@ interface TraceBucket {
 const NO_COMPARISON = '__no_comparison__';
 
 export const TelemetryTraceList: React.FC = () => {
+  const { t } = useTranslation();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -264,7 +269,7 @@ export const TelemetryTraceList: React.FC = () => {
           getSetup(comparisonTrace.setupId),
         ]);
         if (cancelled) return;
-        setSetupDiffs(currentSetup && referenceSetup ? buildSetupDiffs(referenceSetup, currentSetup).slice(0, 8) : []);
+        setSetupDiffs(currentSetup && referenceSetup ? buildSetupDiffs(referenceSetup, currentSetup, t).slice(0, 8) : []);
       } catch (error) {
         if (!cancelled) {
           logger.error('走行ログプレビューのセット差分取得に失敗しました:', error);
@@ -278,7 +283,7 @@ export const TelemetryTraceList: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [comparisonTrace, selectedTrace]);
+  }, [comparisonTrace, selectedTrace, t]);
 
   const highlightedBucket = useMemo(
     () => buckets.find((bucket) => bucket.key === highlightedBucketKey) ?? buckets[0] ?? null,
@@ -1149,16 +1154,20 @@ const AnnotationPin: React.FC<{ x: number; y: number; text: string; tone: 'loss'
 const ConditionTags: React.FC<{
   trace: TelemetryTrace;
   tone: TraceQualityTone;
-}> = ({ trace, tone }) => (
-  <>
+}> = ({ trace, tone }) => {
+  const { t } = useTranslation('common');
+  const weatherKey = weatherTranslationKey(trace.conditions.weather.condition);
+  return (
+    <>
     {trace.conditions.weather.trackTemp != null && <Tag color="orange">路温{trace.conditions.weather.trackTemp}°C</Tag>}
     {trace.conditions.weather.airTemp != null && <Tag>気温{trace.conditions.weather.airTemp}°C</Tag>}
-    {trace.conditions.weather.condition && <Tag color={trace.conditions.weather.condition.includes('ウェット') ? 'blue' : 'green'}>{trace.conditions.weather.condition}</Tag>}
+    {trace.conditions.weather.condition && <Tag color={isWetWeather(trace.conditions.weather.condition) ? 'blue' : 'green'}>{weatherKey ? t(weatherKey) : trace.conditions.weather.condition}</Tag>}
     {trace.conditions.fuel != null && <Tag>Fuel {trace.conditions.fuel}L</Tag>}
     {trace.conditions.tireInfo.brand && <Tag>{trace.conditions.tireInfo.brand} {trace.conditions.tireInfo.compound}</Tag>}
     {tone !== 'verified' && <Tag color={tone === 'limited' ? 'red' : 'gold'}>{tone}</Tag>}
-  </>
-);
+    </>
+  );
+};
 
 const QualityPill: React.FC<{ tone: TraceQualityTone }> = ({ tone }) => {
   const style = tone === 'verified'
@@ -1286,7 +1295,8 @@ function conditionScore(current: TelemetryTrace, candidate: TelemetryTrace): num
   const fuelB = candidate.conditions.fuel;
   score += fuelA != null && fuelB != null ? Math.abs(fuelA - fuelB) * 0.15 : 3;
 
-  if (current.conditions.tireInfo.brand !== candidate.conditions.tireInfo.brand) score += 8;
+  if ((current.conditions.tireInfo.productName || current.conditions.tireInfo.brand) !==
+      (candidate.conditions.tireInfo.productName || candidate.conditions.tireInfo.brand)) score += 8;
   if (current.conditions.tireInfo.compound !== candidate.conditions.tireInfo.compound) score += 6;
   return score;
 }
@@ -1362,11 +1372,11 @@ function buildNextAction(readout: CoachingReadout): string {
   return '良い区間を再現';
 }
 
-function buildSetupDiffs(reference: CarSetup, current: CarSetup): SetupDiffItem[] {
-  const skipSections = new Set(['セッション情報', 'ラップタイム']);
+function buildSetupDiffs(reference: CarSetup, current: CarSetup, t: TFunction): SetupDiffItem[] {
+  const skipSections = new Set(['compare.sections.session', 'compare.sections.lapTime']);
   const diffs: SetupDiffItem[] = [];
-  for (const section of buildCompareSections()) {
-    if (skipSections.has(section.title)) continue;
+  for (const section of resolveCompareSections(buildCompareSections(), t)) {
+    if (skipSections.has(section.titleKey)) continue;
     for (const row of section.rows) {
       const result = compareRow(row, reference, current);
       if (result.kind === 'same' || result.kind === 'both-null') continue;

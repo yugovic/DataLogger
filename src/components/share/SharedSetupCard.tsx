@@ -9,10 +9,12 @@ import React from 'react';
 import { Card, Tag } from 'antd';
 import { CalendarOutlined, CarOutlined, EnvironmentOutlined, UserOutlined } from '@ant-design/icons';
 import { CarSetup } from '../../types/setup';
-import { sessionTypeLabel } from '../../lib/setupFields';
+import { sessionTypeTranslationKey } from '../../lib/setupFields';
 import { AnonymizedBadge, LoggerEvidenceBadge } from './ShareBadges';
 import { hasLoggerEvidence } from './shareUtils';
 import { SpecCard } from '../vehicle/SpecCard';
+import { normalizeWeather } from '../../lib/weather';
+import { useTranslation } from 'react-i18next';
 
 interface SharedSetupCardProps {
   setup: CarSetup;
@@ -33,14 +35,14 @@ const sessionColor = (type: CarSetup['sessionType']): string => {
 };
 
 const weatherIcon = (condition: string | null | undefined): string => {
-  switch (condition) {
-    case '晴れ':
+  switch (normalizeWeather(condition)) {
+    case 'sunny':
       return '☀️';
-    case '曇り':
+    case 'cloudy':
       return '☁️';
-    case 'ウェット':
+    case 'wet':
       return '🌧️';
-    case 'フルウェット':
+    case 'full_wet':
       return '⛈️';
     default:
       return '🌤️';
@@ -51,6 +53,7 @@ const formatDate = (date: Date): string =>
   new Date(date).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
 export const SharedSetupCard: React.FC<SharedSetupCardProps> = ({ setup, onOpen }) => {
+  const { t } = useTranslation();
   return (
     <Card
       hoverable
@@ -67,7 +70,7 @@ export const SharedSetupCard: React.FC<SharedSetupCardProps> = ({ setup, onOpen 
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <Tag color={sessionColor(setup.sessionType)} className="!mr-0">
-                {sessionTypeLabel(setup.sessionType)}
+                {t(sessionTypeTranslationKey(setup.sessionType))}
               </Tag>
               {setup.anonymized && <AnonymizedBadge />}
               {hasLoggerEvidence(setup) && <LoggerEvidenceBadge />}
@@ -108,7 +111,7 @@ export const SharedSetupCard: React.FC<SharedSetupCardProps> = ({ setup, onOpen 
             </span>
           </div>
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            {setup.tireInfo.brand || '—'} {setup.tireInfo.compound || ''}
+            {setup.tireInfo.productName || setup.tireInfo.brand || '—'} {setup.tireInfo.compound || ''}
           </span>
         </div>
 

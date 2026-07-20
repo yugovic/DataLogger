@@ -2,6 +2,11 @@
 // 原則: 未入力は null。0 や '' への変換・デモ値での充填を禁止する
 
 import type { PublicVehicleProfile } from '../lib/vehicleProfilePublic';
+import type {
+  SetupAdjustmentGroup,
+  SetupAdjustmentPosition,
+  SetupAdjustmentValueType,
+} from './vehicle';
 
 export type Maybe<T> = T | null;
 
@@ -24,7 +29,10 @@ export interface TargetPressures {
   rear: Maybe<number>;  // リア目標温間圧 (kPa)
 }
 
-export type WeatherType = '晴れ' | '曇り' | 'ウェット' | 'フルウェット';
+export type WeatherCode = 'sunny' | 'cloudy' | 'wet' | 'full_wet';
+export type LegacyWeatherType = '晴れ' | '曇り' | 'ウェット' | 'フルウェット';
+/** 旧日本語値は読取互換のため保持する。新規実装では WeatherCode を使用する。 */
+export type WeatherType = WeatherCode | LegacyWeatherType;
 
 export interface WeatherCondition {
   condition: Maybe<WeatherType>;
@@ -35,8 +43,52 @@ export interface WeatherCondition {
 }
 
 export interface TireInfo {
+  /** 旧データ互換。新規保存では manufacturer と同じ値を入れる。 */
   brand: string;
+  manufacturer?: string;
+  productName?: string;
   compound: string;
+  frontSize?: string;
+  rearSize?: string;
+  tireSetId?: string;
+  tireSetCode?: string;
+}
+
+export interface TireUsage {
+  /** 1セッションでタイヤを常温から使用温度まで上げた回数。 */
+  heatCyclesAdded: Maybe<number>;
+}
+
+export interface BrakeSettings {
+  frontPad: string;
+  rearPad: string;
+  frontRotor: string;
+  rearRotor: string;
+  balance: Maybe<number>; // フロント配分率 (%)
+}
+
+export interface AeroSettings {
+  front: Maybe<number>; // 装置固有の段数・位置
+  rear: Maybe<number>;
+}
+
+export interface EngineSettings {
+  ecuMap: string;
+  boost: Maybe<number>; // kPa
+}
+
+/**
+ * 1セッション時点の可変セッティング値。
+ * label/unit/group/position は車両定義変更後も過去記録を解釈できるよう保存時点をスナップショットする。
+ */
+export interface SetupAdjustmentValue {
+  definitionId: string;
+  group: SetupAdjustmentGroup;
+  label: string;
+  position: SetupAdjustmentPosition;
+  valueType: SetupAdjustmentValueType;
+  unit?: string;
+  value: number | string | boolean | null;
 }
 
 export interface SessionInfo {
@@ -77,6 +129,27 @@ export interface AlignmentSettings {
     rear: Maybe<number>;
   };
   caster: Maybe<number>;
+}
+
+/**
+ * ドライバー評価（走行フィードバック）。
+ * 各値は 0〜4 の主観評価、未入力は null。
+ * 原則: デモ初期値（1〜3等）を保存しない。ユーザーが操作した項目だけ number になる。
+ */
+export interface DrivingFeedback {
+  lowSpeedEntry: Maybe<number>;
+  lowSpeedMiddle: Maybe<number>;
+  lowSpeedExit: Maybe<number>;
+  highSpeedEntry: Maybe<number>;
+  highSpeedMiddle: Maybe<number>;
+  highSpeedExit: Maybe<number>;
+  brakeInitial: Maybe<number>;
+  brakeMiddle: Maybe<number>;
+  brakeStability: Maybe<number>;
+  accelResponse: Maybe<number>;
+  accelTraction: Maybe<number>;
+  balance: Maybe<number>;
+  confidence: Maybe<number>;
 }
 
 export type LapType = 'IN' | 'NORMAL' | 'OUT';
@@ -140,12 +213,18 @@ export interface CarSetup {
   weather: WeatherCondition;
   tireSettings: TireSettings;
   tireInfo: TireInfo;
+  tireUsage?: TireUsage;
   sessionInfo: SessionInfo;
   suspensionSettings?: SuspensionSettings;
   alignmentSettings?: AlignmentSettings;
+  brakeSettings?: BrakeSettings;
+  aeroSettings?: AeroSettings;
+  engineSettings?: EngineSettings;
+  adjustmentValues?: SetupAdjustmentValue[];
   targetPressures?: TargetPressures; // 目標温間圧（省略可 = 旧データ互換）
   notes?: string;
   knowledge?: KnowledgeNote;
+  drivingFeedback?: DrivingFeedback; // ドライバー評価（省略可 = 未評価。デモ初期値は保存しない）
   lapTimeData?: LapTimeData;
   telemetry?: SetupTelemetryRefs;
   images?: string[];
@@ -159,82 +238,4 @@ export interface User {
   displayName?: string;
   photoURL?: string;
   createdAt: Date;
-}
-
-// 車両関連の型定義
-export interface Vehicle {
-  id?: string;
-  userId: string;
-  make: string; // メーカー（Honda, Toyota等）
-  model: string; // モデル（S2000, Supra等）
-  year: number; // 年式
-  grade?: string; // グレード
-  vin?: string; // VINコード
-  licensePlate?: string; // ナンバープレート
-  color?: string; // 色
-  mileage?: number; // 走行距離
-  engineType?: string; // エンジン型式
-  transmission?: string; // トランスミッション
-  drivetrain?: string; // 駆動方式（FR, FF, AWD等）
-  photoURL?: string; // 車両写真
-  notes?: string; // 備考
-  setupConfig?: VehicleSetupConfig; // セッティング可能項目
-  isActive: boolean; // アクティブフラグ
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// 車両のセッティング可能項目の設定
-export interface VehicleSetupConfig {
-  // サスペンション設定
-  suspension: {
-    damperAdjustable: boolean; // ダンパー調整可否
-    damperClicksFront?: number; // フロントダンパー段数
-    damperClicksRear?: number; // リアダンパー段数
-    heightAdjustable: boolean; // 車高調整可否
-    heightRangeFront?: { min: number; max: number }; // フロント車高調整範囲
-    heightRangeRear?: { min: number; max: number }; // リア車高調整範囲
-    springRateChangeable: boolean; // スプリングレート変更可否
-    antiRollBarAdjustable: boolean; // スタビライザー調整可否
-  };
-
-  // アライメント設定
-  alignment: {
-    camberAdjustable: boolean; // キャンバー調整可否
-    camberRangeFront?: { min: number; max: number };
-    camberRangeRear?: { min: number; max: number };
-    toeAdjustable: boolean; // トー調整可否
-    toeRangeFront?: { min: number; max: number };
-    toeRangeRear?: { min: number; max: number };
-    casterAdjustable: boolean; // キャスター調整可否
-    casterRange?: { min: number; max: number };
-  };
-
-  // タイヤ設定
-  tire: {
-    frontSize: string[]; // フロント対応サイズ
-    rearSize: string[]; // リア対応サイズ
-    recommendedPressure?: {
-      frontMin: number;
-      frontMax: number;
-      rearMin: number;
-      rearMax: number;
-    };
-  };
-
-  // ブレーキ設定
-  brake: {
-    padTypes: string[]; // 対応パッドタイプ
-    rotorTypes?: string[]; // 対応ロータータイプ
-  };
-
-  // エンジン設定
-  engine?: {
-    ecuTunable: boolean; // ECUチューニング可否
-    boostAdjustable?: boolean; // ブースト調整可否
-    boostRange?: { min: number; max: number };
-  };
-
-  // その他のカスタム設定
-  customSettings?: Record<string, any>;
 }
