@@ -266,7 +266,7 @@ type AppErrorCode =
 - [x] セットアップ新規作成・編集と共有フォーム部品を移行する。
 - [x] 車両一覧・車両編集を移行する。
 - [x] 保存、削除、未保存離脱、検証エラーを移行する。
-- [ ] 日本語・英語でデスクトップ、モバイル、ダークモードを実画面確認する。
+- [x] 日本語・英語でデスクトップ、モバイル、ダークモードを実画面確認する。
 
 完了条件: 新規ユーザーが英語だけで登録、車両作成、セットアップ保存まで完了できる。
 
@@ -297,6 +297,8 @@ type AppErrorCode =
 ダッシュボード完了（2026-07-20）: `Dashboard.tsx` の見出し、説明、主要導線、読込エラー、空状態、KPI、成長共有、通知、全チャート名・系列・凡例、最近のセッション、ナレッジノート、使用車両を日英対応した。セッション種別・天候は安定コードから翻訳し、日付・月表示・件数・軸目盛は選択ロケールの formatter を使用する。サーキット名・車種・ナレッジ本文はユーザー入力として原文を維持し、コメント以外の固定日本語は0件。
 
 Phase 1完了（2026-07-21）: `VehicleModal` 残存2箇所、セットアップ作成・編集フォーム（`BasicInfoTab`, `DrivingTab`, `LapTimeModal`, `SessionHighlightModal`, `VehicleAdjustmentsTab`）、保存・削除・検証エラー（`setupService`, `vehicleService`, `vehicleProfileSchema`）を日英対応した。エラーメッセージは新規 `src/i18n/errorMessages.ts` の `AppError`/`zodKey` によりエラーコード化し、UI側で言語別に解決する方式へ統一。この過程で、i18next設定の `nsSeparator` が既定値`:`のままだったため、既存のドット区切り名前空間キー（`dashboard.title` 等、以前からの実装分も含む）が実行時に一切解決されず生キーが表示される重大バグを発見。`nsSeparator`/`keySeparator` を `.` に統一し、コロン記法だった `Login`/`SignUp`/`Header`/`CarSetup`/`authService` を全てドット記法へ変換、`ns` 配列に不足していた名前空間を追加して解消した。実画面確認（デスクトップ／モバイル／ダークモード）は未実施のため、Phase 1最終項目のみ残件。
+
+Phase 1完全完了（2026-07-22）: `?lang=en`での実画面確認により、`CarSetup.tsx`（セットアップ新規作成・編集フォームの親コンポーネント本体、tabs/配下の子コンポーネントとは別ファイル）と `PublicShareManager.tsx`（履歴画面の公開リンク管理）が丸ごと未移行だったことが判明し、追加で日英対応した。さらに複製/引き継ぎプレビュー（`setupLoadPreview.ts`）と比較候補プロンプト（`telemetryTraceService.ts`）はlib/service層が日本語ラベルを直接返していたため、i18nキーのみを返し表示側で`t()`する設計に変更し、日付フォーマットも`formatters.ts`の`formatDate`/`formatDateTime`+`useLocale`へ統一した。ダークモードはクラス切り替えの既存実装（本作業のスコープ外）を確認。テレメトリ関連画面（一覧・取込・比較・デブリーフ）は元々Phase 2スコープのため今回対象外、未移行のまま。
 
 ### Phase 2: 閲覧・分析・共有
 
