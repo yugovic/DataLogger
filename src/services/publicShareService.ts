@@ -59,7 +59,9 @@ const fromFirestoreDoc = (id: string, data: Record<string, unknown>): PublicShar
 
 export const createPublicShare = async (setup: CarSetup): Promise<string> => {
   if (!setup.id) {
-    throw new Error('公開リンクを発行するには保存済みセットアップが必要です');
+    // UI 側（PublicShareButton）で t('share.service.needSavedSetup') を表示する。
+    // ここは開発者向けの技術メッセージのため英語で投げる。
+    throw new Error('A saved setup is required to create a public link');
   }
 
   const existingQuery = query(

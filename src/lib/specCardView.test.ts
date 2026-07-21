@@ -25,7 +25,6 @@ describe('buildSpecCardView', () => {
     expect(view.modificationGroups).toHaveLength(2);
     expect(view.modificationGroups[0]).toMatchObject({
       category: 'brake',
-      label: 'ブレーキ',
       items: [
         { partName: 'ブレーキパッド', maker: 'ENDLESS' },
         { partName: 'ブレーキローター', maker: null },
@@ -33,7 +32,6 @@ describe('buildSpecCardView', () => {
     });
     expect(view.modificationGroups[1]).toMatchObject({
       category: 'suspension',
-      label: '足回り',
     });
   });
 
@@ -43,12 +41,12 @@ describe('buildSpecCardView', () => {
       modLevel: 'LIGHT',
     }));
 
-    expect(view.tireClassLabel).toBeNull();
+    expect(view.tireClass).toBeNull();
     expect(view.specItems).toEqual([]);
-    expect(view.compactSummary).toBe('1カテゴリ改造');
+    expect(view.modificationCategoryCount).toBe(1);
   });
 
-  it('compact サマリーを生成すること', () => {
+  it('装着カテゴリ数を数えること', () => {
     const view = buildSpecCardView(profile({
       modifications: [
         { category: 'brake', partName: 'ブレーキパッド', maker: null },
@@ -59,13 +57,14 @@ describe('buildSpecCardView', () => {
       modLevel: 'MIDDLE',
     }));
 
-    expect(view.compactSummary).toBe('3カテゴリ改造');
+    expect(view.modificationCategoryCount).toBe(3);
+    expect(view.tireClass).toBe('S_TIRE');
   });
 
-  it('改造0件の compact サマリーはノーマル車両にすること', () => {
+  it('改造0件のカテゴリ数は0にすること', () => {
     const view = buildSpecCardView(profile());
 
-    expect(view.compactSummary).toBe('ノーマル車両');
+    expect(view.modificationCategoryCount).toBe(0);
   });
 });
 

@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import i18n from '../i18n';
 import { escapeCsvCell, setupsToCsv, csvFileName } from './csv';
 import { CarSetup } from '../types/setup';
+
+// テスト用: 日本語ロケール固定の翻訳関数
+const tJa = i18n.getFixedT('ja-JP');
+// setupsToCsv(setups) の呼び出しを ja-JP でラップするヘルパー
+const toCsvJa = (setups: CarSetup[]) => setupsToCsv(setups, tJa, 'ja-JP');
 
 // 最小限の有効な CarSetup を生成するヘルパー（null フィールドは null のまま）
 function makeSetup(overrides: Partial<CarSetup> = {}): CarSetup {
@@ -55,19 +61,31 @@ describe('escapeCsvCell', () => {
 
 describe('setupsToCsv', () => {
   it('UTF-8 BOM で始まる', () => {
-    const csv = setupsToCsv([makeSetup()]);
+    const csv = toCsvJa([makeSetup()]);
     expect(csv.charCodeAt(0)).toBe(0xfeff);
   });
 
   it('ヘッダー行に単位が併記されている', () => {
-    const csv = setupsToCsv([]);
+    const csv = toCsvJa([]);
     expect(csv).toContain('気温(℃)');
-    expect(csv).toContain('FL空気圧前(kPa)');
+    expect(csv).toContain('FL 前(kPa)');
     expect(csv).toContain('Fバネレート(kgf/mm)');
   });
 
+  it('ロケール en ではヘッダーが英語になり、データ値は翻訳されない', () => {
+    const tEn = i18n.getFixedT('en');
+    const csv = setupsToCsv([makeSetup({ sessionType: 'race' })], tEn, 'en');
+    // ヘッダーは英語
+    expect(csv).toContain('Air temperature(℃)');
+    expect(csv).toContain('FL before(kPa)');
+    // ラベル系（セッション種別）も英語で出し分け
+    expect(csv).toContain('Race');
+    // ユーザー入力の実データ（サーキット名）は翻訳しない
+    expect(csv).toContain('筑波サーキット');
+  });
+
   it('null フィールドは空セルになる（0 に変換しない）', () => {
-    const csv = setupsToCsv([makeSetup()]);
+    const csv = toCsvJa([makeSetup()]);
     const lines = csv.replace('﻿', '').split('\r\n');
     const dataRow = lines[1];
     // 日付・サーキット・車種・セッション種別以外はすべて空セル。
@@ -92,7 +110,7 @@ describe('setupsToCsv', () => {
       },
       lapTimeData: { bestLap: '1:58.423', totalLaps: 12, laps: [] },
     });
-    const csv = setupsToCsv([setup]);
+    const csv = toCsvJa([setup]);
     expect(csv).toContain('晴れ');
     expect(csv).toContain('1:58.423');
     expect(csv).toContain('215');
@@ -103,18 +121,18 @@ describe('setupsToCsv', () => {
   });
 
   it('複数行を CRLF で連結する', () => {
-    const csv = setupsToCsv([makeSetup(), makeSetup({ id: 'id2' })]);
+    const csv = toCsvJa([makeSetup(), makeSetup({ id: 'id2' })]);
     const lines = csv.replace('﻿', '').split('\r\n');
     expect(lines.length).toBe(3); // ヘッダー + 2行
   });
 
   it('セッション種別が日本語ラベルになる', () => {
-    const csv = setupsToCsv([makeSetup({ sessionType: 'race' })]);
+    const csv = toCsvJa([makeSetup({ sessionType: 'race' })]);
     expect(csv).toContain('レース');
   });
 
   it('メモ内のカンマ・改行が安全にエスケープされる', () => {
-    const csv = setupsToCsv([makeSetup({ notes: 'アンダー強い, 様子見\n次回調整' })]);
+    const csv = toCsvJa([makeSetup({ notes: 'アンダー強い, 様子見\n次回調整' })]);
     expect(csv).toContain('"アンダー強い, 様子見\n次回調整"');
   });
 });

@@ -189,6 +189,7 @@ export const VehicleList: React.FC = () => {
       profile: toPublicVehicleProfile(vehicle.profile),
       ownerLabel: currentUser?.displayName ?? null,
       photoUrl: vehicle.photoURL || null,
+      t,
     };
 
     try {

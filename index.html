@@ -12,7 +12,9 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <!-- Vite SPAのため共有ごとの動的OGPはSSR/Functions導入時の将来課題。 -->
-    <title>VELOCITY LOGGER - 車両セットアップ記録システム</title>
+    <!-- 言語非依存のアプリ名（固有名詞）を既定タイトルにする。
+         実際のタブタイトルは LocaleProvider が現在言語の t('appName') で上書きする。 -->
+    <title>VELOCITY LOGGER</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
   </head>
   <body>

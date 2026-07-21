@@ -8,6 +8,7 @@
 // 証憑として永続化するのはラップタイム+メタデータだけ）。
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams, Link } from 'react-router-dom';
 import { AreaChartOutlined, LineChartOutlined, ReloadOutlined, CarOutlined, EnvironmentOutlined, SwapOutlined } from '@ant-design/icons';
 import { Header } from '../common/Header';
@@ -26,6 +27,7 @@ import type { CarSetup } from '../../types/setup';
 import logger from '../../utils/logger';
 
 export const TelemetryAnalysis: React.FC = () => {
+  const { t } = useTranslation();
   const [settingsModal, setSettingsModal] = useState(false);
   const [currentSettingView, setCurrentSettingView] = useState('account');
 
@@ -184,10 +186,10 @@ export const TelemetryAnalysis: React.FC = () => {
           <div>
             <div className="flex items-center space-x-3 mb-1">
               <LineChartOutlined className="text-xl text-blue-500" />
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">ロガー取込・分析</h2>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('telemetry.analysis.pageTitle')}</h2>
             </div>
             <p className="text-gray-500 dark:text-gray-400 ml-8 text-sm">
-              ロガーファイルからラップを検出し、1ラップ確認または同一ファイル内の2本比較を行います（処理はすべて端末内）
+              {t('telemetry.analysis.pageSubtitle')}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -196,14 +198,14 @@ export const TelemetryAnalysis: React.FC = () => {
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <AreaChartOutlined />
-              走行ログ一覧
+              {t('telemetry.analysis.traceListLink')}
             </Link>
             <Link
               to="/telemetry/files"
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <SwapOutlined />
-              前回/今回ファイルを比較
+              {t('telemetry.analysis.compareFilesLink')}
             </Link>
           </div>
         </div>
@@ -212,24 +214,24 @@ export const TelemetryAnalysis: React.FC = () => {
         {contextSetup && (
           <div className="mb-5 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-4 py-3">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
-              <span className="font-medium text-blue-700 dark:text-blue-300">このセッションのセットアップ</span>
+              <span className="font-medium text-blue-700 dark:text-blue-300">{t('telemetry.analysis.sessionSetup')}</span>
               <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
-                <CarOutlined className="text-gray-400" />{contextSetup.carModel || '車種未設定'}
+                <CarOutlined className="text-gray-400" />{contextSetup.carModel || t('telemetry.analysis.carUnset')}
               </span>
               <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
-                <EnvironmentOutlined className="text-gray-400" />{contextSetup.circuit || 'サーキット未設定'}
+                <EnvironmentOutlined className="text-gray-400" />{contextSetup.circuit || t('telemetry.analysis.circuitUnset')}
               </span>
               <span className="text-gray-500 dark:text-gray-400">
                 {contextSetup.date instanceof Date ? contextSetup.date.toLocaleDateString('ja-JP') : ''}
               </span>
               <Link to={`/setup/${contextSetup.id}`} className="ml-auto text-blue-500 dark:text-blue-400 hover:underline whitespace-nowrap">
-                記録を開く
+                {t('telemetry.analysis.openRecord')}
               </Link>
             </div>
             {contextSetup.lapTimeData?.evidence?.fileName && phase !== 'done' && (
               <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                前回取り込んだロガー: <span className="font-mono">{contextSetup.lapTimeData.evidence.fileName}</span>
-                {' '}— 同じファイルを下で読み込むと、このセットの走りを分析できます（生データは端末内処理のため再選択が必要です）
+                {t('telemetry.analysis.previousLoggerLabel')}<span className="font-mono">{contextSetup.lapTimeData.evidence.fileName}</span>
+                {' '}{t('telemetry.analysis.previousLoggerReselect')}
               </p>
             )}
           </div>
@@ -266,16 +268,15 @@ export const TelemetryAnalysis: React.FC = () => {
                 className="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
               >
                 <ReloadOutlined />
-                別のファイル
+                {t('telemetry.analysis.anotherFile')}
               </button>
             </div>
 
             {result.detection.laps.length === 0 ? (
               <div className={`${cardClass} px-4 py-10 text-center`}>
-                <p className="text-sm text-gray-600 dark:text-gray-300">周回を検出できませんでした</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">{t('telemetry.analysis.noLapsDetected')}</p>
                 <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
-                  コントロールラインを2回以上通過した周回データが必要です。
-                  コースがDB未登録の場合は3周以上の走行データで自動推定できます。
+                  {t('telemetry.analysis.noLapsHint')}
                 </p>
               </div>
             ) : (
@@ -283,8 +284,8 @@ export const TelemetryAnalysis: React.FC = () => {
                 {/* ラップ選択 */}
                 <div className={`${cardClass} p-4 self-start`}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className={headingClass}>ラップ一覧</span>
-                    <span className="text-[11px] text-gray-400">タップして2本選択</span>
+                    <span className={headingClass}>{t('telemetry.analysis.lapListTitle')}</span>
+                    <span className="text-[11px] text-gray-400">{t('telemetry.analysis.tapToSelectTwo')}</span>
                   </div>
                   <LapList
                     laps={result.detection.laps}
@@ -311,13 +312,13 @@ export const TelemetryAnalysis: React.FC = () => {
                 ) : singleLapSlot ? (
                   <div className="self-start">
                     <SingleLapTelemetryView
-                      title="選択ラップを確認"
-                      description="比較相手を選ばなくても、この1本の速度、G、主要指標を確認できます。"
+                      title={t('telemetry.analysis.singleLapTitle')}
+                      description={t('telemetry.analysis.singleLapDescription')}
                       profile={singleLapSlot.profile}
                       lapTimeSeconds={singleLapSlot.lap.timeSeconds}
                       lapNumber={singleLapSlot.lap.lapNumber}
                       lapType={singleLapSlot.lap.type}
-                      circuit={result.track?.name ?? contextSetup?.circuit ?? 'コース未判定'}
+                      circuit={result.track?.name ?? contextSetup?.circuit ?? t('telemetry.analysis.courseUnknown')}
                       carModel={contextSetup?.carModel}
                       fileName={result.fileName}
                       sourceLabel={result.session.meta.format}
@@ -328,10 +329,10 @@ export const TelemetryAnalysis: React.FC = () => {
                 ) : (
                   <div className={`${cardClass} px-4 py-10 text-center self-start`}>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                      表示するラップを選択してください
+                      {t('telemetry.analysis.selectLapPrompt')}
                     </p>
                     <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                      左の一覧から1本を選ぶと単独表示、NORMALを2本選ぶと比較表示になります
+                      {t('telemetry.analysis.selectLapHint')}
                     </p>
                   </div>
                 )}

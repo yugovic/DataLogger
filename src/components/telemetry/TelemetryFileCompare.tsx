@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { Empty } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, SwapOutlined } from '@ant-design/icons';
@@ -18,6 +19,7 @@ import { useTelemetryImport } from './useTelemetryImport';
 type ImportController = ReturnType<typeof useTelemetryImport>;
 
 export const TelemetryFileCompare: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [settingsModal, setSettingsModal] = useState(false);
   const [currentSettingView, setCurrentSettingView] = useState('account');
@@ -70,31 +72,31 @@ export const TelemetryFileCompare: React.FC = () => {
           className="flex items-center text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm mb-4"
         >
           <ArrowLeftOutlined className="mr-1" />
-          戻る
+          {t('telemetry.fileCompare.back')}
         </button>
 
         <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <SwapOutlined className="text-xl text-blue-500" />
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">ロガーファイル比較</h2>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('telemetry.fileCompare.title')}</h2>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              前回と今回、または今回と受け取ったファイルを、保存前に2本並べて比較します。
+              {t('telemetry.fileCompare.description')}
             </p>
           </div>
           <Link
             to="/telemetry/import"
             className="inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            同一ファイル内のラップ比較へ
+            {t('telemetry.fileCompare.toSameFileLapCompare')}
           </Link>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5">
           <FileCompareSlot
             slot="A"
-            label="A: 基準ファイル"
+            label={t('telemetry.fileCompare.slotALabel')}
             colorClass="text-blue-500"
             controller={importA}
             pendingFileName={pendingA}
@@ -112,7 +114,7 @@ export const TelemetryFileCompare: React.FC = () => {
           />
           <FileCompareSlot
             slot="B"
-            label="B: 比較ファイル"
+            label={t('telemetry.fileCompare.slotBLabel')}
             colorClass="text-amber-500"
             controller={importB}
             pendingFileName={pendingB}
@@ -136,13 +138,13 @@ export const TelemetryFileCompare: React.FC = () => {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {inspectionA && importA.result && (
               <SingleLapTelemetryView
-                title="Aファイルの選択ラップ"
-                description="比較対象Bがなくても、この1本の速度、G、主要指標を確認できます。"
+                title={t('telemetry.fileCompare.slotASelectedLapTitle')}
+                description={t('telemetry.fileCompare.singleLapDescriptionA')}
                 profile={inspectionA.profile}
                 lapTimeSeconds={inspectionA.lap.timeSeconds}
                 lapNumber={inspectionA.lap.lapNumber}
                 lapType={inspectionA.lap.type}
-                circuit={importA.result.track?.name ?? 'コース未判定'}
+                circuit={importA.result.track?.name ?? t('telemetry.fileCompare.trackUndetermined')}
                 fileName={importA.result.fileName}
                 sourceLabel={importA.result.session.meta.format}
                 path={inspectionA.path}
@@ -151,13 +153,13 @@ export const TelemetryFileCompare: React.FC = () => {
             )}
             {inspectionB && importB.result && (
               <SingleLapTelemetryView
-                title="Bファイルの選択ラップ"
-                description="比較対象Aがなくても、この1本の速度、G、主要指標を確認できます。"
+                title={t('telemetry.fileCompare.slotBSelectedLapTitle')}
+                description={t('telemetry.fileCompare.singleLapDescriptionB')}
                 profile={inspectionB.profile}
                 lapTimeSeconds={inspectionB.lap.timeSeconds}
                 lapNumber={inspectionB.lap.lapNumber}
                 lapType={inspectionB.lap.type}
-                circuit={importB.result.track?.name ?? 'コース未判定'}
+                circuit={importB.result.track?.name ?? t('telemetry.fileCompare.trackUndetermined')}
                 fileName={importB.result.fileName}
                 sourceLabel={importB.result.session.meta.format}
                 path={inspectionB.path}
@@ -170,7 +172,7 @@ export const TelemetryFileCompare: React.FC = () => {
             <Empty
               description={
                 <span className="text-gray-500 dark:text-gray-400">
-                  A/BそれぞれにNORMALラップを含むロガーファイルを読み込み、比較するラップを選択してください
+                  {t('telemetry.fileCompare.emptyPrompt')}
                 </span>
               }
             />
@@ -204,6 +206,7 @@ const FileCompareSlot: React.FC<FileCompareSlotProps> = ({
   onFile,
   onReset,
 }) => {
+  const { t } = useTranslation();
   const { phase, result, error, busy } = controller;
   const maxSpeeds = useMemo(
     () => (result ? calcLapMaxSpeeds(result.session.points, result.detection.laps) : []),
@@ -224,7 +227,7 @@ const FileCompareSlot: React.FC<FileCompareSlotProps> = ({
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
           >
             <ReloadOutlined />
-            別ファイル
+            {t('telemetry.fileCompare.anotherFile')}
           </button>
         )}
       </div>
@@ -245,10 +248,10 @@ const FileCompareSlot: React.FC<FileCompareSlotProps> = ({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  表示ラップ
+                  {t('telemetry.fileCompare.displayLap')}
                 </span>
                 <span className="text-[11px] text-gray-400">
-                  NORMALを選ぶと比較にも使えます
+                  {t('telemetry.fileCompare.selectNormalHint')}
                 </span>
               </div>
               <LapList
@@ -263,9 +266,9 @@ const FileCompareSlot: React.FC<FileCompareSlotProps> = ({
             </div>
           ) : (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-5 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-300">表示できるラップがありません</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{t('telemetry.fileCompare.noLapsAvailable')}</p>
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                コントロールラインを2回以上通過した走行データを選択してください。
+                {t('telemetry.fileCompare.noLapsHint')}
               </p>
             </div>
           )}

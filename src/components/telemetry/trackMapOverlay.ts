@@ -18,6 +18,13 @@ export interface TrackMapOverlay {
 interface TrackMapOverlayOptions {
   darkMode: boolean;
   showLabels?: boolean;
+  /** i18n 翻訳関数。未指定時は日本語の既定ラベルを使用（後方互換） */
+  t?: (key: string) => string;
+}
+
+/** t があれば翻訳キーを解決し、無ければ日本語の既定ラベルを返す */
+function overlayLabel(options: TrackMapOverlayOptions, key: string, fallback: string): string {
+  return options.t ? options.t(key) : fallback;
 }
 
 type OverlayLabelPosition = 'top' | 'bottom' | 'left' | 'right';
@@ -51,9 +58,12 @@ export function buildTrackMapOverlay(
   const bounds = createBounds([...center, ...boundaries.left, ...boundaries.right]);
   const boundaryColor = options.darkMode ? BOUNDARY_DARK : BOUNDARY_LIGHT;
 
+  const centerlineName = overlayLabel(options, 'telemetry.trackMap.centerline', 'コース中心線');
+  const boundaryName = overlayLabel(options, 'telemetry.trackMap.boundary', 'コース境界');
+
   const series: echarts.SeriesOption[] = [
     {
-      name: 'コース中心線',
+      name: centerlineName,
       type: 'line',
       data: center.map(toValue),
       showSymbol: false,
@@ -62,7 +72,7 @@ export function buildTrackMapOverlay(
       lineStyle: { width: 1, color: CENTERLINE_COLOR, type: 'dashed' },
     },
     {
-      name: 'コース境界',
+      name: boundaryName,
       type: 'line',
       data: boundaries.left.map(toValue),
       showSymbol: false,
@@ -71,7 +81,7 @@ export function buildTrackMapOverlay(
       lineStyle: { width: 1.4, color: boundaryColor },
     },
     {
-      name: 'コース境界',
+      name: boundaryName,
       type: 'line',
       data: boundaries.right.map(toValue),
       showSymbol: false,
@@ -84,7 +94,7 @@ export function buildTrackMapOverlay(
   const curbPoints = buildCurbPolyline(center, boundaries, trackMap.curbs);
   if (curbPoints.length > 0) {
     series.push({
-      name: '縁石',
+      name: overlayLabel(options, 'telemetry.trackMap.curb', '縁石'),
       type: 'line',
       data: curbPoints,
       showSymbol: false,
@@ -107,7 +117,7 @@ export function buildTrackMapOverlay(
     });
     if (sectorLabels.length > 0) {
       series.push({
-        name: 'セクター',
+        name: overlayLabel(options, 'telemetry.trackMap.sector', 'セクター'),
         type: 'scatter',
         data: sectorLabels,
         symbolSize: 0,
@@ -141,7 +151,7 @@ export function buildTrackMapOverlay(
     });
     if (cornerLabels.length > 0) {
       series.push({
-        name: 'コーナー',
+        name: overlayLabel(options, 'telemetry.trackMap.corner', 'コーナー'),
         type: 'scatter',
         data: cornerLabels,
         symbolSize: 5,

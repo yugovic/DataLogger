@@ -44,22 +44,25 @@ export const SpecCard: React.FC<SpecCardProps> = ({
   const totalModItems = view.modificationGroups.reduce((sum, group) => sum + group.items.length, 0);
   // 表面のピルは3つまで（トレカとして情報を絞る）: 改造度・タイヤ区分・出力
   const powerItem = view.specItems.find((item) => item.key === 'powerPs') ?? null;
+  const modLevelLabel = t(`vehicle.labels.modLevel.${view.modLevel}`);
+  const tireClassLabel = view.tireClass ? t(`vehicle.labels.tireClass.${view.tireClass}`) : null;
+  const selfReported = t('vehicle.specCard.selfReported');
 
   if (variant === 'compact') {
     return (
       <div className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1.5 dark:border-stone-700 dark:bg-stone-800/70">
         <span className={`h-2 w-2 shrink-0 rounded-full ${theme.dot}`} />
         <span className="text-[11px] font-bold leading-none text-stone-700 dark:text-stone-200">
-          {view.modLevelLabel}
+          {modLevelLabel}
         </span>
-        {view.tireClassLabel && (
+        {tireClassLabel && (
           <span className="text-[11px] font-semibold leading-none text-stone-500 dark:text-stone-400">
-            {view.tireClassLabel}
+            {tireClassLabel}
           </span>
         )}
         {view.modificationCategoryCount > 0 && (
           <span className="text-[11px] leading-none text-stone-400 dark:text-stone-500">
-            {view.compactSummary}
+            {t('vehicle.specCard.categoryCount', { count: view.modificationCategoryCount })}
           </span>
         )}
       </div>
@@ -123,13 +126,13 @@ export const SpecCard: React.FC<SpecCardProps> = ({
             <div className="flex flex-wrap items-center gap-1.5">
               <Pill>
                 <span className={`h-1.5 w-1.5 rounded-full ${theme.dot}`} />
-                {view.modLevelLabel}
+                {modLevelLabel}
               </Pill>
-              {view.tireClassLabel && <Pill>{view.tireClassLabel}</Pill>}
+              {tireClassLabel && <Pill>{tireClassLabel}</Pill>}
               {powerItem && (
                 <Pill>
                   <span className="font-mono">{powerItem.value}</span>
-                  <span className="font-medium text-stone-400">{powerItem.notice}</span>
+                  <span className="font-medium text-stone-400">{selfReported}</span>
                 </Pill>
               )}
             </div>
@@ -174,19 +177,19 @@ export const SpecCard: React.FC<SpecCardProps> = ({
               </span>
               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-stone-200">
                 <span className={`h-1.5 w-1.5 rounded-full ${theme.dot}`} />
-                {view.modLevelLabel}
+                {modLevelLabel}
               </span>
             </div>
             <h4 className="mt-1 line-clamp-1 break-words text-lg font-black tracking-tight text-white">
               {model}
             </h4>
-            {(view.tireClassLabel || view.specItems.length > 0) && (
+            {(tireClassLabel || view.specItems.length > 0) && (
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-semibold text-stone-400">
-                {view.tireClassLabel && <span>{view.tireClassLabel}</span>}
+                {tireClassLabel && <span>{tireClassLabel}</span>}
                 {view.specItems.map((item) => (
                   <span key={item.key}>
                     <span className="font-mono text-stone-300">{item.value}</span>
-                    <span className="ml-1 text-stone-500">{item.notice}</span>
+                    <span className="ml-1 text-stone-500">{selfReported}</span>
                   </span>
                 ))}
               </div>
@@ -207,7 +210,7 @@ export const SpecCard: React.FC<SpecCardProps> = ({
                     className="grid grid-cols-[4.5rem_1fr] gap-2.5 py-2 first:pt-1 last:pb-1"
                   >
                     <dt className="pt-0.5 text-[10px] font-bold leading-4 tracking-wide text-stone-500">
-                      {group.label}
+                      {t(`vehicle.labels.modCategory.${group.category}`)}
                     </dt>
                     <dd className="min-w-0 space-y-1">
                       {group.items.map((item, index) => (

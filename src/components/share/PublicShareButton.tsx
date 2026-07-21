@@ -3,12 +3,14 @@ import { Button, Input, Modal, Tooltip, message } from 'antd';
 import { CopyOutlined, LinkOutlined } from '@ant-design/icons';
 import { createPublicShare } from '../../services/publicShareService';
 import type { CarSetup } from '../../types/setup';
+import { useTranslation } from 'react-i18next';
 
 interface PublicShareButtonProps {
   setup: CarSetup;
 }
 
 export const PublicShareButton: React.FC<PublicShareButtonProps> = ({ setup }) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
@@ -16,9 +18,9 @@ export const PublicShareButton: React.FC<PublicShareButtonProps> = ({ setup }) =
   const copyShareUrl = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      message.success('公開リンクをコピーしました');
+      message.success(t('share.button.copySuccess'));
     } catch {
-      message.error('公開リンクのコピーに失敗しました');
+      message.error(t('share.button.copyError'));
     }
   };
 
@@ -32,7 +34,7 @@ export const PublicShareButton: React.FC<PublicShareButtonProps> = ({ setup }) =
       setModalOpen(true);
     } catch (error) {
       console.error('Public share issue error:', error);
-      message.error('公開リンクの発行に失敗しました');
+      message.error(t('share.button.issueError'));
     } finally {
       setLoading(false);
     }
@@ -40,12 +42,12 @@ export const PublicShareButton: React.FC<PublicShareButtonProps> = ({ setup }) =
 
   return (
     <>
-      <Tooltip title="公開リンクを発行">
+      <Tooltip title={t('share.button.tooltip')}>
         <button
           onClick={issueShareLink}
           disabled={loading}
           className="rounded-md p-2 text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-blue-400 dark:hover:bg-blue-900/30"
-          aria-label="公開リンクを発行"
+          aria-label={t('share.button.tooltip')}
         >
           <LinkOutlined style={{ fontSize: '16px' }} />
         </button>
@@ -53,20 +55,20 @@ export const PublicShareButton: React.FC<PublicShareButtonProps> = ({ setup }) =
 
       <Modal
         open={modalOpen}
-        title="公開リンク"
-        okText="閉じる"
+        title={t('share.button.modalTitle')}
+        okText={t('share.button.modalClose')}
         cancelButtonProps={{ style: { display: 'none' } }}
         onOk={() => setModalOpen(false)}
         onCancel={() => setModalOpen(false)}
       >
         <div className="space-y-3">
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            匿名サマリーの公開ページを発行しました。セットアップ数値詳細は公開されません。
+            {t('share.button.modalDescription')}
           </p>
           <Input.Group compact>
             <Input readOnly value={shareUrl} className="w-[calc(100%-104px)]" />
             <Button icon={<CopyOutlined />} onClick={() => copyShareUrl(shareUrl)}>
-              コピー
+              {t('share.button.copy')}
             </Button>
           </Input.Group>
         </div>

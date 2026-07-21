@@ -3,6 +3,7 @@
 // OUT/IN（ライン通過で計測が完結していない周回）は減光して区別する。
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ThunderboltFilled } from '@ant-design/icons';
 import type { Lap } from '../../lib/telemetry';
 import { formatLapDelta, formatLapSeconds } from './evidence';
@@ -32,6 +33,7 @@ export const LapList: React.FC<LapListProps> = ({
   selection,
   onSelect,
 }) => {
+  const { t } = useTranslation();
   if (laps.length === 0) return null;
 
   const best = bestLapIndex !== null ? laps[bestLapIndex] : null;
@@ -142,7 +144,7 @@ export const LapList: React.FC<LapListProps> = ({
 
       {hasIncomplete && (
         <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
-          OUT / IN はコントロールライン通過で計測が完結していない周回です（ベストラップの対象外）
+          {t('telemetry.lapList.incompleteNote')}
         </p>
       )}
     </div>

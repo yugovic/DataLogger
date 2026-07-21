@@ -53,7 +53,7 @@ export const TelemetryTraceCompare: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       if (!aTraceId) {
-        setLoadError('比較元のテレメトリトレースが指定されていません');
+        setLoadError(t('telemetry.traceCompare.errors.noBaseSpecified'));
         setLoading(false);
         return;
       }
@@ -65,7 +65,7 @@ export const TelemetryTraceCompare: React.FC = () => {
       try {
         const a = await getTelemetryTrace(aTraceId);
         if (!a) {
-          setLoadError('比較元のテレメトリトレースが見つかりません');
+          setLoadError(t('telemetry.traceCompare.errors.baseNotFound'));
           return;
         }
         const nextCandidates = await getComparableTraceCandidates(a);
@@ -75,9 +75,9 @@ export const TelemetryTraceCompare: React.FC = () => {
           setTraceA(a);
           setTraceB(null);
           if (bTraceId) {
-            setLoadError('比較対象のテレメトリトレースが見つかりません');
+            setLoadError(t('telemetry.traceCompare.errors.targetNotFound'));
           } else {
-            setCandidateNotice('同じ車種・コースの保存済み比較候補がまだありません');
+            setCandidateNotice(t('telemetry.traceCompare.noSavedCandidates'));
           }
           return;
         }
@@ -90,8 +90,8 @@ export const TelemetryTraceCompare: React.FC = () => {
         }
       } catch (error) {
         logger.error('保存済みテレメトリ比較の読み込みに失敗しました:', error);
-        setLoadError('保存済みテレメトリ比較の読み込みに失敗しました');
-        message.error('保存済みテレメトリ比較の読み込みに失敗しました');
+        setLoadError(t('telemetry.traceCompare.errors.loadFailed'));
+        message.error(t('telemetry.traceCompare.errors.loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -110,14 +110,14 @@ export const TelemetryTraceCompare: React.FC = () => {
     try {
       const nextTrace = await getTelemetryTrace(traceId);
       if (!nextTrace) {
-        message.error('比較対象のトレースが見つかりません');
+        message.error(t('telemetry.traceCompare.errors.targetTraceNotFound'));
         return;
       }
       setTraceB(nextTrace);
       setCandidateLabel(t('setup.compare.candidate.specified'));
     } catch (error) {
       logger.error('比較対象の切り替えに失敗しました:', error);
-      message.error('比較対象の切り替えに失敗しました');
+      message.error(t('telemetry.traceCompare.errors.switchFailed'));
     }
   };
 
@@ -165,19 +165,19 @@ export const TelemetryTraceCompare: React.FC = () => {
           className="flex items-center text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm mb-4"
         >
           <ArrowLeftOutlined className="mr-1" />
-          戻る
+          {t('telemetry.traceCompare.back')}
         </button>
 
         <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">保存済みテレメトリ比較</h2>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('telemetry.traceCompare.title')}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              取り込んで保存した比較用トレースを、過去の自分のベストや指定ラップと重ねます。
+              {t('telemetry.traceCompare.subtitle')}
             </p>
           </div>
           {candidateLabel && !uploadedTraceB && (
             <Tag color="blue" className="w-fit">
-              比較対象: {candidateLabel}
+              {t('telemetry.traceCompare.compareTarget', { label: candidateLabel })}
             </Tag>
           )}
         </div>
@@ -191,7 +191,7 @@ export const TelemetryTraceCompare: React.FC = () => {
             <Empty
               description={
                 <span className="text-gray-500 dark:text-gray-400">
-                  {loadError ?? '比較できません'}
+                  {loadError ?? t('telemetry.traceCompare.errors.cannotCompare')}
                 </span>
               }
             />
@@ -203,10 +203,10 @@ export const TelemetryTraceCompare: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                      保存済みB候補
+                      {t('telemetry.traceCompare.savedBCandidates')}
                     </h3>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                      自己ベスト、前回、条件が近いログを自動候補にします。下でファイルをアップロードした場合はアップロードBを優先します。
+                      {t('telemetry.traceCompare.savedBCandidatesHint')}
                     </p>
                   </div>
                   <Select
@@ -246,14 +246,14 @@ export const TelemetryTraceCompare: React.FC = () => {
               <div className="space-y-4">
                 {candidateNotice && (
                   <div className="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-                    {candidateNotice}。比較なしでもA単独の速度・G・主要指標を確認できます。
+                    {t('telemetry.traceCompare.candidateNoticeSuffix', { notice: candidateNotice })}
                   </div>
                 )}
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   {traceAProfile && (
                     <SingleLapTelemetryView
-                      title="Aトレースを単独確認"
-                      description="比較対象がなくても、保存済みラップ1本の内容を確認できます。"
+                      title={t('telemetry.traceCompare.inspectATitle')}
+                      description={t('telemetry.traceCompare.inspectADesc')}
                       profile={traceAProfile}
                       lapTimeSeconds={traceA.lap.timeSeconds}
                       lapNumber={traceA.lap.lapNumber}
@@ -269,8 +269,8 @@ export const TelemetryTraceCompare: React.FC = () => {
                   )}
                   {uploadedInspectionB && uploadB.result && (
                     <SingleLapTelemetryView
-                      title="アップロードBを単独確認"
-                      description="このラップは保存済みAとの比較には使えませんが、単独ログとして確認できます。"
+                      title={t('telemetry.traceCompare.inspectUploadBTitle')}
+                      description={t('telemetry.traceCompare.inspectUploadBDesc')}
                       profile={uploadedInspectionB.profile}
                       lapTimeSeconds={uploadedInspectionB.lap.timeSeconds}
                       lapNumber={uploadedInspectionB.lap.lapNumber}
@@ -310,6 +310,7 @@ const UploadComparisonTarget: React.FC<UploadComparisonTargetProps> = ({
   onFile,
   onReset,
 }) => {
+  const { t } = useTranslation();
   const { phase, result, error, busy } = controller;
   const maxSpeeds = useMemo(
     () => (result ? calcLapMaxSpeeds(result.session.points, result.detection.laps) : []),
@@ -325,10 +326,10 @@ const UploadComparisonTarget: React.FC<UploadComparisonTargetProps> = ({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
         <div>
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-            アップロードしたファイルをBとして比較
+            {t('telemetry.traceCompare.uploadAsB')}
           </h3>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-            手元の前回ログ、共有されたログ、サンプルログを読み込むと、保存済みAの自己ベスト候補より優先して表示します。
+            {t('telemetry.traceCompare.uploadAsBHint')}
           </p>
         </div>
         {phase === 'done' && (
@@ -337,7 +338,7 @@ const UploadComparisonTarget: React.FC<UploadComparisonTargetProps> = ({
             className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
           >
             <ReloadOutlined />
-            別ファイル
+            {t('telemetry.traceCompare.anotherFile')}
           </button>
         )}
       </div>
@@ -358,9 +359,9 @@ const UploadComparisonTarget: React.FC<UploadComparisonTargetProps> = ({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Bに使う/表示するラップ
+                  {t('telemetry.traceCompare.lapForB')}
                 </span>
-                <span className="text-[11px] text-gray-400">NORMALなら比較対象</span>
+                <span className="text-[11px] text-gray-400">{t('telemetry.traceCompare.normalIsComparable')}</span>
               </div>
               <LapList
                 laps={result.detection.laps}
@@ -374,9 +375,9 @@ const UploadComparisonTarget: React.FC<UploadComparisonTargetProps> = ({
             </div>
           ) : (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-5 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-300">表示できるラップがありません</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{t('telemetry.traceCompare.noDisplayableLaps')}</p>
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                コントロールラインを2回以上通過した走行データを選択してください。
+                {t('telemetry.traceCompare.noDisplayableLapsHint')}
               </p>
             </div>
           )}

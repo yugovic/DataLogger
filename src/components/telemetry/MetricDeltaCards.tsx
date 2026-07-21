@@ -3,6 +3,7 @@
 // 「14m手前でブレーキ」のように、生トレースを非専門家でも読める数値へ蒸留する軽い解釈層。
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { LapMetrics } from '../../lib/telemetry';
 
 interface MetricDeltaCardsProps {
@@ -42,9 +43,10 @@ function deltaColor(delta: number, better: Better): string {
 }
 
 export const MetricDeltaCards: React.FC<MetricDeltaCardsProps> = ({ metricsA, metricsB }) => {
+  const { t } = useTranslation();
   const specs: MetricSpec[] = [
     {
-      label: 'ラップタイム',
+      label: t('telemetry.metricDelta.lapTime'),
       unit: 's',
       a: metricsA.lapTimeSeconds,
       b: metricsB.lapTimeSeconds,
@@ -52,7 +54,7 @@ export const MetricDeltaCards: React.FC<MetricDeltaCardsProps> = ({ metricsA, me
       better: 'lower',
     },
     {
-      label: '最高速',
+      label: t('telemetry.metricDelta.topSpeed'),
       unit: ' km/h',
       a: metricsA.topSpeedKmh,
       b: metricsB.topSpeedKmh,
@@ -60,7 +62,7 @@ export const MetricDeltaCards: React.FC<MetricDeltaCardsProps> = ({ metricsA, me
       better: 'higher',
     },
     {
-      label: '最小コーナー速度',
+      label: t('telemetry.metricDelta.minCornerSpeed'),
       unit: ' km/h',
       a: metricsA.minCornerSpeedKmh,
       b: metricsB.minCornerSpeedKmh,
@@ -68,7 +70,7 @@ export const MetricDeltaCards: React.FC<MetricDeltaCardsProps> = ({ metricsA, me
       better: 'higher',
     },
     {
-      label: 'ブレーキ開始',
+      label: t('telemetry.metricDelta.brakingPoint'),
       unit: ' m',
       a: metricsA.brakingPointM,
       b: metricsB.brakingPointM,
@@ -76,7 +78,7 @@ export const MetricDeltaCards: React.FC<MetricDeltaCardsProps> = ({ metricsA, me
       better: 'higher', // 奥まで踏める（距離が大きい）方が良い
     },
     {
-      label: '最大減速G',
+      label: t('telemetry.metricDelta.maxBrakingG'),
       unit: ' G',
       a: metricsA.maxBrakingG,
       b: metricsB.maxBrakingG,
@@ -84,7 +86,7 @@ export const MetricDeltaCards: React.FC<MetricDeltaCardsProps> = ({ metricsA, me
       better: 'lower', // より負＝強い制動
     },
     {
-      label: '最大横G',
+      label: t('telemetry.metricDelta.maxLatG'),
       unit: ' G',
       a: metricsA.maxLatG,
       b: metricsB.maxLatG,
@@ -92,7 +94,7 @@ export const MetricDeltaCards: React.FC<MetricDeltaCardsProps> = ({ metricsA, me
       better: 'higher',
     },
     {
-      label: '平均G',
+      label: t('telemetry.metricDelta.avgG'),
       unit: ' G',
       a: metricsA.avgAbsLongG,
       b: metricsB.avgAbsLongG,
@@ -104,7 +106,7 @@ export const MetricDeltaCards: React.FC<MetricDeltaCardsProps> = ({ metricsA, me
   // フルスロットル% はスロットルCHがある時だけ（現状 null → 非表示）
   if (metricsA.fullThrottlePct !== null && metricsB.fullThrottlePct !== null) {
     specs.push({
-      label: 'フルスロットル',
+      label: t('telemetry.metricDelta.fullThrottle'),
       unit: ' %',
       a: metricsA.fullThrottlePct,
       b: metricsB.fullThrottlePct,

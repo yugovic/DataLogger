@@ -124,8 +124,8 @@ export const TelemetryTraceList: React.FC = () => {
           (error as { code?: unknown }).code === 'permission-denied';
         message.error(
           isPermissionDenied
-            ? '走行ログ一覧の取得権限がありません。Firestore rules の telemetryTraces 設定とデプロイ状態を確認してください。'
-            : '走行ログ一覧の取得に失敗しました',
+            ? t('telemetry.list.loadPermissionError')
+            : t('telemetry.list.loadError'),
           6,
         );
       } finally {
@@ -215,9 +215,9 @@ export const TelemetryTraceList: React.FC = () => {
       ? selectedBucket.traces.some((trace) => traceKey(trace) === comparisonTraceKey && traceKey(trace) !== traceKey(selectedTrace))
       : false;
     if (validExisting) return;
-    const defaultReference = buildDefaultComparisonTrace(selectedTrace, selectedBucket.traces);
+    const defaultReference = buildDefaultComparisonTrace(selectedTrace, selectedBucket.traces, t);
     setComparisonTraceKey(defaultReference ? traceKey(defaultReference) : null);
-  }, [comparisonTraceKey, selectedBucket, selectedTrace]);
+  }, [comparisonTraceKey, selectedBucket, selectedTrace, t]);
 
   const comparisonTrace = useMemo(() => {
     if (!selectedBucket || !selectedTrace || !comparisonTraceKey) return null;
@@ -227,9 +227,9 @@ export const TelemetryTraceList: React.FC = () => {
 
   const referenceCandidate = useMemo(
     () => (selectedBucket && selectedTrace && comparisonTrace
-      ? buildReferenceCandidate(selectedTrace, comparisonTrace, selectedBucket.traces)
+      ? buildReferenceCandidate(selectedTrace, comparisonTrace, selectedBucket.traces, t)
       : null),
-    [comparisonTrace, selectedBucket, selectedTrace],
+    [comparisonTrace, selectedBucket, selectedTrace, t],
   );
 
   const preview = useMemo<PreviewModel | null>(() => {
@@ -322,7 +322,7 @@ export const TelemetryTraceList: React.FC = () => {
             <div className="flex items-center gap-2 mt-1">
               <BarChartOutlined className="text-xl text-blue-500" />
               <h2 className="text-3xl sm:text-4xl font-black leading-none text-gray-900 dark:text-gray-50">
-                走行ログ
+                {t('telemetry.list.pageTitle')}
               </h2>
             </div>
             <div className="mt-2 h-0.5 w-9 bg-red-500" />
@@ -335,14 +335,14 @@ export const TelemetryTraceList: React.FC = () => {
                 <input
                   value={searchText}
                   onChange={(event) => setSearchText(event.target.value)}
-                  placeholder="車種・トラックを検索"
+                  placeholder={t('telemetry.list.searchPlaceholder')}
                   className="w-full bg-transparent text-sm text-gray-800 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none"
                 />
               </label>
               <Select
                 value={filterCarModel}
                 onChange={setFilterCarModel}
-                placeholder="車種: すべて"
+                placeholder={t('telemetry.list.carFilterPlaceholder')}
                 allowClear
                 showSearch
                 className="min-w-36"
@@ -351,7 +351,7 @@ export const TelemetryTraceList: React.FC = () => {
               <Select
                 value={filterCircuit}
                 onChange={setFilterCircuit}
-                placeholder="トラック: すべて"
+                placeholder={t('telemetry.list.trackFilterPlaceholder')}
                 allowClear
                 showSearch
                 className="min-w-40"
@@ -372,7 +372,7 @@ export const TelemetryTraceList: React.FC = () => {
               <Select
                 value={filterVisibility}
                 onChange={setFilterVisibility}
-                placeholder="公開範囲"
+                placeholder={t('telemetry.list.visibilityPlaceholder')}
                 allowClear
                 className="min-w-32"
                 options={[
@@ -386,10 +386,10 @@ export const TelemetryTraceList: React.FC = () => {
             </div>
             <div className="flex flex-wrap items-center justify-start xl:justify-end gap-2">
               <Button icon={<SwapOutlined />} onClick={() => navigate('/telemetry/files')}>
-                2ファイル比較
+                {t('telemetry.list.compareTwoFiles')}
               </Button>
               <Button type="primary" icon={<UploadOutlined />} onClick={() => navigate('/telemetry/import')}>
-                ロガーを追加
+                {t('telemetry.list.addLogger')}
               </Button>
             </div>
           </div>
@@ -402,16 +402,16 @@ export const TelemetryTraceList: React.FC = () => {
         ) : traces.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-12">
             <Empty
-              description={<span className="text-gray-500 dark:text-gray-400">走行ログがまだありません</span>}
+              description={<span className="text-gray-500 dark:text-gray-400">{t('telemetry.list.emptyNoLogs')}</span>}
             >
               <Button type="primary" icon={<UploadOutlined />} onClick={() => navigate('/telemetry/import')}>
-                最初のロガーを追加
+                {t('telemetry.list.addFirstLogger')}
               </Button>
             </Empty>
           </div>
         ) : buckets.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-12">
-            <Empty description={<span className="text-gray-500 dark:text-gray-400">条件に一致する組み合わせがありません</span>} />
+            <Empty description={<span className="text-gray-500 dark:text-gray-400">{t('telemetry.list.emptyNoMatch')}</span>} />
           </div>
         ) : selectedBucket ? (
           <AnalysisWorkspace
@@ -453,14 +453,16 @@ const CombinationOverview: React.FC<{
   totalLogCount: number;
   onHighlight: (key: string) => void;
   onOpen: (key: string) => void;
-}> = ({ buckets, highlightedBucket, totalLogCount, onHighlight, onOpen }) => (
+}> = ({ buckets, highlightedBucket, totalLogCount, onHighlight, onOpen }) => {
+  const { t } = useTranslation();
+  return (
   <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px] gap-3 min-h-[calc(100vh-13.5rem)] lg:min-h-0 lg:h-[calc(100vh-13.5rem)]">
     <section className="min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden flex flex-col">
       <div className="min-h-[58px] flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
         <div className="min-w-0">
-          <h3 className="text-base font-black text-gray-900 dark:text-gray-100">トラック × 車両</h3>
+          <h3 className="text-base font-black text-gray-900 dark:text-gray-100">{t('telemetry.list.trackVehicleTitle')}</h3>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 truncate">
-            分析に入る前に、同じ車両・同じトラックの組み合わせを選びます。
+            {t('telemetry.list.trackVehicleHint')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -478,14 +480,17 @@ const CombinationOverview: React.FC<{
 
     <CombinationInspector bucket={highlightedBucket} onOpen={onOpen} />
   </section>
-);
+  );
+};
 
 const CombinationLedger: React.FC<{
   buckets: TraceBucket[];
   highlightedKey: string | null;
   onHighlight: (key: string) => void;
   onOpen: (key: string) => void;
-}> = ({ buckets, highlightedKey, onHighlight, onOpen }) => (
+}> = ({ buckets, highlightedKey, onHighlight, onOpen }) => {
+  const { t } = useTranslation();
+  return (
   <div className="min-h-0 overflow-auto">
     <table className="min-w-[920px] w-full border-collapse text-left">
       <thead className="sticky top-0 z-[1] bg-gray-50 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700">
@@ -501,7 +506,7 @@ const CombinationLedger: React.FC<{
       <tbody>
         {buckets.map((bucket) => {
           const highlighted = bucket.key === highlightedKey;
-          const status = bucketStatus(bucket);
+          const status = bucketStatus(bucket, t);
           const displayTrace = bucket.bestTrace ?? bucket.lastTrace ?? bucket.traces[0];
           return (
             <tr
@@ -524,7 +529,7 @@ const CombinationLedger: React.FC<{
               }}
               tabIndex={0}
               aria-selected={highlighted}
-              title="クリックで選択、ダブルクリックまたはEnterで詳細を開く"
+              title={t('telemetry.list.rowHint')}
             >
               <td className="px-3 py-3 align-middle">
                 <div className="flex items-center gap-3 min-w-0">
@@ -563,22 +568,24 @@ const CombinationLedger: React.FC<{
       </tbody>
     </table>
   </div>
-);
+  );
+};
 
 const CombinationInspector: React.FC<{
   bucket: TraceBucket | null;
   onOpen: (key: string) => void;
 }> = ({ bucket, onOpen }) => {
+  const { t } = useTranslation();
   if (!bucket) {
     return (
       <aside className="min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 flex items-center justify-center">
-        <Empty description="組み合わせを選択してください" />
+        <Empty description={t('telemetry.list.selectCombination')} />
       </aside>
     );
   }
 
   const trace = bucket.lastTrace ?? bucket.bestTrace ?? bucket.traces[0];
-  const status = bucketStatus(bucket);
+  const status = bucketStatus(bucket, t);
   return (
     <aside className="min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden flex flex-col">
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
@@ -624,7 +631,7 @@ const CombinationInspector: React.FC<{
 
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
         <Button type="primary" block onClick={() => onOpen(bucket.key)}>
-          詳細を開く
+          {t('telemetry.list.openDetail')}
         </Button>
       </div>
     </aside>
@@ -662,12 +669,13 @@ const AnalysisWorkspace: React.FC<{
   onDebrief,
   onCompare,
 }) => {
+  const { t } = useTranslation();
   const lapOptions = sortTracesByDateDesc(bucket.traces).map((trace) => ({
     value: traceKey(trace),
     label: lapSelectLabel(trace),
   }));
   const comparisonOptions = [
-    { value: NO_COMPARISON, label: '比較なし' },
+    { value: NO_COMPARISON, label: t('telemetry.list.noComparison') },
     ...sortComparisonTraces(selectedTrace, bucket.traces).map((trace) => ({
       value: traceKey(trace),
       label: comparisonSelectLabel(selectedTrace, trace),
@@ -687,7 +695,7 @@ const AnalysisWorkspace: React.FC<{
               className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
             >
               <ArrowLeftOutlined />
-              組み合わせ一覧
+              {t('telemetry.list.backToCombinations')}
             </button>
             <div className="mt-2 text-[11px] font-black tracking-[0.16em] uppercase text-gray-400 dark:text-gray-500">
               Telemetry Analysis
@@ -701,14 +709,14 @@ const AnalysisWorkspace: React.FC<{
             <Tag>{bucket.bestTrace ? `Best ${formatLapSeconds(bucket.bestTrace.lap.timeSeconds)}` : 'Best -'}</Tag>
             <Tag>{titleTrace.source.format}</Tag>
             <QualityTag flags={titleTrace.qualityFlags} />
-            {isSampleTelemetryTraceId(titleTrace.id) && <Tag color="blue">サンプル</Tag>}
+            {isSampleTelemetryTraceId(titleTrace.id) && <Tag color="blue">{t('telemetry.list.sample')}</Tag>}
           </div>
         </div>
 
         <div className="px-4 py-3 bg-gray-50/80 dark:bg-gray-900/25 border-b border-gray-200 dark:border-gray-700">
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(260px,1fr)_minmax(260px,1fr)_auto] gap-2 xl:items-center">
             <label className="min-w-0">
-              <div className="mb-1 text-[11px] font-black tracking-wider uppercase text-gray-500 dark:text-gray-400">分析ラップ</div>
+              <div className="mb-1 text-[11px] font-black tracking-wider uppercase text-gray-500 dark:text-gray-400">{t('telemetry.list.analysisLap')}</div>
               <Select
                 value={selectedTraceKey ?? undefined}
                 onChange={onAnalysisLapChange}
@@ -717,7 +725,7 @@ const AnalysisWorkspace: React.FC<{
               />
             </label>
             <label className="min-w-0">
-              <div className="mb-1 text-[11px] font-black tracking-wider uppercase text-gray-500 dark:text-gray-400">比較ラップ</div>
+              <div className="mb-1 text-[11px] font-black tracking-wider uppercase text-gray-500 dark:text-gray-400">{t('telemetry.list.comparisonLap')}</div>
               <Select
                 value={comparisonTraceKey ?? NO_COMPARISON}
                 onChange={(value) => onComparisonLapChange(value === NO_COMPARISON ? null : value)}
@@ -727,10 +735,10 @@ const AnalysisWorkspace: React.FC<{
             </label>
             <div className="flex flex-wrap items-end gap-2 xl:justify-end">
               <Button type="primary" onClick={onDebrief} disabled={!selectedTrace?.id}>
-                デブリーフ
+                {t('telemetry.list.debrief')}
               </Button>
               <Button onClick={onCompare} disabled={!selectedTrace?.id}>
-                比較
+                {t('telemetry.list.compare')}
               </Button>
               {selectedTrace?.setupId && selectedTrace.setupId !== SAMPLE_TELEMETRY_SETUP_ID && (
                 <Link
@@ -738,7 +746,7 @@ const AnalysisWorkspace: React.FC<{
                   className="inline-flex items-center justify-center gap-1 px-3 h-8 text-sm rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
                   <FileTextOutlined />
-                  記録
+                  {t('telemetry.list.record')}
                 </Link>
               )}
             </div>
@@ -752,7 +760,7 @@ const AnalysisWorkspace: React.FC<{
               <ConditionTags trace={selectedTrace} tone={selectedTone} />
               {comparisonTrace && (
                 <Tag color={preview?.finalDelta != null && preview.finalDelta <= 0 ? 'green' : 'red'}>
-                  比較差 {preview ? formatSignedSeconds(preview.finalDelta) : formatSignedSeconds(selectedTrace.lap.timeSeconds - comparisonTrace.lap.timeSeconds)}
+                  {t('telemetry.list.comparisonDelta')} {preview ? formatSignedSeconds(preview.finalDelta) : formatSignedSeconds(selectedTrace.lap.timeSeconds - comparisonTrace.lap.timeSeconds)}
                 </Tag>
               )}
             </div>
@@ -762,12 +770,12 @@ const AnalysisWorkspace: React.FC<{
 
       {!selectedTrace ? (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-12">
-          <Empty description={<span className="text-gray-500 dark:text-gray-400">分析ラップを選択してください</span>} />
+          <Empty description={<span className="text-gray-500 dark:text-gray-400">{t('telemetry.list.selectAnalysisLap')}</span>} />
         </div>
       ) : (
         <>
           <section className="grid grid-cols-1 2xl:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.5fr)] gap-3">
-            <FlatPanel title="走行ライン" subTitle={comparisonTrace ? 'analysis vs reference' : 'single lap'}>
+            <FlatPanel title={t('telemetry.list.racingLine')} subTitle={comparisonTrace ? 'analysis vs reference' : 'single lap'}>
               <div className="h-[360px] bg-[linear-gradient(#eef2f7_1px,transparent_1px),linear-gradient(90deg,#eef2f7_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(75,85,99,.35)_1px,transparent_1px),linear-gradient(90deg,rgba(75,85,99,.35)_1px,transparent_1px)] [background-size:30px_30px] grid place-items-center">
                 <MapPreview trace={selectedTrace} reference={comparisonTrace} />
               </div>
@@ -778,7 +786,7 @@ const AnalysisWorkspace: React.FC<{
                 {preview ? (
                   <DeltaPreviewChart delta={preview.delta} annotations={preview.coaching.annotations} />
                 ) : (
-                  <MissingPreviewCard title="Delta T" description="比較ラップを選ぶと、どの距離で失っているかを表示します。" />
+                  <MissingPreviewCard title="Delta T" description={t('telemetry.list.deltaMissingHint')} />
                 )}
               </div>
             </FlatPanel>
@@ -822,17 +830,18 @@ const AnalysisInsightPanel: React.FC<{
   setupDiffLoading: boolean;
   compareUrl: string;
 }> = ({ trace, reference, preview, setupDiffs, setupDiffLoading, compareUrl }) => {
-  const lossText = preview?.coaching.annotations.find((a) => a.kind === 'loss')?.text ?? '比較ラップを選択';
-  const gainText = preview?.coaching.annotations.find((a) => a.kind === 'gain')?.text ?? '比較ラップを選択';
-  const nextAction = preview ? buildNextAction(preview.coaching) : 'まず比較対象を選ぶ';
-  const summaryText = preview?.coaching.summary ?? '比較ラップを選ぶと、速度差・Delta T・ライン差から走りの差分を要約します。';
+  const { t } = useTranslation();
+  const lossText = preview?.coaching.annotations.find((a) => a.kind === 'loss')?.text ?? t('telemetry.list.selectComparisonLap');
+  const gainText = preview?.coaching.annotations.find((a) => a.kind === 'gain')?.text ?? t('telemetry.list.selectComparisonLap');
+  const nextAction = preview ? buildNextAction(preview.coaching, t) : t('telemetry.list.selectComparisonTargetFirst');
+  const summaryText = preview?.coaching.summary ?? t('telemetry.list.summaryPlaceholder');
   return (
     <aside className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
       <div className="h-11 flex items-center justify-between gap-3 px-3 border-b border-gray-200 dark:border-gray-700">
         <div className="text-xs font-black tracking-wider uppercase text-gray-600 dark:text-gray-300">Debrief</div>
         {reference?.id ? (
           <Link to={compareUrl} className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
-            詳細比較
+            {t('telemetry.list.detailedComparison')}
           </Link>
         ) : (
           <span className="text-[11px] text-gray-400 dark:text-gray-500">single lap</span>
@@ -841,13 +850,13 @@ const AnalysisInsightPanel: React.FC<{
 
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
         <InsightMetric
-          label={preview ? `${preview.reference.label}比` : '比較状態'}
-          value={preview ? formatSignedSeconds(preview.finalDelta) : '未選択'}
+          label={preview ? t('telemetry.list.vsReference', { reference: preview.reference.label }) : t('telemetry.list.comparisonState')}
+          value={preview ? formatSignedSeconds(preview.finalDelta) : t('telemetry.list.notSelected')}
           tone={preview ? (preview.finalDelta <= 0 ? 'good' : 'bad') : 'neutral'}
         />
-        <InsightMetric label="最大ロス" value={lossText} tone="bad" />
-        <InsightMetric label="最大ゲイン" value={gainText} tone="good" />
-        <InsightMetric label="次走アクション" value={nextAction} tone="neutral" />
+        <InsightMetric label={t('telemetry.list.maxLoss')} value={lossText} tone="bad" />
+        <InsightMetric label={t('telemetry.list.maxGain')} value={gainText} tone="good" />
+        <InsightMetric label={t('telemetry.list.nextAction')} value={nextAction} tone="neutral" />
       </div>
 
       <div className="p-3 border-t border-gray-200 dark:border-gray-700">
@@ -859,7 +868,7 @@ const AnalysisInsightPanel: React.FC<{
         <div className="text-[11px] font-black tracking-wider uppercase text-gray-500 dark:text-gray-400">Setup Diff</div>
         <div className="mt-2 space-y-1.5">
           {setupDiffLoading ? (
-            <Tag>読み込み中...</Tag>
+            <Tag>{t('telemetry.list.loading')}</Tag>
           ) : setupDiffs.length > 0 ? (
             setupDiffs.slice(0, 6).map((item) => (
               <div key={`${item.section}-${item.label}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 text-xs">
@@ -870,7 +879,7 @@ const AnalysisInsightPanel: React.FC<{
               </div>
             ))
           ) : (
-            <div className="text-sm text-gray-500 dark:text-gray-400">比較できるセット差分なし</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">{t('telemetry.list.noSetupDiff')}</div>
           )}
         </div>
       </div>
@@ -926,7 +935,9 @@ const LapTimeCell: React.FC<{ trace: TelemetryTrace | null }> = ({ trace }) => (
   </div>
 );
 
-const InspectorMetric: React.FC<{ label: string; trace: TelemetryTrace | null }> = ({ label, trace }) => (
+const InspectorMetric: React.FC<{ label: string; trace: TelemetryTrace | null }> = ({ label, trace }) => {
+  const { t } = useTranslation();
+  return (
   <div className="border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
     <div className="text-[11px] font-black tracking-wider uppercase text-gray-500 dark:text-gray-400">{label}</div>
     {trace ? (
@@ -935,10 +946,11 @@ const InspectorMetric: React.FC<{ label: string; trace: TelemetryTrace | null }>
         <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(trace.sessionDate)}</div>
       </>
     ) : (
-      <div className="mt-2 text-sm text-gray-400">データなし</div>
+      <div className="mt-2 text-sm text-gray-400">{t('telemetry.list.noData')}</div>
     )}
   </div>
-);
+  );
+};
 
 const TrackThumbnail: React.FC<{ trace: TelemetryTrace }> = ({ trace }) => {
   const points = trackThumbnailPoints(trace);
@@ -970,6 +982,7 @@ const CarThumbnail: React.FC = () => (
 );
 
 const MapPreview: React.FC<{ trace: TelemetryTrace; reference: TelemetryTrace | null }> = ({ trace, reference }) => {
+  const { t } = useTranslation();
   const [current, ref] = normalizeSharedPathPoints(
     [
       [trace.path?.xM, trace.path?.yM],
@@ -998,11 +1011,11 @@ const MapPreview: React.FC<{ trace: TelemetryTrace; reference: TelemetryTrace | 
         {ref.length >= 2 && (
           <>
             <line x1="0" x2="18" y1="0" y2="0" stroke="#2474ff" strokeWidth="4" strokeLinecap="round" />
-            <text x="24" y="4" fontSize="10" fontWeight="800" fill="#64748b">比較</text>
+            <text x="24" y="4" fontSize="10" fontWeight="800" fill="#64748b">{t('telemetry.list.mapReference')}</text>
           </>
         )}
         <line x1="70" x2="88" y1="0" y2="0" stroke="#ef233c" strokeWidth="4" strokeLinecap="round" />
-        <text x="94" y="4" fontSize="10" fontWeight="800" fill="#64748b">分析</text>
+        <text x="94" y="4" fontSize="10" fontWeight="800" fill="#64748b">{t('telemetry.list.mapAnalysis')}</text>
       </g>
     </svg>
   );
@@ -1159,8 +1172,8 @@ const ConditionTags: React.FC<{
   const weatherKey = weatherTranslationKey(trace.conditions.weather.condition);
   return (
     <>
-    {trace.conditions.weather.trackTemp != null && <Tag color="orange">路温{trace.conditions.weather.trackTemp}°C</Tag>}
-    {trace.conditions.weather.airTemp != null && <Tag>気温{trace.conditions.weather.airTemp}°C</Tag>}
+    {trace.conditions.weather.trackTemp != null && <Tag color="orange">{t('telemetry.list.trackTempTag', { value: trace.conditions.weather.trackTemp })}</Tag>}
+    {trace.conditions.weather.airTemp != null && <Tag>{t('telemetry.list.airTempTag', { value: trace.conditions.weather.airTemp })}</Tag>}
     {trace.conditions.weather.condition && <Tag color={isWetWeather(trace.conditions.weather.condition) ? 'blue' : 'green'}>{weatherKey ? t(weatherKey) : trace.conditions.weather.condition}</Tag>}
     {trace.conditions.fuel != null && <Tag>Fuel {trace.conditions.fuel}L</Tag>}
     {trace.conditions.tireInfo.brand && <Tag>{trace.conditions.tireInfo.brand} {trace.conditions.tireInfo.compound}</Tag>}
@@ -1265,10 +1278,10 @@ function worstQualityTone(items: TelemetryTrace[]): TraceQualityTone {
   return 'verified';
 }
 
-function bucketStatus(bucket: TraceBucket): { label: string; color: string } {
-  if (bucket.validNormalCount >= 2) return { label: '比較可', color: 'green' };
-  if (bucket.validNormalCount === 1) return { label: '比較候補待ち', color: 'gold' };
-  return { label: '要確認', color: 'red' };
+function bucketStatus(bucket: TraceBucket, t: TFunction): { label: string; color: string } {
+  if (bucket.validNormalCount >= 2) return { label: t('telemetry.list.statusComparable'), color: 'green' };
+  if (bucket.validNormalCount === 1) return { label: t('telemetry.list.statusAwaiting'), color: 'gold' };
+  return { label: t('telemetry.list.statusNeedsCheck'), color: 'red' };
 }
 
 function isSetupLoadable(setupId: string | null | undefined): setupId is string {
@@ -1301,7 +1314,7 @@ function conditionScore(current: TelemetryTrace, candidate: TelemetryTrace): num
   return score;
 }
 
-function buildPreviewCandidates(current: TelemetryTrace, traces: TelemetryTrace[]): PreviewCandidate[] {
+function buildPreviewCandidates(current: TelemetryTrace, traces: TelemetryTrace[], t: TFunction): PreviewCandidate[] {
   if (!current.lap.valid || current.lap.type !== 'NORMAL') return [];
   const valid = traces.filter((trace) => (
     trace.id &&
@@ -1317,12 +1330,13 @@ function buildPreviewCandidates(current: TelemetryTrace, traces: TelemetryTrace[
     if (!trace.id || byId.has(trace.id)) return;
     const deltaSeconds = current.lap.timeSeconds - trace.lap.timeSeconds;
     const label = kind === 'self_best'
-      ? '自己ベスト'
+      ? t('telemetry.list.candidateSelfBest')
       : kind === 'previous'
-        ? '前回セッション'
-        : '条件が近いログ';
+        ? t('telemetry.list.candidatePrevious')
+        : t('telemetry.list.candidateConditionMatch');
+    const conditionDelta = t('telemetry.list.conditionDelta', { value: score.toFixed(1) });
     const description = kind === 'condition_match'
-      ? `${trace.sessionDate.toLocaleDateString('ja-JP')} / 条件差 ${score.toFixed(1)}`
+      ? `${trace.sessionDate.toLocaleDateString('ja-JP')} / ${conditionDelta}`
       : `${trace.sessionDate.toLocaleDateString('ja-JP')} / ${formatSignedSeconds(deltaSeconds)}`;
     byId.set(trace.id, { trace, kind, label, description, score, deltaSeconds });
   };
@@ -1343,33 +1357,33 @@ function buildPreviewCandidates(current: TelemetryTrace, traces: TelemetryTrace[
   return Array.from(byId.values());
 }
 
-function buildDefaultComparisonTrace(current: TelemetryTrace, traces: TelemetryTrace[]): TelemetryTrace | null {
-  return buildPreviewCandidates(current, traces)[0]?.trace
+function buildDefaultComparisonTrace(current: TelemetryTrace, traces: TelemetryTrace[], t: TFunction): TelemetryTrace | null {
+  return buildPreviewCandidates(current, traces, t)[0]?.trace
     ?? sortComparisonTraces(current, traces)[0]
     ?? null;
 }
 
-function buildReferenceCandidate(current: TelemetryTrace, reference: TelemetryTrace, traces: TelemetryTrace[]): PreviewCandidate {
-  const existing = buildPreviewCandidates(current, traces).find((candidate) => traceKey(candidate.trace) === traceKey(reference));
+function buildReferenceCandidate(current: TelemetryTrace, reference: TelemetryTrace, traces: TelemetryTrace[], t: TFunction): PreviewCandidate {
+  const existing = buildPreviewCandidates(current, traces, t).find((candidate) => traceKey(candidate.trace) === traceKey(reference));
   if (existing) return existing;
   const deltaSeconds = current.lap.timeSeconds - reference.lap.timeSeconds;
   return {
     trace: reference,
     kind: 'condition_match',
-    label: '比較ラップ',
+    label: t('telemetry.list.comparisonLapLabel'),
     description: `${formatDateTime(reference.sessionDate)} / ${formatSignedSeconds(deltaSeconds)}`,
     score: conditionScore(current, reference),
     deltaSeconds,
   };
 }
 
-function buildNextAction(readout: CoachingReadout): string {
+function buildNextAction(readout: CoachingReadout, t: TFunction): string {
   const braking = readout.annotations.find((annotation) => annotation.text.includes('ブレーキ開始') && annotation.text.includes('手前'));
-  if (braking) return 'ブレーキ開始を少し奥へ';
+  if (braking) return t('telemetry.list.actionBrakeLater');
   const cornerSpeed = readout.annotations.find((annotation) => annotation.text.includes('最小コーナー速度') && annotation.text.includes('低い'));
-  if (cornerSpeed) return 'ボトム速度を落としすぎない';
-  if (readout.topOpportunity) return `${readout.topOpportunity}を確認`;
-  return '良い区間を再現';
+  if (cornerSpeed) return t('telemetry.list.actionKeepMinSpeed');
+  if (readout.topOpportunity) return t('telemetry.list.actionCheckOpportunity', { opportunity: readout.topOpportunity });
+  return t('telemetry.list.actionRepeatGoodSection');
 }
 
 function buildSetupDiffs(reference: CarSetup, current: CarSetup, t: TFunction): SetupDiffItem[] {

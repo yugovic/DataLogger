@@ -2,6 +2,7 @@
 // 公式セクターではないため見出しで「区間（3等分）」と明示する。
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { LapProfile, SegmentDelta } from '../../lib/telemetry';
 import { interpolateAt } from '../../lib/telemetry';
 
@@ -28,23 +29,24 @@ const fmt = (v: number | null): string => (v === null ? '—' : `${v.toFixed(3)}
 const fmtDelta = (v: number): string => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(3)}s`;
 
 export const SegmentTable: React.FC<SegmentTableProps> = ({ segments, profileA, profileB }) => {
+  const { t } = useTranslation();
   if (segments.length === 0) return null;
 
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
         <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-          区間比較
+          {t('telemetry.segment.title')}
         </span>
         <span className="text-[11px] text-gray-400 dark:text-gray-500">
-          走行距離を3等分（公式セクターではありません）
+          {t('telemetry.segment.subtitle')}
         </span>
       </div>
       <div className="overflow-hidden rounded-lg border border-gray-100 dark:border-gray-700/50">
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-900/40 text-gray-500 dark:text-gray-400">
-              <th className="text-left font-medium px-3 py-2">区間</th>
+              <th className="text-left font-medium px-3 py-2">{t('telemetry.segment.columnSegment')}</th>
               <th className="text-right font-medium px-3 py-2 text-blue-600 dark:text-blue-400">A</th>
               <th className="text-right font-medium px-3 py-2 text-amber-600 dark:text-amber-400">B</th>
               <th className="text-right font-medium px-3 py-2">Δ B−A</th>
@@ -60,7 +62,7 @@ export const SegmentTable: React.FC<SegmentTableProps> = ({ segments, profileA, 
                   className="border-t border-gray-100 dark:border-gray-700/50 text-gray-700 dark:text-gray-200"
                 >
                   <td className="px-3 py-2">
-                    <span className="font-medium">区間{s.segment}</span>
+                    <span className="font-medium">{t('telemetry.segment.segmentLabel', { n: s.segment })}</span>
                     <span className="ml-1.5 text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
                       {Math.round(s.fromM)}–{Math.round(s.toM)}m
                     </span>

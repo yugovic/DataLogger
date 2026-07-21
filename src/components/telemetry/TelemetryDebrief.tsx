@@ -66,7 +66,7 @@ export const TelemetryDebrief: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       if (!traceId) {
-        setLoadError('デブリーフ対象のトレースが指定されていません');
+        setLoadError(t('telemetry.debrief.errors.noTraceSpecified'));
         setLoading(false);
         return;
       }
@@ -75,7 +75,7 @@ export const TelemetryDebrief: React.FC = () => {
       try {
         const currentTrace = await getTelemetryTrace(traceId);
         if (!currentTrace) {
-          setLoadError('デブリーフ対象のトレースが見つかりません');
+          setLoadError(t('telemetry.debrief.errors.traceNotFound'));
           return;
         }
         const candidates = await getComparableTraceCandidates(currentTrace);
@@ -95,8 +95,8 @@ export const TelemetryDebrief: React.FC = () => {
         });
       } catch (error) {
         logger.error('テレメトリデブリーフの読み込みに失敗しました:', error);
-        setLoadError('テレメトリデブリーフの読み込みに失敗しました');
-        message.error('テレメトリデブリーフの読み込みに失敗しました');
+        setLoadError(t('telemetry.debrief.errors.loadFailed'));
+        message.error(t('telemetry.debrief.errors.loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -119,18 +119,18 @@ export const TelemetryDebrief: React.FC = () => {
       metricsCurrent,
       segments,
       coaching,
-      cautions: buildCautions(trace, reference.trace),
-      nextAction: buildNextAction(coaching),
+      cautions: buildCautions(trace, reference.trace, t),
+      nextAction: buildNextAction(coaching, t),
     };
-  }, [trace, reference]);
+  }, [trace, reference, t]);
 
   const setupDiffs = useMemo(
     () => (setup && referenceSetup ? buildSetupDiffs(referenceSetup, setup, t) : []),
     [setup, referenceSetup, t],
   );
 
-  const lossText = debrief?.coaching.annotations.find((a) => a.kind === 'loss')?.text ?? '明確な最大ロスは検出されていません';
-  const gainText = debrief?.coaching.annotations.find((a) => a.kind === 'gain')?.text ?? '明確な最大ゲインは検出されていません';
+  const lossText = debrief?.coaching.annotations.find((a) => a.kind === 'loss')?.text ?? t('telemetry.debrief.noMaxLoss');
+  const gainText = debrief?.coaching.annotations.find((a) => a.kind === 'gain')?.text ?? t('telemetry.debrief.noMaxGain');
 
   useEffect(() => {
     if (!debrief || nextActionDraft.trim()) return;
@@ -147,10 +147,10 @@ export const TelemetryDebrief: React.FC = () => {
       });
       setTrace({ ...trace, summary: { ...trace.summary, nextAction: text } });
       void trackEvent('next_action_saved', { circuit: trace.circuit, car_model: trace.carModel });
-      message.success('次回試すことを保存しました');
+      message.success(t('telemetry.debrief.nextActionSaved'));
     } catch (error) {
       logger.error('次走アクションの保存に失敗しました:', error);
-      message.error('次回試すことを保存できませんでした');
+      message.error(t('telemetry.debrief.nextActionSaveFailed'));
     } finally {
       setSavingNextAction(false);
     }
@@ -170,7 +170,7 @@ export const TelemetryDebrief: React.FC = () => {
           className="flex items-center text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm mb-4"
         >
           <ArrowLeftOutlined className="mr-1" />
-          戻る
+          {t('telemetry.debrief.back')}
         </button>
 
         {loading ? (
@@ -179,7 +179,7 @@ export const TelemetryDebrief: React.FC = () => {
           </div>
         ) : loadError || !trace ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12">
-            <Empty description={<span className="text-gray-500 dark:text-gray-400">{loadError ?? 'デブリーフできません'}</span>} />
+            <Empty description={<span className="text-gray-500 dark:text-gray-400">{loadError ?? t('telemetry.debrief.errors.cannotDebrief')}</span>} />
           </div>
         ) : (
           <div className="space-y-4">
@@ -191,26 +191,26 @@ export const TelemetryDebrief: React.FC = () => {
               <>
                 <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   <DebriefMetric
-                    label={`${t(reference.labelKey)}比`}
+                    label={t('telemetry.debrief.referenceRatio', { label: t(reference.labelKey) })}
                     value={formatSignedSeconds(debrief.delta.finalDelta)}
                     tone={debrief.delta.finalDelta <= 0 ? 'good' : 'bad'}
-                    detail={debrief.delta.finalDelta <= 0 ? '今回が速い' : '今回が遅い'}
+                    detail={debrief.delta.finalDelta <= 0 ? t('telemetry.debrief.fasterNow') : t('telemetry.debrief.slowerNow')}
                   />
-                  <DebriefMetric label="最大ロス" value={lossText} tone="bad" detail="まずここだけを見る" />
-                  <DebriefMetric label="最大ゲイン" value={gainText} tone="good" detail="再現したい区間" />
-                  <DebriefMetric label="次走アクション" value={debrief.nextAction} tone="neutral" detail="1つだけ試す" />
+                  <DebriefMetric label={t('telemetry.debrief.maxLoss')} value={lossText} tone="bad" detail={t('telemetry.debrief.maxLossDetail')} />
+                  <DebriefMetric label={t('telemetry.debrief.maxGain')} value={gainText} tone="good" detail={t('telemetry.debrief.maxGainDetail')} />
+                  <DebriefMetric label={t('telemetry.debrief.nextAction')} value={debrief.nextAction} tone="neutral" detail={t('telemetry.debrief.nextActionDetail')} />
                 </section>
 
                 <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-4">
                   <div className="flex flex-col md:flex-row md:items-start gap-4">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">今日の結論</h3>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">{t('telemetry.debrief.todaysConclusion')}</h3>
                       <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-200">
                         {debrief.coaching.summary}
                       </p>
                     </div>
                     <div className="md:w-80">
-                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">注意ラベル</h3>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">{t('telemetry.debrief.cautionLabel')}</h3>
                       <CautionTags cautions={debrief.cautions} qualityFlags={trace.qualityFlags} />
                     </div>
                   </div>
@@ -220,10 +220,10 @@ export const TelemetryDebrief: React.FC = () => {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                     <div className="min-w-0 flex-1">
                       <label htmlFor="next-action" className="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        次回ひとつだけ試すこと
+                        {t('telemetry.debrief.tryOneThing')}
                       </label>
                       <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                        提案をそのまま使うか、自分の言葉に直して次の走行へ残します。
+                        {t('telemetry.debrief.tryOneThingHint')}
                       </p>
                       <Input.TextArea
                         id="next-action"
@@ -243,7 +243,7 @@ export const TelemetryDebrief: React.FC = () => {
                         disabled={!nextActionDraft.trim() || nextActionDraft.trim() === trace.summary.nextAction}
                         className="w-full sm:w-auto"
                       >
-                        次走へ保存
+                        {t('telemetry.debrief.saveToNext')}
                       </Button>
                     )}
                   </div>
@@ -253,12 +253,12 @@ export const TelemetryDebrief: React.FC = () => {
                   <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">セット差分</h3>
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('telemetry.debrief.setupDiff')}</h3>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                          A={t(reference.labelKey)} / B=今回。テレメトリ差分の原因候補として見る項目です。
+                          {t('telemetry.debrief.setupDiffHint', { label: t(reference.labelKey) })}
                         </p>
                       </div>
-                      <Tag color="purple">{setupDiffs.length}項目</Tag>
+                      <Tag color="purple">{t('telemetry.debrief.itemCount', { count: setupDiffs.length })}</Tag>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {setupDiffs.slice(0, 10).map((item) => (
@@ -286,13 +286,13 @@ export const TelemetryDebrief: React.FC = () => {
                     to={`/telemetry/compare?aTrace=${reference.trace.id}&bTrace=${trace.id}`}
                     className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600"
                   >
-                    詳細比較を開く
+                    {t('telemetry.debrief.openDetailedCompare')}
                   </Link>
                   <Link
                     to={`/setup/${trace.setupId}`}
                     className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50"
                   >
-                    記録を開く
+                    {t('telemetry.debrief.openRecord')}
                   </Link>
                 </div>
               </>
@@ -315,7 +315,7 @@ const DebriefHeader: React.FC<{
     <div className="flex flex-col lg:flex-row lg:items-center gap-3">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2 mb-1">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">セッション・デブリーフ</h2>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('telemetry.debrief.title')}</h2>
           <QualityTag flags={trace.qualityFlags} />
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -323,10 +323,10 @@ const DebriefHeader: React.FC<{
         </p>
       </div>
       <div className="lg:ml-auto flex flex-wrap items-center gap-2">
-        <Tag color="blue">今回 LAP {trace.lap.lapNumber}: {formatLapSeconds(trace.lap.timeSeconds)}</Tag>
+        <Tag color="blue">{t('telemetry.debrief.currentLap', { lap: trace.lap.lapNumber, time: formatLapSeconds(trace.lap.timeSeconds) })}</Tag>
         {reference && (
           <Tag color="geekblue">
-            A={t(reference.labelKey)}: {formatLapSeconds(reference.trace.lap.timeSeconds)}
+            {t('telemetry.debrief.referenceLap', { label: t(reference.labelKey), time: formatLapSeconds(reference.trace.lap.timeSeconds) })}
           </Tag>
         )}
         {setup && <Tag>{setup.sessionType}</Tag>}
@@ -337,6 +337,7 @@ const DebriefHeader: React.FC<{
 };
 
 const FirstTraceCard: React.FC<{ trace: TelemetryTrace }> = ({ trace }) => {
+  const { t } = useTranslation();
   const profile = traceToLapProfile(trace);
   const isInspectableOnly = !trace.lap.valid || trace.lap.type !== 'NORMAL';
   return (
@@ -348,17 +349,17 @@ const FirstTraceCard: React.FC<{ trace: TelemetryTrace }> = ({ trace }) => {
           <CheckCircleOutlined className="text-3xl text-emerald-500" />
         )}
         <h3 className="mt-3 text-lg font-semibold text-gray-800 dark:text-gray-100">
-          {isInspectableOnly ? '切り出しログを単独確認できます' : '最初の比較用トレースとして保存されました'}
+          {isInspectableOnly ? t('telemetry.debrief.inspectOnlyTitle') : t('telemetry.debrief.firstTraceSavedTitle')}
         </h3>
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           {isInspectableOnly
-            ? `${trace.carModel} / ${trace.circuit} の1ラップ切り出しログです。S/Fラインで閉じたNORMALラップではないため、比較ではなく単独確認として扱います。`
-            : `${trace.carModel} / ${trace.circuit} の次回以降の走行で、前回比・自己ベスト比・最大ロス区間を自動で出せます。`}
+            ? t('telemetry.debrief.inspectOnlyDesc', { car: trace.carModel, circuit: trace.circuit })
+            : t('telemetry.debrief.firstTraceSavedDesc', { car: trace.carModel, circuit: trace.circuit })}
         </p>
       </section>
       <SingleLapTelemetryView
-        title={isInspectableOnly ? '切り出しラップを単独確認' : '今回のラップを単独確認'}
-        description="比較相手がなくても、この1本の速度、G、走行ライン、主要指標を確認できます。"
+        title={isInspectableOnly ? t('telemetry.debrief.singleLapCutoutTitle') : t('telemetry.debrief.singleLapCurrentTitle')}
+        description={t('telemetry.debrief.singleLapDesc')}
         profile={profile}
         lapTimeSeconds={trace.lap.timeSeconds}
         lapNumber={trace.lap.lapNumber}
@@ -398,27 +399,27 @@ function formatSignedSeconds(seconds: number): string {
   return `${seconds >= 0 ? '+' : '-'}${Math.abs(seconds).toFixed(3)}s`;
 }
 
-function buildNextAction(readout: CoachingReadout): string {
+function buildNextAction(readout: CoachingReadout, t: TFunction): string {
   const braking = readout.annotations.find((a) => a.text.includes('ブレーキ開始') && a.text.includes('手前'));
-  if (braking) return '最大ロス区間でブレーキ開始を少し奥へ寄せる';
+  if (braking) return t('telemetry.debrief.suggestBrakeLater');
   const cornerSpeed = readout.annotations.find((a) => a.text.includes('最小コーナー速度') && a.text.includes('低い'));
-  if (cornerSpeed) return '最大ロス区間でボトム速度を落としすぎない';
-  if (readout.topOpportunity) return `${readout.topOpportunity}を詳細比較で確認`;
-  return '今回の良い区間を次回も再現する';
+  if (cornerSpeed) return t('telemetry.debrief.suggestKeepBottomSpeed');
+  if (readout.topOpportunity) return t('telemetry.debrief.suggestCheckOpportunity', { opportunity: readout.topOpportunity });
+  return t('telemetry.debrief.suggestReproduce');
 }
 
-function buildCautions(current: TelemetryTrace, reference: TelemetryTrace): string[] {
+function buildCautions(current: TelemetryTrace, reference: TelemetryTrace, t: TFunction): string[] {
   const cautions: string[] = [];
   const airA = reference.conditions.weather.airTemp;
   const airB = current.conditions.weather.airTemp;
-  if (airA != null && airB != null && Math.abs(airB - airA) >= 5) cautions.push(`気温差 ${Math.abs(airB - airA).toFixed(0)}度`);
+  if (airA != null && airB != null && Math.abs(airB - airA) >= 5) cautions.push(t('telemetry.debrief.airTempDiff', { value: Math.abs(airB - airA).toFixed(0) }));
   const trackA = reference.conditions.weather.trackTemp;
   const trackB = current.conditions.weather.trackTemp;
-  if (trackA != null && trackB != null && Math.abs(trackB - trackA) >= 8) cautions.push(`路温差 ${Math.abs(trackB - trackA).toFixed(0)}度`);
+  if (trackA != null && trackB != null && Math.abs(trackB - trackA) >= 8) cautions.push(t('telemetry.debrief.trackTempDiff', { value: Math.abs(trackB - trackA).toFixed(0) }));
   if ((current.conditions.tireInfo.productName || current.conditions.tireInfo.brand) !==
-      (reference.conditions.tireInfo.productName || reference.conditions.tireInfo.brand)) cautions.push('タイヤ銘柄差');
-  if (current.conditions.tireInfo.compound !== reference.conditions.tireInfo.compound) cautions.push('コンパウンド差');
-  if (current.lap.type !== 'NORMAL') cautions.push('非計測ラップ');
+      (reference.conditions.tireInfo.productName || reference.conditions.tireInfo.brand)) cautions.push(t('telemetry.debrief.tireBrandDiff'));
+  if (current.conditions.tireInfo.compound !== reference.conditions.tireInfo.compound) cautions.push(t('telemetry.debrief.compoundDiff'));
+  if (current.lap.type !== 'NORMAL') cautions.push(t('telemetry.debrief.nonMeasuredLap'));
   return cautions;
 }
 
@@ -426,16 +427,17 @@ const CautionTags: React.FC<{
   cautions: string[];
   qualityFlags: TelemetryTraceQualityFlags;
 }> = ({ cautions, qualityFlags }) => {
+  const { t } = useTranslation();
   const qualityCautions = [
-    qualityFlags.gpsDropout ? 'GPS欠損あり' : null,
-    qualityFlags.estimatedLine ? '推定S/Fライン' : null,
-    qualityFlags.lowSampleRate ? '低サンプルレート' : null,
-    qualityFlags.singleLapFile ? '単独ラップに近い' : null,
-    qualityFlags.missingOperationChannels ? '操作チャンネルなし' : null,
+    qualityFlags.gpsDropout ? t('telemetry.debrief.qualityGpsDropout') : null,
+    qualityFlags.estimatedLine ? t('telemetry.debrief.qualityEstimatedLine') : null,
+    qualityFlags.lowSampleRate ? t('telemetry.debrief.qualityLowSampleRate') : null,
+    qualityFlags.singleLapFile ? t('telemetry.debrief.qualitySingleLapFile') : null,
+    qualityFlags.missingOperationChannels ? t('telemetry.debrief.qualityMissingOperationChannels') : null,
   ].filter((v): v is string => v !== null);
   const all = [...cautions, ...qualityCautions];
   if (all.length === 0) {
-    return <Tag color="green" icon={<CheckCircleOutlined />}>大きな注意なし</Tag>;
+    return <Tag color="green" icon={<CheckCircleOutlined />}>{t('telemetry.debrief.noMajorCaution')}</Tag>;
   }
   return (
     <div className="flex flex-wrap gap-1.5">

@@ -10,25 +10,35 @@
 
 import React from 'react';
 import { ShareAltOutlined, EyeInvisibleOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 
-export const SharedBadge: React.FC = () => (
-  <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
-    <ShareAltOutlined style={{ fontSize: 11 }} />
-    共有中
-  </span>
-);
+export const SharedBadge: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+      <ShareAltOutlined style={{ fontSize: 11 }} />
+      {t('share.badges.shared')}
+    </span>
+  );
+};
 
-export const AnonymizedBadge: React.FC = () => (
-  <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
-    <EyeInvisibleOutlined style={{ fontSize: 11 }} />
-    匿名
-  </span>
-);
+export const AnonymizedBadge: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
+      <EyeInvisibleOutlined style={{ fontSize: 11 }} />
+      {t('share.badges.anonymous')}
+    </span>
+  );
+};
 
 /** ロガー証憑バッジ（緑系） */
-export const LoggerEvidenceBadge: React.FC = () => (
-  <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
-    <SafetyCertificateOutlined style={{ fontSize: 11 }} />
-    ロガー証憑
-  </span>
-);
+export const LoggerEvidenceBadge: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
+      <SafetyCertificateOutlined style={{ fontSize: 11 }} />
+      {t('share.badges.loggerEvidence')}
+    </span>
+  );
+};

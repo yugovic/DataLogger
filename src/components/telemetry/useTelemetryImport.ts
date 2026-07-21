@@ -19,11 +19,11 @@ export type { LineSource } from './resolveLapDetection';
 /** 取込の進行段階 */
 export type ImportPhase = 'idle' | 'reading' | 'parsing' | 'detecting' | 'done' | 'error';
 
-/** 進行段階の表示ラベル */
-export const PHASE_LABELS: Record<Exclude<ImportPhase, 'idle' | 'done' | 'error'>, string> = {
-  reading: 'ファイルを読み込んでいます…',
-  parsing: 'テレメトリを解析しています…',
-  detecting: 'サーキット照合とラップ検出を実行しています…',
+/** 進行段階の表示ラベル（i18n キー。表示側で t() する） */
+export const PHASE_LABEL_KEYS: Record<Exclude<ImportPhase, 'idle' | 'done' | 'error'>, string> = {
+  reading: 'telemetry.importProgress.reading',
+  parsing: 'telemetry.importProgress.parsing',
+  detecting: 'telemetry.importProgress.detecting',
 };
 
 /** 取込成功時の結果一式 */
@@ -113,7 +113,7 @@ export function useTelemetryImport() {
       setError(
         e instanceof TelemetryParseError
           ? e.message
-          : 'ファイルの取込中に予期しないエラーが発生しました',
+          : 'telemetry.importProgress.unexpectedError',
       );
       setPhase('error');
       void trackEvent('telemetry_attach_failed', {

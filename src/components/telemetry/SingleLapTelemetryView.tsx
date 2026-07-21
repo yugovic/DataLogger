@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as echarts from 'echarts';
 import {
   CarOutlined,
@@ -41,8 +42,8 @@ interface SingleLapTelemetryViewProps {
 }
 
 export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
-  title = '単独ラップビュー',
-  description = '比較相手がなくても、1本のラップから速度、G、走行ライン、主要指標を確認できます。',
+  title,
+  description,
   profile,
   lapTimeSeconds,
   lapNumber,
@@ -56,6 +57,9 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
   qualityFlags,
 }) => {
   const { darkMode } = useTheme();
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t('telemetry.singleLap.title');
+  const resolvedDescription = description ?? t('telemetry.singleLap.description');
   const metrics = useMemo(() => computeLapMetrics(profile, lapTimeSeconds), [profile, lapTimeSeconds]);
   const axis = useMemo(
     () => ({
@@ -77,7 +81,7 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
       type: 'value',
       min: 0,
       max: profile.lapLengthM,
-      name: '距離 (m)',
+      name: t('telemetry.singleLap.axisDistance'),
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: { color: axis.label, fontSize: 11 },
@@ -86,21 +90,21 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
     },
     yAxis: {
       type: 'value',
-      name: '速度 (km/h)',
+      name: t('telemetry.singleLap.axisSpeed'),
       nameTextStyle: { color: axis.label, fontSize: 11 },
       axisLabel: { color: axis.label, fontSize: 10 },
       splitLine: { lineStyle: { color: axis.split } },
     },
     series: [
       {
-        name: '速度',
+        name: t('telemetry.singleLap.seriesSpeed'),
         type: 'line',
         data: profile.distance.map((dist, i) => [dist, profile.speed[i]]),
         showSymbol: false,
         lineStyle: { color: SPEED_COLOR, width: 2 },
       },
     ],
-  }), [axis, profile]);
+  }), [axis, profile, t]);
 
   const gOption = useMemo<echarts.EChartsOption>(() => ({
     backgroundColor: 'transparent',
@@ -115,7 +119,7 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
       type: 'value',
       min: 0,
       max: profile.lapLengthM,
-      name: '距離 (m)',
+      name: t('telemetry.singleLap.axisDistance'),
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: { color: axis.label, fontSize: 11 },
@@ -124,35 +128,35 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
     },
     yAxis: {
       type: 'value',
-      name: 'G',
+      name: t('telemetry.singleLap.axisG'),
       nameTextStyle: { color: axis.label, fontSize: 11 },
       axisLabel: { color: axis.label, fontSize: 10 },
       splitLine: { lineStyle: { color: axis.split } },
     },
     series: [
       {
-        name: '前後G',
+        name: t('telemetry.singleLap.seriesLongG'),
         type: 'line',
         data: profile.distance.map((dist, i) => [dist, profile.longG[i]]),
         showSymbol: false,
         lineStyle: { color: LONG_G_COLOR, width: 1.6 },
       },
       {
-        name: '横G',
+        name: t('telemetry.singleLap.seriesLatG'),
         type: 'line',
         data: profile.distance.map((dist, i) => [dist, profile.latG[i]]),
         showSymbol: false,
         lineStyle: { color: LAT_G_COLOR, width: 1.6 },
       },
     ],
-  }), [axis, profile]);
+  }), [axis, profile, t]);
 
   const pathOption = useMemo<echarts.EChartsOption | null>(() => {
     const points = path && path.xM.length >= 2 && path.yM.length === path.xM.length
       ? path.xM.map((x, i) => [x, path.yM[i]] as [number, number])
       : [];
     const overlay = path?.origin
-      ? buildTrackMapOverlay(trackMap, path.origin, { darkMode, showLabels: true })
+      ? buildTrackMapOverlay(trackMap, path.origin, { darkMode, showLabels: true, t })
       : { series: [], bounds: null };
     const bounds = mergeBounds([boundsFromPoints(points), overlay.bounds]);
     if (!bounds) return null;
@@ -170,7 +174,7 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
         ...overlay.series,
         ...(points.length >= 2
           ? [{
-              name: '走行ライン',
+              name: t('telemetry.singleLap.racingLine'),
               type: 'line' as const,
               data: points,
               showSymbol: false,
@@ -179,7 +183,7 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
           : []),
       ],
     };
-  }, [darkMode, path, trackMap]);
+  }, [darkMode, path, trackMap, t]);
 
   const cardClass = 'bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50';
   const headingClass = 'text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider';
@@ -190,7 +194,7 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">{title}</h3>
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">{resolvedTitle}</h3>
               {lapType && (
                 <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
                   lapType === 'NORMAL'
@@ -206,14 +210,14 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
                 </span>
               )}
             </div>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{resolvedDescription}</p>
           </div>
           <div className="lg:ml-auto">
             <div className="font-mono tabular-nums text-2xl font-bold text-gray-900 dark:text-gray-100">
               {formatLapSeconds(lapTimeSeconds)}
             </div>
             <div className="text-xs text-gray-400 dark:text-gray-500 text-left lg:text-right">
-              {lapNumber ? `LAP ${lapNumber}` : '選択ラップ'}
+              {lapNumber ? `LAP ${lapNumber}` : t('telemetry.singleLap.selectedLap')}
             </div>
           </div>
         </div>
@@ -228,7 +232,7 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
           <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2">
             <WarningOutlined className="text-amber-500 text-xs mt-0.5" />
             <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
-              このラップはS/Fライン通過で完全に閉じたNORMALラップではありません。切り出しログの確認用として表示しています。
+              {t('telemetry.singleLap.incompleteLapWarning')}
             </p>
           </div>
         )}
@@ -239,32 +243,32 @@ export const SingleLapTelemetryView: React.FC<SingleLapTelemetryViewProps> = ({
       </section>
 
       <section className={`${cardClass} p-4`}>
-        <span className={headingClass}>主要指標</span>
+        <span className={headingClass}>{t('telemetry.singleLap.keyMetrics')}</span>
         <SingleMetricGrid metrics={[
-          { label: 'ラップタイム', value: `${lapTimeSeconds.toFixed(3)}s` },
-          { label: 'ラップ距離', value: `${profile.lapLengthM.toFixed(0)}m` },
-          { label: '最高速', value: formatMetric(metrics.topSpeedKmh, 1, ' km/h') },
-          { label: '最小コーナー速度', value: formatMetric(metrics.minCornerSpeedKmh, 1, ' km/h') },
-          { label: '最大減速G', value: formatMetric(metrics.maxBrakingG, 2, ' G') },
-          { label: '最大横G', value: formatMetric(metrics.maxLatG, 2, ' G') },
-          { label: 'ブレーキ開始', value: formatMetric(metrics.brakingPointM, 0, ' m') },
-          { label: 'サンプル数', value: `${profile.distance.length}` },
+          { label: t('telemetry.singleLap.metricLapTime'), value: `${lapTimeSeconds.toFixed(3)}s` },
+          { label: t('telemetry.singleLap.metricLapDistance'), value: `${profile.lapLengthM.toFixed(0)}m` },
+          { label: t('telemetry.singleLap.metricTopSpeed'), value: formatMetric(metrics.topSpeedKmh, 1, ' km/h') },
+          { label: t('telemetry.singleLap.metricMinCornerSpeed'), value: formatMetric(metrics.minCornerSpeedKmh, 1, ' km/h') },
+          { label: t('telemetry.singleLap.metricMaxBrakingG'), value: formatMetric(metrics.maxBrakingG, 2, ' G') },
+          { label: t('telemetry.singleLap.metricMaxLatG'), value: formatMetric(metrics.maxLatG, 2, ' G') },
+          { label: t('telemetry.singleLap.metricBrakingPoint'), value: formatMetric(metrics.brakingPointM, 0, ' m') },
+          { label: t('telemetry.singleLap.metricSampleCount'), value: `${profile.distance.length}` },
         ]} />
       </section>
 
       <section className={`${cardClass} p-4`}>
-        <span className={headingClass}>速度プロファイル</span>
+        <span className={headingClass}>{t('telemetry.singleLap.speedProfile')}</span>
         <EChart option={speedOption} darkMode={darkMode} className="h-56 sm:h-64 mt-2" />
       </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4">
         <section className={`${cardClass} p-4`}>
-          <span className={headingClass}>Gプロファイル</span>
+          <span className={headingClass}>{t('telemetry.singleLap.gProfile')}</span>
           <EChart option={gOption} darkMode={darkMode} className="h-56 sm:h-64 mt-2" />
         </section>
         {pathOption && (
           <section className={`${cardClass} p-4`}>
-            <span className={headingClass}>走行ライン</span>
+            <span className={headingClass}>{t('telemetry.singleLap.racingLine')}</span>
             <EChart option={pathOption} darkMode={darkMode} className="aspect-square mt-2" />
           </section>
         )}
@@ -290,12 +294,13 @@ const SingleMetricGrid: React.FC<{ metrics: { label: string; value: string }[] }
 );
 
 const QualityFlags: React.FC<{ flags: TelemetryTraceQualityFlags }> = ({ flags }) => {
+  const { t } = useTranslation();
   const items = [
-    flags.gpsDropout ? 'GPS欠損あり' : null,
-    flags.estimatedLine ? '推定S/Fライン' : null,
-    flags.singleLapFile ? '単独ラップに近い' : null,
-    flags.lowSampleRate ? '低サンプルレート' : null,
-    flags.missingOperationChannels ? '操作チャンネルなし' : null,
+    flags.gpsDropout ? t('telemetry.singleLap.flagGpsDropout') : null,
+    flags.estimatedLine ? t('telemetry.singleLap.flagEstimatedLine') : null,
+    flags.singleLapFile ? t('telemetry.singleLap.flagSingleLapFile') : null,
+    flags.lowSampleRate ? t('telemetry.singleLap.flagLowSampleRate') : null,
+    flags.missingOperationChannels ? t('telemetry.singleLap.flagMissingOperationChannels') : null,
   ].filter((v): v is string => v !== null);
   if (items.length === 0) return null;
   return (

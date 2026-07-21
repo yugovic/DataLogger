@@ -15,6 +15,7 @@
 // 全軸・指標に単位。ダーク対応・xl 未満は1カラム。
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as echarts from 'echarts';
 import { useTheme } from '../../contexts/ThemeContext';
 import { trackEvent } from '../../lib/analytics';
@@ -93,7 +94,10 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
   trackMap,
   trackName,
 }) => {
+  const { t } = useTranslation();
   const { darkMode } = useTheme();
+  const channelLabel = (key: ChannelKey) => t(`telemetry.cockpit.channel.${key}`);
+  const channelAxisName = (key: ChannelKey) => t(`telemetry.cockpit.channelAxis.${key}`);
   const [a, b] = slots;
   const [view, setView] = useState<ViewMode>('detail');
   const [channel, setChannel] = useState<ChannelKey>('speed');
@@ -182,7 +186,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
         type: 'value',
         min: 0,
         max: commonLength,
-        name: '距離 (m)',
+        name: t('telemetry.cockpit.axisDistance'),
         nameLocation: 'middle',
         nameGap: 24,
         nameTextStyle: { color: axis.label, fontSize: 11 },
@@ -191,7 +195,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
       },
       yAxis: {
         type: 'value',
-        name: 'ΔT B−A (s)',
+        name: t('telemetry.cockpit.axisDeltaT'),
         nameTextStyle: { color: axis.label, fontSize: 11 },
         axisLabel: {
           color: axis.label,
@@ -247,7 +251,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
         },
       ],
     };
-  }, [delta, coaching.annotations, axis, commonLength]);
+  }, [delta, coaching.annotations, axis, commonLength, t]);
 
   // ─── 選択チャンネルの重ねチャート option ───────────────────
   const channelOption = useMemo<echarts.EChartsOption | null>(() => {
@@ -278,7 +282,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
         type: 'value',
         min: 0,
         max: commonLength,
-        name: '距離 (m)',
+        name: t('telemetry.cockpit.axisDistance'),
         nameLocation: 'middle',
         nameGap: 24,
         nameTextStyle: { color: axis.label, fontSize: 11 },
@@ -287,7 +291,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
       },
       yAxis: {
         type: 'value',
-        name: activeDef.axisName,
+        name: channelAxisName(activeDef.key),
         nameTextStyle: { color: axis.label, fontSize: 11 },
         axisLabel: { color: axis.label, fontSize: 10 },
         splitLine: { lineStyle: { color: axis.split } },
@@ -297,14 +301,14 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
         make(b.profile, SLOT_COLORS.B, `B: LAP ${b.lap.lapNumber}`),
       ],
     };
-  }, [activeDef, a, b, delta.points.length, axis, commonLength]);
+  }, [activeDef, a, b, delta.points.length, axis, commonLength, t]);
 
   // ─── コースマップ option（2ラップのパス + ライン） ───────────
   const mapOption = useMemo<echarts.EChartsOption | null>(() => {
     const pathA = projectPath(points, sessionDistance, a.lap, origin);
     const pathB = projectPath(points, sessionDistance, b.lap, origin);
     const projectedLine = line ? projectLineXY(line, origin) : [];
-    const overlay = buildTrackMapOverlay(trackMap, origin, { darkMode, showLabels: true });
+    const overlay = buildTrackMapOverlay(trackMap, origin, { darkMode, showLabels: true, t });
     const all = [...pathA, ...pathB];
     const bounds = mergeBounds([boundsFromPoints(all), boundsFromPoints(projectedLine), overlay.bounds]);
     if (!bounds) return null;
@@ -321,7 +325,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
     ];
     if (line) {
       series.push({
-        name: lineSource === 'estimated' ? '基準線（自動推定）' : 'コントロールライン',
+        name: lineSource === 'estimated' ? t('telemetry.cockpit.estimatedBaseline') : t('telemetry.cockpit.controlLine'),
         type: 'line',
         data: projectedLine,
         showSymbol: false,
@@ -339,7 +343,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
       yAxis: { type: 'value', show: false, min: cy - half, max: cy + half },
       series,
     };
-  }, [points, sessionDistance, a.lap, b.lap, origin, line, lineSource, axis.label, trackMap, darkMode]);
+  }, [points, sessionDistance, a.lap, b.lap, origin, line, lineSource, axis.label, trackMap, darkMode, t]);
 
   // ─── チャートインスタンス管理 + 同期カーソル ──────────────────
   const deltaRef = useRef<HTMLDivElement>(null);
@@ -450,9 +454,9 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
   if (delta.points.length < 2) {
     return (
       <div className={`${cardClass} px-4 py-8 text-center`}>
-        <p className="text-sm text-gray-600 dark:text-gray-300">この2ラップは距離軸で比較できません</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300">{t('telemetry.cockpit.notComparable')}</p>
         <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-          GPS軌跡が短すぎるか欠損しています。別のラップを選択してください。
+          {t('telemetry.cockpit.notComparableHint')}
         </p>
       </div>
     );
@@ -502,7 +506,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
                     : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
-                {m === 'simple' ? '簡易' : '詳細'}
+                {m === 'simple' ? t('telemetry.cockpit.viewSimple') : t('telemetry.cockpit.viewDetail')}
               </button>
             ))}
           </div>
@@ -512,10 +516,10 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
       {/* デルタT トレース（主役・最上段） */}
       <div className={`${cardClass} p-4`}>
         <div className="flex items-baseline justify-between">
-          <span className={headingClass}>累積タイム差（デルタT）</span>
+          <span className={headingClass}>{t('telemetry.cockpit.cumulativeDeltaT')}</span>
           <span className="text-[11px] text-gray-400 dark:text-gray-500">
-            <span className="text-emerald-500 font-medium">緑</span>=Bが速い /{' '}
-            <span className="text-red-500 font-medium">赤</span>=Bが遅い
+            <span className="text-emerald-500 font-medium">{t('telemetry.cockpit.legendGreen')}</span>={t('telemetry.cockpit.legendBFaster')} /{' '}
+            <span className="text-red-500 font-medium">{t('telemetry.cockpit.legendRed')}</span>={t('telemetry.cockpit.legendBSlower')}
           </span>
         </div>
         <div ref={deltaRef} className="w-full h-56 sm:h-64 mt-2" />
@@ -526,7 +530,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
         {readout ? (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-sm">
             <span className="font-mono tabular-nums text-gray-500 dark:text-gray-400">
-              {Math.round(readout.d)} m地点
+              {t('telemetry.cockpit.positionMeters', { value: Math.round(readout.d) })}
             </span>
             <CursorReadoutItem label="A" color={SLOT_COLORS.A} v={readout.a} />
             <CursorReadoutItem label="B" color={SLOT_COLORS.B} v={readout.b} />
@@ -542,7 +546,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
           </div>
         ) : (
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            グラフ上にカーソルを合わせると、その地点の両ラップの値とコース上の位置が表示されます
+            {t('telemetry.cockpit.cursorHint')}
           </p>
         )}
       </div>
@@ -551,7 +555,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
       {activeDef && (
         <div className={`${cardClass} p-4`}>
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className={headingClass}>チャンネル比較</span>
+            <span className={headingClass}>{t('telemetry.cockpit.channelComparison')}</span>
             <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 p-0.5 bg-gray-50 dark:bg-gray-900/40">
               {availableChannels.map((d) => (
                 <button
@@ -563,14 +567,14 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                   }`}
                 >
-                  {d.label}
+                  {channelLabel(d.key)}
                 </button>
               ))}
             </div>
           </div>
           <div ref={channelRef} className="w-full h-56 sm:h-64 mt-2" />
           <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
-            速度はGPSから常時、前後G・横GはGPSから導出。スロットル/ブレーキ等はこのロガー形式に含まれないため表示されません
+            {t('telemetry.cockpit.channelNote')}
           </p>
         </div>
       )}
@@ -580,7 +584,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
 
       {/* 指標デルタカード（常時表示） */}
       <div className={`${cardClass} p-4`}>
-        <span className={headingClass}>指標デルタ</span>
+        <span className={headingClass}>{t('telemetry.cockpit.metricDelta')}</span>
         <div className="mt-3">
           <MetricDeltaCards metricsA={metricsA} metricsB={metricsB} />
         </div>
@@ -591,7 +595,7 @@ export const ComparisonCockpit: React.FC<ComparisonCockpitProps> = ({
         <>
           {mapOption && (
             <div className={`${cardClass} p-4`}>
-              <span className={headingClass}>コースマップ（現在位置はカーソル連動）</span>
+              <span className={headingClass}>{t('telemetry.cockpit.trackMap')}</span>
               <div className="w-full max-w-md mx-auto aspect-square mt-2">
                 <div ref={mapRef} className="w-full h-full" />
               </div>
@@ -612,22 +616,25 @@ const CursorReadoutItem: React.FC<{
   label: string;
   color: string;
   v: { speedKmh: number | null; longG: number | null; latG: number | null };
-}> = ({ label, color, v }) => (
-  <span className="flex items-center gap-1.5 font-mono tabular-nums text-xs">
-    <span className="w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ backgroundColor: color }}>
-      {label}
+}> = ({ label, color, v }) => {
+  const { t } = useTranslation();
+  return (
+    <span className="flex items-center gap-1.5 font-mono tabular-nums text-xs">
+      <span className="w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ backgroundColor: color }}>
+        {label}
+      </span>
+      <span className="text-gray-700 dark:text-gray-200">
+        {v.speedKmh !== null ? `${v.speedKmh.toFixed(1)} km/h` : '—'}
+      </span>
+      {v.longG !== null && (
+        <span className="text-gray-400 dark:text-gray-500">{v.longG >= 0 ? '+' : ''}{v.longG.toFixed(2)}{t('telemetry.cockpit.gLong')}</span>
+      )}
+      {v.latG !== null && (
+        <span className="text-gray-400 dark:text-gray-500">{Math.abs(v.latG).toFixed(2)}{t('telemetry.cockpit.gLat')}</span>
+      )}
     </span>
-    <span className="text-gray-700 dark:text-gray-200">
-      {v.speedKmh !== null ? `${v.speedKmh.toFixed(1)} km/h` : '—'}
-    </span>
-    {v.longG !== null && (
-      <span className="text-gray-400 dark:text-gray-500">{v.longG >= 0 ? '+' : ''}{v.longG.toFixed(2)}G縦</span>
-    )}
-    {v.latG !== null && (
-      <span className="text-gray-400 dark:text-gray-500">{Math.abs(v.latG).toFixed(2)}G横</span>
-    )}
-  </span>
-);
+  );
+};
 
 // ─── echarts インスタンス管理フック ──────────────────────────
 

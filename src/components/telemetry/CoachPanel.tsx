@@ -3,6 +3,7 @@
 // 文言はすべて compare.ts の実測導出に根ざす（LLM不使用・捏造なし）。
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { BulbOutlined, RiseOutlined, FallOutlined, AimOutlined } from '@ant-design/icons';
 import type { Annotation, CoachingReadout } from '../../lib/telemetry';
 
@@ -17,13 +18,14 @@ const KIND_STYLE: Record<Annotation['kind'], { dot: string; icon: React.ReactNod
 };
 
 export const CoachPanel: React.FC<CoachPanelProps> = ({ readout }) => {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl border border-blue-200/60 dark:border-blue-900/50 bg-gradient-to-br from-blue-50/80 to-indigo-50/40 dark:from-blue-950/30 dark:to-indigo-950/20 p-4">
       <div className="flex items-center gap-2 mb-2">
         <BulbOutlined className="text-amber-500" />
-        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">コーチの読み解き</span>
+        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('telemetry.coach.title')}</span>
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200/70 dark:bg-gray-700/70 text-gray-500 dark:text-gray-400">
-          自動・ルールベース
+          {t('telemetry.coach.badge')}
         </span>
       </div>
 
@@ -36,7 +38,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ readout }) => {
           <AimOutlined className="text-amber-500 mt-0.5" />
           <div className="min-w-0">
             <div className="text-[11px] font-semibold tracking-wider text-amber-600 dark:text-amber-400 uppercase">
-              最も伸ばせる1箇所
+              {t('telemetry.coach.topOpportunityLabel')}
             </div>
             <div className="text-sm text-gray-700 dark:text-gray-200">{readout.topOpportunity}</div>
           </div>

@@ -3,6 +3,7 @@
 // CarSetup.tsx のラップタイムセクションからモーダルとして呼び出される。
 
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PaperClipOutlined, ReloadOutlined } from '@ant-design/icons';
 import { buildAttachPayload } from './evidence';
 import type { LapAttachPayload } from './evidence';
@@ -18,6 +19,7 @@ interface TelemetryImportProps {
 }
 
 export const TelemetryImport: React.FC<TelemetryImportProps> = ({ onAttach }) => {
+  const { t } = useTranslation();
   const { phase, result, error, busy, importFile, reset } = useTelemetryImport();
   const [pendingFileName, setPendingFileName] = useState<string | undefined>(undefined);
 
@@ -68,10 +70,9 @@ export const TelemetryImport: React.FC<TelemetryImportProps> = ({ onAttach }) =>
             />
           ) : (
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-6 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-300">周回を検出できませんでした</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{t('telemetry.importPage.noLapsTitle')}</p>
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
-                コントロールラインを2回以上通過した周回データが必要です。
-                コースがDB未登録の場合は3周以上の走行データで自動推定できます。
+                {t('telemetry.importPage.noLapsDescription')}
               </p>
             </div>
           )}
@@ -82,7 +83,7 @@ export const TelemetryImport: React.FC<TelemetryImportProps> = ({ onAttach }) =>
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <ReloadOutlined />
-              別のファイルを取り込む
+              {t('telemetry.importPage.importAnother')}
             </button>
             <button
               onClick={handleAttach}
@@ -94,7 +95,7 @@ export const TelemetryImport: React.FC<TelemetryImportProps> = ({ onAttach }) =>
               }`}
             >
               <PaperClipOutlined />
-              このセットアップに添付
+              {t('telemetry.importPage.attachToSetup')}
             </button>
           </div>
         </>

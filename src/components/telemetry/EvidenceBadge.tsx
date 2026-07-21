@@ -3,6 +3,7 @@
 // 形式・ファイル名・取込日時・判定サーキットを偽りなく明示する。
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircleFilled } from '@ant-design/icons';
 import { findTrackById } from '../../lib/tracks';
 import type { LapEvidence } from '../../types/setup';
@@ -27,19 +28,20 @@ const formatImportedAt = (d: Date): string => {
 };
 
 export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({ evidence, onDetach }) => {
+  const { t } = useTranslation();
   const trackName = evidence.trackId ? findTrackById(evidence.trackId)?.name ?? null : null;
   const importedAt = formatImportedAt(evidence.importedAt);
 
   const details: string[] = [FORMAT_LABELS[evidence.format]];
   if (trackName) details.push(trackName);
-  if (importedAt) details.push(`${importedAt} 取込`);
+  if (importedAt) details.push(t('telemetry.evidence.importedSuffix', { time: importedAt }));
 
   return (
     <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
           <CheckCircleFilled />
-          ロガー証憑
+          {t('telemetry.evidence.title')}
         </span>
         <span className="text-[11px] text-gray-500 dark:text-gray-400 break-all min-w-0">
           {evidence.fileName}
@@ -49,7 +51,7 @@ export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({ evidence, onDetach
             onClick={onDetach}
             className="ml-auto text-[11px] text-gray-400 hover:text-red-500 dark:hover:text-red-400 underline underline-offset-2 transition-colors"
           >
-            証憑を外す
+            {t('telemetry.evidence.detach')}
           </button>
         )}
       </div>

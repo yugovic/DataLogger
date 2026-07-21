@@ -8,6 +8,10 @@ import type { PublicVehicleProfile } from '../lib/vehicleProfilePublic';
 import type { HighlightBadge } from '../lib/sessionHighlights';
 import { HIGHLIGHT_BADGE_LABELS } from '../lib/sessionHighlights';
 
+// Canvas 描画ユーティリティは React 外だが、文言の i18n 解決のため呼び出し元の t() を受け取る。
+// （lib/util 層で t() を直接持てないため、useTranslation を持つ呼び出し元から注入する設計）
+export type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
+
 export interface ShareCardData {
   circuit: string;
   carModel: string;
@@ -25,6 +29,7 @@ export interface SpecCardImageData {
   shareUrl?: string;
   /** 車両写真（data URL）。所有者が共有操作したときのみ渡す */
   photoUrl?: string | null;
+  t: TranslateFn;
 }
 
 export type SpecCardShareResult = 'shared' | 'unsupported' | 'cancelled';
@@ -342,15 +347,16 @@ export async function generateSpecCardImage(data: SpecCardImageData): Promise<Bl
   ctx.fillRect(0, heroH - 70, W, 70);
 
   // ── ピルチップ（3つまで: 改造度・タイヤ区分・出力申告値） ──
+  const { t } = data;
   let pillX = margin;
   const pillY = heroH + 36;
-  pillX = drawPill(ctx, pillX, pillY, view.modLevelLabel, theme.dot);
-  if (view.tireClassLabel) {
-    pillX = drawPill(ctx, pillX, pillY, view.tireClassLabel);
+  pillX = drawPill(ctx, pillX, pillY, t(`vehicle.labels.modLevel.${view.modLevel}`), theme.dot);
+  if (view.tireClass) {
+    pillX = drawPill(ctx, pillX, pillY, t(`vehicle.labels.tireClass.${view.tireClass}`));
   }
   const powerItem = view.specItems.find((item) => item.key === 'powerPs');
   if (powerItem) {
-    drawPill(ctx, pillX, pillY, `${powerItem.value}（${powerItem.notice}）`);
+    drawPill(ctx, pillX, pillY, `${powerItem.value}（${t('vehicle.specCard.selfReported')}）`);
   }
 
   // ── 車名（二段タイポ） ──
@@ -371,7 +377,7 @@ export async function generateSpecCardImage(data: SpecCardImageData): Promise<Bl
     ctx.fillStyle = '#A8A29E';
     ctx.font = '20px sans-serif';
     ctx.fillText(
-      truncateCanvasText(ctx, `オーナー: ${data.ownerLabel}`, W - margin * 2),
+      truncateCanvasText(ctx, t('vehicle.specCard.owner', { owner: data.ownerLabel }), W - margin * 2),
       margin,
       titleY + 44,
     );
@@ -386,11 +392,10 @@ export async function generateSpecCardImage(data: SpecCardImageData): Promise<Bl
     (sum, group) => sum + group.items.length,
     0,
   );
-  ctx.fillText(
-    totalModItems > 0 ? `改造申告 ${totalModItems}件・${view.compactSummary}` : 'ノーマル車両',
-    margin,
-    H - footerH / 2 + 8,
-  );
+  const summaryText = totalModItems > 0
+    ? `${t('vehicle.specCard.modCount', { count: totalModItems })} · ${t('vehicle.specCard.categoryCount', { count: view.modificationCategoryCount })}`
+    : t('vehicle.specCard.stockVehicle');
+  ctx.fillText(summaryText, margin, H - footerH / 2 + 8);
   drawWatermark(ctx, { shareUrl: data.shareUrl });
 
   return createPngBlob(canvas);
@@ -566,8 +571,8 @@ export async function shareSpecCardImageViaWebShare(data: SpecCardImageData): Pr
 
   try {
     await navigator.share({
-      title: `${data.carModel} マシンスペックカード`,
-      text: `${data.carModel} のマシンスペックカード`,
+      title: data.t('share.image.specCardShareTitle', { car: data.carModel }),
+      text: data.t('share.image.specCardShareText', { car: data.carModel }),
       files: [file],
     });
     return 'shared';

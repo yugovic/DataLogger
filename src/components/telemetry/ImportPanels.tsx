@@ -3,6 +3,7 @@
 // （分析ページ）の両方で使う表示部品。モバイル1カラム前提。
 
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Spin } from 'antd';
 import {
   CloudUploadOutlined,
@@ -13,7 +14,7 @@ import {
 } from '@ant-design/icons';
 import { FORMAT_LABELS } from './evidence';
 import type { ImportPhase, TelemetryImportResult } from './useTelemetryImport';
-import { PHASE_LABELS } from './useTelemetryImport';
+import { PHASE_LABEL_KEYS } from './useTelemetryImport';
 
 // ─── ファイルドロップ/選択 ──────────────────────────────────
 
@@ -23,6 +24,7 @@ interface DropZoneProps {
 }
 
 export const DropZone: React.FC<DropZoneProps> = ({ onFile, disabled }) => {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -36,7 +38,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFile, disabled }) => {
     <div
       role="button"
       tabIndex={0}
-      aria-label="ロガーファイルを選択"
+      aria-label={t('telemetry.import.dropZoneAria')}
       className={`w-full rounded-xl border-2 border-dashed px-4 py-10 sm:py-12 text-center cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
         dragging
           ? 'border-blue-500 bg-blue-500/5'
@@ -72,13 +74,13 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFile, disabled }) => {
       />
       <CloudUploadOutlined className="text-3xl text-blue-500" />
       <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-200">
-        ロガーファイルをドロップ、またはタップして選択
+        {t('telemetry.import.dropZonePrompt')}
       </p>
       <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-        対応形式: DigiSpice .dtb ／ AIM CSV ／ NMEA 0183（RMC）
+        {t('telemetry.import.dropZoneFormats')}
       </p>
       <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
-        データはこの端末内で処理されます（生ログはサーバーへ送信・保存されません）
+        {t('telemetry.import.dropZonePrivacy')}
       </p>
     </div>
   );
@@ -92,13 +94,14 @@ interface ImportProgressProps {
 }
 
 export const ImportProgress: React.FC<ImportProgressProps> = ({ phase, fileName }) => {
+  const { t } = useTranslation();
   if (phase !== 'reading' && phase !== 'parsing' && phase !== 'detecting') return null;
   const steps: ImportPhase[] = ['reading', 'parsing', 'detecting'];
   const current = steps.indexOf(phase);
   return (
     <div className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-8 text-center">
       <Spin />
-      <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">{PHASE_LABELS[phase]}</p>
+      <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">{t(PHASE_LABEL_KEYS[phase])}</p>
       {fileName && (
         <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 break-all">{fileName}</p>
       )}
@@ -124,23 +127,26 @@ interface ImportErrorPanelProps {
   onRetry: () => void;
 }
 
-export const ImportErrorPanel: React.FC<ImportErrorPanelProps> = ({ message, onRetry }) => (
-  <div className="w-full rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-900/20 px-4 py-5">
-    <div className="flex items-start gap-3">
-      <ExclamationCircleOutlined className="text-red-500 text-lg mt-0.5" />
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-red-700 dark:text-red-300">取込に失敗しました</p>
-        <p className="mt-1 text-xs text-red-600/90 dark:text-red-300/80 break-words">{message}</p>
-        <button
-          onClick={onRetry}
-          className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-gray-800 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-        >
-          別のファイルを選択
-        </button>
+export const ImportErrorPanel: React.FC<ImportErrorPanelProps> = ({ message, onRetry }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="w-full rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-900/20 px-4 py-5">
+      <div className="flex items-start gap-3">
+        <ExclamationCircleOutlined className="text-red-500 text-lg mt-0.5" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-red-700 dark:text-red-300">{t('telemetry.import.errorTitle')}</p>
+          <p className="mt-1 text-xs text-red-600/90 dark:text-red-300/80 break-words">{t(message)}</p>
+          <button
+            onClick={onRetry}
+            className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-gray-800 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+          >
+            {t('telemetry.import.selectAnotherFile')}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── セッションサマリー ──────────────────────────────────────
 
@@ -149,13 +155,14 @@ interface SessionSummaryPanelProps {
 }
 
 export const SessionSummaryPanel: React.FC<SessionSummaryPanelProps> = ({ result }) => {
+  const { t } = useTranslation();
   const { session, track, lineSource, detection } = result;
   const meta = session.meta;
   const normalCount = detection.laps.filter((l) => l.type === 'NORMAL').length;
 
   const facts: string[] = [];
   if (meta.sampleRateHz !== null) facts.push(`${meta.sampleRateHz} Hz`);
-  facts.push(`${session.points.length.toLocaleString()} 点`);
+  facts.push(t('telemetry.import.factPoints', { count: session.points.length.toLocaleString() }));
   if (meta.startTimestamp) {
     facts.push(
       meta.startTimestamp.toLocaleString('ja-JP', {
@@ -168,7 +175,7 @@ export const SessionSummaryPanel: React.FC<SessionSummaryPanelProps> = ({ result
     );
   }
   if (detection.laps.length > 0) {
-    facts.push(`${detection.laps.length} 周（計測 ${normalCount}）`);
+    facts.push(t('telemetry.import.factLaps', { count: detection.laps.length, measured: normalCount }));
   }
 
   return (
@@ -190,11 +197,11 @@ export const SessionSummaryPanel: React.FC<SessionSummaryPanelProps> = ({ result
         {track ? (
           <span className="text-gray-700 dark:text-gray-300">
             {track.name}
-            <span className="ml-1.5 text-xs text-gray-400">（GPS軌跡から自動判定）</span>
+            <span className="ml-1.5 text-xs text-gray-400">{t('telemetry.import.trackAutoDetected')}</span>
           </span>
         ) : (
           <span className="text-gray-500 dark:text-gray-400">
-            コースDB未登録（サーキットを判定できませんでした）
+            {t('telemetry.import.trackNotFound')}
           </span>
         )}
       </div>
@@ -207,7 +214,7 @@ export const SessionSummaryPanel: React.FC<SessionSummaryPanelProps> = ({ result
         <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2">
           <WarningOutlined className="text-amber-500 text-xs mt-0.5" />
           <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
-            計測基準線は走行軌跡からの自動推定です（コース公式のコントロールラインとは位置が異なりますが、周回周期＝ラップタイムは同一です）
+            {t('telemetry.import.estimatedLineNote')}
           </p>
         </div>
       )}

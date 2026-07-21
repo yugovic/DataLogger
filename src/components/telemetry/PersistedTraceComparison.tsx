@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import * as echarts from 'echarts';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CarOutlined, EnvironmentOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { trackEvent } from '../../lib/analytics';
@@ -32,6 +33,7 @@ interface PersistedTraceComparisonProps {
 }
 
 export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> = ({ traceA, traceB }) => {
+  const { t } = useTranslation();
   const { darkMode } = useTheme();
   const profileA = useMemo(() => traceToLapProfile(traceA), [traceA]);
   const profileB = useMemo(() => traceToLapProfile(traceB), [traceB]);
@@ -74,7 +76,7 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
       type: 'value',
       min: 0,
       max: d.commonLengthM,
-      name: '距離 (m)',
+      name: t('telemetry.persisted.distanceAxis'),
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: { color: axis.label, fontSize: 11 },
@@ -104,7 +106,7 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
         },
       },
     ],
-  }), [axis, d]);
+  }), [axis, d, t]);
 
   const speedOption = useMemo<echarts.EChartsOption>(() => ({
     backgroundColor: 'transparent',
@@ -119,7 +121,7 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
       type: 'value',
       min: 0,
       max: Math.min(profileA.lapLengthM, profileB.lapLengthM),
-      name: '距離 (m)',
+      name: t('telemetry.persisted.distanceAxis'),
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: { color: axis.label, fontSize: 11 },
@@ -128,7 +130,7 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
     },
     yAxis: {
       type: 'value',
-      name: '速度 (km/h)',
+      name: t('telemetry.persisted.speedAxis'),
       nameTextStyle: { color: axis.label, fontSize: 11 },
       axisLabel: { color: axis.label, fontSize: 10 },
       splitLine: { lineStyle: { color: axis.split } },
@@ -149,7 +151,7 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
         lineStyle: { color: B_COLOR, width: 1.8 },
       },
     ],
-  }), [axis, profileA, profileB, traceA, traceB]);
+  }), [axis, profileA, profileB, traceA, traceB, t]);
 
   const mapOption = useMemo<echarts.EChartsOption | null>(() => {
     if (!traceA.path || !traceB.path) return null;
@@ -196,20 +198,20 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
           </div>
         </div>
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
-          {[traceA, traceB].map((t, i) => (
-            <div key={t.id ?? i} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="inline-flex items-center gap-1"><CarOutlined />{t.carModel}</span>
-              <span className="inline-flex items-center gap-1"><EnvironmentOutlined />{t.circuit}</span>
+          {[traceA, traceB].map((tr, i) => (
+            <div key={tr.id ?? i} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="inline-flex items-center gap-1"><CarOutlined />{tr.carModel}</span>
+              <span className="inline-flex items-center gap-1"><EnvironmentOutlined />{tr.circuit}</span>
               <span className="inline-flex items-center gap-1 min-w-0">
                 <FileTextOutlined />
-                <span className="truncate max-w-[220px]">{t.source.fileName}</span>
+                <span className="truncate max-w-[220px]">{tr.source.fileName}</span>
               </span>
-              {t.setupId ? (
-                <Link to={`/setup/${t.setupId}`} className="text-blue-500 dark:text-blue-400 hover:underline">
-                  記録を開く
+              {tr.setupId ? (
+                <Link to={`/setup/${tr.setupId}`} className="text-blue-500 dark:text-blue-400 hover:underline">
+                  {t('telemetry.persisted.openRecord')}
                 </Link>
               ) : (
-                <span className="text-gray-400 dark:text-gray-500">ローカルファイル</span>
+                <span className="text-gray-400 dark:text-gray-500">{t('telemetry.persisted.localFile')}</span>
               )}
             </div>
           ))}
@@ -220,24 +222,24 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
 
       <div className={`${cardClass} p-4`}>
         <div className="flex items-baseline justify-between">
-          <span className={headingClass}>累積タイム差（デルタT）</span>
-          <span className="text-[11px] text-gray-400 dark:text-gray-500">正 = Bが遅い / 負 = Bが速い</span>
+          <span className={headingClass}>{t('telemetry.persisted.cumulativeTimeDiff')}</span>
+          <span className="text-[11px] text-gray-400 dark:text-gray-500">{t('telemetry.persisted.deltaSignHint')}</span>
         </div>
         <EChart option={deltaOption} darkMode={darkMode} className="h-56 sm:h-64 mt-2" />
       </div>
 
       <div className={`${cardClass} p-4`}>
-        <span className={headingClass}>速度比較</span>
+        <span className={headingClass}>{t('telemetry.persisted.speedComparison')}</span>
         <EChart option={speedOption} darkMode={darkMode} className="h-56 sm:h-64 mt-2" />
         {(traceA.qualityFlags.missingOperationChannels || traceB.qualityFlags.missingOperationChannels) && (
           <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
-            この比較はGPS/速度由来です。スロットル・ブレーキ等の操作チャンネルは含まれていません。
+            {t('telemetry.persisted.gpsOnlyNotice')}
           </p>
         )}
       </div>
 
       <div className={`${cardClass} p-4`}>
-        <span className={headingClass}>指標デルタ</span>
+        <span className={headingClass}>{t('telemetry.persisted.metricDelta')}</span>
         <div className="mt-3">
           <MetricDeltaCards metricsA={metricsA} metricsB={metricsB} />
         </div>
@@ -249,7 +251,7 @@ export const PersistedTraceComparison: React.FC<PersistedTraceComparisonProps> =
         </div>
         {mapOption && (
           <div className={`${cardClass} p-4`}>
-            <span className={headingClass}>走行ライン</span>
+            <span className={headingClass}>{t('telemetry.persisted.racingLine')}</span>
             <EChart option={mapOption} darkMode={darkMode} className="aspect-square mt-2" />
           </div>
         )}

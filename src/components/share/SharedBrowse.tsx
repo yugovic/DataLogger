@@ -17,8 +17,10 @@ import { CarSetup } from '../../types/setup';
 import { Header } from '../common/Header';
 import { SharedSetupCard } from './SharedSetupCard';
 import logger from '../../utils/logger';
+import { useTranslation } from 'react-i18next';
 
 export const SharedBrowse: React.FC = () => {
+  const { t } = useTranslation();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [settingsModal, setSettingsModal] = useState(false);
@@ -59,7 +61,7 @@ export const SharedBrowse: React.FC = () => {
         }
       } catch (error) {
         logger.error('共有ブラウズの初期化に失敗しました:', error);
-        message.error('共有データの読み込みに失敗しました');
+        message.error(t('share.browse.initError'));
         setSharingActive(false);
       } finally {
         setGateLoading(false);
@@ -82,7 +84,7 @@ export const SharedBrowse: React.FC = () => {
         setSetups(list);
       } catch (error) {
         logger.error('共有データ一覧の取得に失敗しました:', error);
-        message.error('共有データの取得に失敗しました');
+        message.error(t('share.browse.listError'));
       } finally {
         setListLoading(false);
       }
@@ -147,12 +149,10 @@ export const SharedBrowse: React.FC = () => {
               <TeamOutlined style={{ fontSize: 32 }} />
             </div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-3">
-              あなたのセットアップを共有すると、他のドライバーの共有データを閲覧できます
+              {t('share.browse.gateTitle')}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
-              VELOCITY LOGGER の共有はお互いさまの仕組みです。
-              走行履歴から1件でもデータを共有すると、同じサーキット・車種で走る
-              他のドライバーの共有セットアップを見られるようになります。
+              {t('share.browse.gateBody')}
             </p>
             <Button
               type="primary"
@@ -160,7 +160,7 @@ export const SharedBrowse: React.FC = () => {
               icon={<ShareAltOutlined />}
               onClick={() => navigate('/history')}
             >
-              走行履歴から共有する
+              {t('share.browse.gateCta')}
             </Button>
           </div>
         </main>
@@ -179,9 +179,9 @@ export const SharedBrowse: React.FC = () => {
       />
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">みんなの共有データ</h2>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">{t('share.browse.title')}</h2>
           <p className="text-gray-600 dark:text-gray-400">
-            他のドライバーが共有したセットアップを、サーキット・車種で探せます。
+            {t('share.browse.subtitle')}
           </p>
         </div>
 
@@ -189,20 +189,20 @@ export const SharedBrowse: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
           <div className="flex items-center mb-4">
             <FilterOutlined className="mr-2 text-gray-600 dark:text-gray-400" />
-            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">絞り込み</h3>
+            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('share.browse.filter')}</h3>
             {hasActiveFilters && (
               <Button size="small" type="link" icon={<CloseOutlined />} onClick={clearFilters} className="ml-auto">
-                クリア
+                {t('share.browse.clear')}
               </Button>
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">サーキット</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('share.browse.circuit')}</label>
               <Select
                 value={filterCircuit}
                 onChange={setFilterCircuit}
-                placeholder="すべてのサーキット"
+                placeholder={t('share.browse.allCircuits')}
                 className="w-full"
                 allowClear
                 showSearch
@@ -215,11 +215,11 @@ export const SharedBrowse: React.FC = () => {
               </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">車種</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('share.browse.carModel')}</label>
               <Select
                 value={filterCarModel}
                 onChange={setFilterCarModel}
-                placeholder="すべての車種"
+                placeholder={t('share.browse.allCarModels')}
                 className="w-full"
                 allowClear
                 showSearch
@@ -244,9 +244,9 @@ export const SharedBrowse: React.FC = () => {
               description={
                 <span className="text-gray-500 dark:text-gray-400">
                   {hasActiveFilters ? (
-                    <>条件に一致する共有データがありません<br />絞り込み条件を変更してください</>
+                    <>{t('share.browse.emptyFiltered')}<br />{t('share.browse.emptyFilteredHint')}</>
                   ) : (
-                    <>まだ共有データがありません<br />最初の共有者になりましょう</>
+                    <>{t('share.browse.emptyNone')}<br />{t('share.browse.emptyNoneHint')}</>
                   )}
                 </span>
               }
@@ -254,7 +254,7 @@ export const SharedBrowse: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">{setups.length}件の共有データ</div>
+            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">{t('share.browse.count', { count: setups.length })}</div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {setups.map((setup) => (
                 <SharedSetupCard key={setup.id} setup={setup} onOpen={openDetail} />

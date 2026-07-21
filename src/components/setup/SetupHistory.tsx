@@ -12,10 +12,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { setupsToCsv, csvFileName, downloadCsv } from '../../lib/csv';
 import logger from '../../utils/logger';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext';
 
 export const SetupHistory: React.FC = () => {
   const { currentUser } = useAuth();
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
   const [setups, setSetups] = useState<CarSetup[]>([]);
@@ -254,7 +256,7 @@ export const SetupHistory: React.FC = () => {
       return;
     }
     try {
-      const csv = setupsToCsv(filteredSetups);
+      const csv = setupsToCsv(filteredSetups, t, locale);
       downloadCsv(csv, csvFileName());
       message.success(t('history.csv.success', { count: filteredSetups.length }));
     } catch (error) {

@@ -12,7 +12,10 @@
     "test": "vitest run",
     "test:rules": "firebase emulators:exec --only firestore --project velocity-logger-rules-test \"vitest run --config vite.rules.config.ts\"",
     "test:mobile": "playwright test tests/mobile-responsive.spec.ts",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "i18n:check-hardcoded": "node scripts/check-hardcoded-japanese.mjs",
+    "i18n:check-keys": "vitest run src/i18n/i18n.test.ts src/i18n/i18nIntegrity.test.ts",
+    "i18n:check": "npm run i18n:check-hardcoded && npm run i18n:check-keys"
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",

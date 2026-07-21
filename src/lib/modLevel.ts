@@ -2,12 +2,8 @@ import { ModificationEntry, ModCategory } from '../types/vehicle';
 
 export type ModLevel = 'NORMAL' | 'LIGHT' | 'MIDDLE' | 'FULL';
 
-export const MOD_LEVEL_LABELS: Record<ModLevel, string> = {
-  NORMAL: 'ノーマル',
-  LIGHT: 'ライトチューン',
-  MIDDLE: 'ミドルチューン',
-  FULL: 'フルチューン',
-};
+// 表示ラベルは i18n（vehicle.labels.modLevel.<ModLevel>）で解決する。
+// このモジュールは lib 層のため t() を持たず、言語非依存な列挙値（ModLevel）だけを返す。
 
 const EXCLUDED_CATEGORIES: ReadonlySet<ModCategory> = new Set(['other', 'tire_wheel']);
 

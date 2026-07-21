@@ -51,7 +51,7 @@ export const SharedSetupDetail: React.FC = () => {
     const load = async () => {
       if (!currentUser) return;
       if (!id) {
-        setLoadError('セットアップが指定されていません');
+        setLoadError(t('share.detail.notSpecified'));
         setLoading(false);
         return;
       }
@@ -60,7 +60,7 @@ export const SharedSetupDetail: React.FC = () => {
       try {
         const s = await getSharedSetup(id);
         if (!s) {
-          setLoadError('このデータは閲覧できません（非公開、または共有が解除されています）');
+          setLoadError(t('share.detail.forbidden'));
           return;
         }
         setSetup(s);
@@ -77,8 +77,8 @@ export const SharedSetupDetail: React.FC = () => {
       } catch (error) {
         // ルールが他人の private を拒否した場合等もここに来る
         logger.error('共有データの読み込みに失敗しました:', error);
-        setLoadError('共有データの読み込みに失敗しました');
-        message.error('共有データの読み込みに失敗しました');
+        setLoadError(t('share.detail.loadError'));
+        message.error(t('share.detail.loadError'));
       } finally {
         setLoading(false);
       }
@@ -117,10 +117,10 @@ export const SharedSetupDetail: React.FC = () => {
             className="flex items-center text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm mb-6"
           >
             <ArrowLeftOutlined className="mr-1" />
-            共有データ一覧に戻る
+            {t('share.detail.back')}
           </button>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12">
-            <Empty description={<span className="text-gray-500 dark:text-gray-400">{loadError ?? '表示できません'}</span>} />
+            <Empty description={<span className="text-gray-500 dark:text-gray-400">{loadError ?? t('share.detail.cannotDisplay')}</span>} />
           </div>
         </main>
       </div>
@@ -141,7 +141,7 @@ export const SharedSetupDetail: React.FC = () => {
           className="flex items-center text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm mb-4"
         >
           <ArrowLeftOutlined className="mr-1" />
-          共有データ一覧に戻る
+          {t('share.detail.back')}
         </button>
 
         {/* ヘッダー情報 */}
@@ -153,17 +153,17 @@ export const SharedSetupDetail: React.FC = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{setup.circuit}</h2>
           <div className="mt-1 text-gray-600 dark:text-gray-400 text-sm">
-            {setup.carModel} ・ {t(sessionTypeTranslationKey(setup.sessionType))} ・ {formatDate(setup.date)}
+            {setup.carModel} · {t(sessionTypeTranslationKey(setup.sessionType))} · {formatDate(setup.date)}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
             <span className="text-gray-700 dark:text-gray-300">
-              ベストラップ:{' '}
+              {t('share.detail.bestLap')}:{' '}
               <span className="font-semibold text-green-600 dark:text-green-400">
                 {displayValue(setup.lapTimeData?.bestLap)}
               </span>
             </span>
             <span className="text-gray-500 dark:text-gray-400">
-              ドライバー: {setup.anonymized ? '匿名' : displayValue(setup.driver)}
+              {t('share.detail.driver')}: {setup.anonymized ? t('share.detail.anonymous') : displayValue(setup.driver)}
             </span>
           </div>
           {myComparableId && setup.id && (
@@ -172,7 +172,7 @@ export const SharedSetupDetail: React.FC = () => {
               className="mt-4 inline-flex items-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-3 py-2 rounded-md text-sm transition-colors"
             >
               <SwapOutlined className="mr-2" />
-              自分の同一車種データと比較
+              {t('share.detail.compareCta')}
             </button>
           )}
         </div>
@@ -219,16 +219,16 @@ export const SharedSetupDetail: React.FC = () => {
         {/* 知見メモ（あれば） */}
         {(setup.knowledge?.intention || setup.knowledge?.result || setup.knowledge?.learning) && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5 mt-4">
-            <div className="text-xs uppercase tracking-[0.3em] text-gray-400 dark:text-gray-500 mb-3">知見メモ</div>
+            <div className="text-xs uppercase tracking-[0.3em] text-gray-400 dark:text-gray-500 mb-3">{t('share.detail.knowledge')}</div>
             <div className="space-y-2 text-sm">
               {setup.knowledge?.intention && (
-                <div><span className="font-semibold text-gray-500 dark:text-gray-400 mr-2">意図</span><span className="text-gray-700 dark:text-gray-200">{setup.knowledge.intention}</span></div>
+                <div><span className="font-semibold text-gray-500 dark:text-gray-400 mr-2">{t('share.detail.intention')}</span><span className="text-gray-700 dark:text-gray-200">{setup.knowledge.intention}</span></div>
               )}
               {setup.knowledge?.result && (
-                <div><span className="font-semibold text-gray-500 dark:text-gray-400 mr-2">結果</span><span className="text-gray-700 dark:text-gray-200">{setup.knowledge.result}</span></div>
+                <div><span className="font-semibold text-gray-500 dark:text-gray-400 mr-2">{t('share.detail.result')}</span><span className="text-gray-700 dark:text-gray-200">{setup.knowledge.result}</span></div>
               )}
               {setup.knowledge?.learning && (
-                <div><span className="font-semibold text-gray-500 dark:text-gray-400 mr-2">学び</span><span className="text-gray-700 dark:text-gray-200">{setup.knowledge.learning}</span></div>
+                <div><span className="font-semibold text-gray-500 dark:text-gray-400 mr-2">{t('share.detail.learning')}</span><span className="text-gray-700 dark:text-gray-200">{setup.knowledge.learning}</span></div>
               )}
             </div>
           </div>

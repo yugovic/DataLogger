@@ -1,6 +1,10 @@
-import { MOD_LEVEL_LABELS, ModLevel } from './modLevel';
+import { ModLevel } from './modLevel';
 import type { PublicVehicleProfile } from './vehicleProfilePublic';
-import { MOD_CATEGORY_LABELS, ModCategory, TIRE_CLASS_LABELS } from '../types/vehicle';
+import { ModCategory, TireClass } from '../types/vehicle';
+
+// このモジュールは lib 層（React コンポーネント外）で動くため t() を使えない。
+// 表示ラベルは i18n キーに解決できる列挙値（ModLevel / TireClass / ModCategory）だけを返し、
+// 実際の翻訳は表示側（SpecCard.tsx / shareImage.ts の呼び出し元）で t() する。
 
 export interface SpecCardModificationItem {
   partName: string;
@@ -9,29 +13,26 @@ export interface SpecCardModificationItem {
 
 export interface SpecCardModificationGroup {
   category: ModCategory;
-  label: string;
   items: SpecCardModificationItem[];
 }
 
 export interface SpecCardSpecItem {
   key: 'powerPs' | 'weightKg';
-  label: string;
+  /** 数値＋単位（例: "120 ps"）。単位は言語非依存なので原文のまま。 */
   value: string;
-  notice: '申告値';
 }
 
 export interface SpecCardView {
   modLevel: ModLevel;
-  modLevelLabel: string;
-  tireClassLabel: string | null;
+  /** タイヤ区分の列挙値。表示側で t(`vehicle.labels.tireClass.${tireClass}`) する。 */
+  tireClass: TireClass | null;
   specItems: SpecCardSpecItem[];
   modificationGroups: SpecCardModificationGroup[];
   modificationCategoryCount: number;
-  compactSummary: string;
 }
 
 /** メーカー名として意味を持たない先頭語（大文字小文字問わず一致） */
-const NON_MAKER_PREFIXES = new Set(['other', 'その他']);
+const NON_MAKER_PREFIXES = new Set(['other', 'その他']); // i18n-ignore （表示ではなく入力値の照合用）
 
 /** carModel を「メーカー / モデル」の二段タイポに分解する（先頭語をメーカー扱い） */
 export function splitCarModel(carModel: string): { maker: string | null; model: string } {
@@ -64,42 +65,24 @@ export function buildSpecCardView(profile: PublicVehicleProfile): SpecCardView {
 
   const modificationGroups = Array.from(groupMap.entries()).map(([category, items]) => ({
     category,
-    label: MOD_CATEGORY_LABELS[category],
     items,
   }));
 
   const specItems: SpecCardSpecItem[] = [];
   if (profile.powerPs !== null) {
-    specItems.push({
-      key: 'powerPs',
-      label: 'パワー',
-      value: `${profile.powerPs} ps`,
-      notice: '申告値',
-    });
+    specItems.push({ key: 'powerPs', value: `${profile.powerPs} ps` });
   }
   if (profile.weightKg !== null) {
-    specItems.push({
-      key: 'weightKg',
-      label: '車重',
-      value: `${profile.weightKg} kg`,
-      notice: '申告値',
-    });
+    specItems.push({ key: 'weightKg', value: `${profile.weightKg} kg` });
   }
 
-  const tireClassLabel = profile.tireClass ? TIRE_CLASS_LABELS[profile.tireClass] : null;
   const modificationCategoryCount = modificationGroups.length;
-  const modLevelLabel = MOD_LEVEL_LABELS[profile.modLevel];
-  const compactSummary = modificationCategoryCount === 0
-    ? 'ノーマル車両'
-    : `${modificationCategoryCount}カテゴリ改造`;
 
   return {
     modLevel: profile.modLevel,
-    modLevelLabel,
-    tireClassLabel,
+    tireClass: profile.tireClass,
     specItems,
     modificationGroups,
     modificationCategoryCount,
-    compactSummary,
   };
 }
