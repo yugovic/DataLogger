@@ -33,6 +33,14 @@ jobs:
       - name: Test
         run: npm run test
 
+      # i18n 静的検査: ハードコード日本語の新規混入検出（ベースライン方式）＋ ja/en 翻訳キーの対称性検査。
+      # 失敗したら以下で対応する:
+      #   - 内容確認:      node scripts/check-hardcoded-japanese.mjs --report
+      #   - 意図的な残存:  node scripts/check-hardcoded-japanese.mjs --update-baseline でベースラインを棚卸し
+      #   - 見落とし:      該当文字列を翻訳キー化して修正
+      - name: i18n check
+        run: npm run i18n:check
+
       - name: Firestore security rules
         run: npm run test:rules
 
