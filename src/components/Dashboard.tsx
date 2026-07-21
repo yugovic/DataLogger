@@ -724,6 +724,7 @@ export const Dashboard: React.FC = () => {
                           dateLabel: formatDate(last.date, locale),
                           deltaSeconds: delta,
                           sessionType: sessionLabel(last.sessionType, t),
+                          t,
                         };
 
                         try {

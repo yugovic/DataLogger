@@ -400,9 +400,9 @@ function formatSignedSeconds(seconds: number): string {
 }
 
 function buildNextAction(readout: CoachingReadout, t: TFunction): string {
-  const braking = readout.annotations.find((a) => a.text.includes('ブレーキ開始') && a.text.includes('手前'));
+  const braking = readout.annotations.find((a) => a.code === 'brakeStartEarlier');
   if (braking) return t('telemetry.debrief.suggestBrakeLater');
-  const cornerSpeed = readout.annotations.find((a) => a.text.includes('最小コーナー速度') && a.text.includes('低い'));
+  const cornerSpeed = readout.annotations.find((a) => a.code === 'cornerSpeedLower');
   if (cornerSpeed) return t('telemetry.debrief.suggestKeepBottomSpeed');
   if (readout.topOpportunity) return t('telemetry.debrief.suggestCheckOpportunity', { opportunity: readout.topOpportunity });
   return t('telemetry.debrief.suggestReproduce');

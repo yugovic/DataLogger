@@ -62,6 +62,7 @@ export {
   buildCoachingReadout,
   type Annotation,
   type AnnotationKind,
+  type AnnotationCode,
   type CoachingReadout,
 } from './annotations';
 export {

@@ -4,11 +4,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeSessionHighlight,
-  HIGHLIGHT_BADGE_LABELS,
   type HighlightBadge,
   type SessionHighlight,
 } from './sessionHighlights';
 import type { CarSetup } from '../types/setup';
+import { resources } from '../i18n/resources';
 
 // ─── テスト用ファクトリ ────────────────────────────────────
 
@@ -295,22 +295,16 @@ describe('SessionHighlight の返却値', () => {
   });
 });
 
-// ─── HIGHLIGHT_BADGE_LABELS の網羅確認 ────────────────────
+// ─── バッジの i18n キー網羅確認 ────────────────────
+// 表示ラベルは lib ではなく share.image.badge.<HighlightBadge> で解決する（呼び出し元で t()）。
 
-describe('HIGHLIGHT_BADGE_LABELS', () => {
+describe('バッジ i18n キー', () => {
   const allBadges: HighlightBadge[] = ['FIRST_VISIT', 'SELF_BEST', 'FIRST_LOGGER', 'RAIN_SESSION'];
 
-  it('全バッジに対して日本語ラベルが定義されている', () => {
+  it('全バッジに対して ja-JP / en の翻訳キーが定義されている', () => {
     for (const badge of allBadges) {
-      expect(HIGHLIGHT_BADGE_LABELS[badge]).toBeTruthy();
-      expect(typeof HIGHLIGHT_BADGE_LABELS[badge]).toBe('string');
+      expect(resources['ja-JP'].share.image.badge[badge]).toBeTruthy();
+      expect(resources.en.share.image.badge[badge]).toBeTruthy();
     }
-  });
-
-  it('ラベルの内容が仕様書どおりであること', () => {
-    expect(HIGHLIGHT_BADGE_LABELS.FIRST_VISIT).toBe('初走行');
-    expect(HIGHLIGHT_BADGE_LABELS.SELF_BEST).toBe('自己ベスト更新');
-    expect(HIGHLIGHT_BADGE_LABELS.FIRST_LOGGER).toBe('初ロガー計測');
-    expect(HIGHLIGHT_BADGE_LABELS.RAIN_SESSION).toBe('雨天走行');
   });
 });

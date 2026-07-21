@@ -713,6 +713,17 @@ export const resources = {
       image: {
         specCardShareTitle: '{{car}} マシンスペックカード',
         specCardShareText: '{{car}} のマシンスペックカード',
+        improvedFromLast: '前回より改善',
+        delayedFromLast: '前回より遅延',
+        footerTagline: 'VELOCITY LOGGER — セットアップ記録・テレメトリ分析',
+        highlightFooter: 'VELOCITY LOGGER — セッションハイライト',
+        shareCardText: '{{car}} @ {{circuit}} ベストラップ {{lap}}',
+        badge: {
+          FIRST_VISIT: '初走行',
+          SELF_BEST: '自己ベスト更新',
+          FIRST_LOGGER: '初ロガー計測',
+          RAIN_SESSION: '雨天走行',
+        },
       },
     },
     compare: {
@@ -1819,6 +1830,17 @@ export const resources = {
       image: {
         specCardShareTitle: '{{car}} machine spec card',
         specCardShareText: 'Machine spec card for {{car}}',
+        improvedFromLast: 'Faster than last time',
+        delayedFromLast: 'Slower than last time',
+        footerTagline: 'VELOCITY LOGGER — Setup logging & telemetry analysis',
+        highlightFooter: 'VELOCITY LOGGER — Session highlights',
+        shareCardText: '{{car}} @ {{circuit}} best lap {{lap}}',
+        badge: {
+          FIRST_VISIT: 'First visit',
+          SELF_BEST: 'Personal best',
+          FIRST_LOGGER: 'First logged run',
+          RAIN_SESSION: 'Wet session',
+        },
       },
     },
     compare: {

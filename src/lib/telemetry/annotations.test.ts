@@ -69,9 +69,9 @@ describe('buildCoachingReadout', () => {
       metrics({ brakingPointM: 320 }), // A は奥で踏む
       metrics({ brakingPointM: 290, slowestCornerAtM: 360 }), // B は30m手前
     );
-    const brakeAnno = r.annotations.find((a) => a.text.includes('ブレーキ開始'));
+    const brakeAnno = r.annotations.find((a) => a.code === 'brakeStartEarlier');
     expect(brakeAnno).toBeDefined();
-    expect(brakeAnno!.text).toContain('手前');
+    expect(brakeAnno!.kind).toBe('loss');
   });
 
   it('最小コーナー速度差をアノテートする（Bが低い→loss）', () => {
@@ -81,7 +81,7 @@ describe('buildCoachingReadout', () => {
       metrics({ minCornerSpeedKmh: 65 }),
       metrics({ minCornerSpeedKmh: 58, slowestCornerAtM: 360 }),
     );
-    const cornerAnno = r.annotations.find((a) => a.text.includes('最小コーナー速度'));
+    const cornerAnno = r.annotations.find((a) => a.code === 'cornerSpeedLower');
     expect(cornerAnno).toBeDefined();
     expect(cornerAnno!.kind).toBe('loss');
   });

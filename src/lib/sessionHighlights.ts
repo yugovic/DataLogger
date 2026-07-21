@@ -15,12 +15,9 @@ export type HighlightBadge =
   | 'FIRST_LOGGER'   // 初のロガー証憑付き記録
   | 'RAIN_SESSION';  // 雨天走行（condition が 'ウェット' | 'フルウェット'）
 
-export const HIGHLIGHT_BADGE_LABELS: Record<HighlightBadge, string> = {
-  FIRST_VISIT: '初走行',
-  SELF_BEST: '自己ベスト更新',
-  FIRST_LOGGER: '初ロガー計測',
-  RAIN_SESSION: '雨天走行',
-};
+// 表示ラベルは i18n（share.image.badge.<HighlightBadge>）で解決する。
+// このモジュールは lib 層のため t() を持たず、言語非依存な列挙値（HighlightBadge）だけを返し、
+// 実際の翻訳は表示側（SessionHighlightModal.tsx / shareImage.ts の呼び出し元）で t() する。
 
 export interface SessionHighlight {
   circuit: string;

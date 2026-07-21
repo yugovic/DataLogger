@@ -6,7 +6,6 @@
 import { buildSpecCardView, splitCarModel } from '../lib/specCardView';
 import type { PublicVehicleProfile } from '../lib/vehicleProfilePublic';
 import type { HighlightBadge } from '../lib/sessionHighlights';
-import { HIGHLIGHT_BADGE_LABELS } from '../lib/sessionHighlights';
 
 // Canvas 描画ユーティリティは React 外だが、文言の i18n 解決のため呼び出し元の t() を受け取る。
 // （lib/util 層で t() を直接持てないため、useTranslation を持つ呼び出し元から注入する設計）
@@ -20,6 +19,7 @@ export interface ShareCardData {
   deltaSeconds?: number;
   sessionType?: string;
   shareUrl?: string;
+  t: TranslateFn;
 }
 
 export interface SpecCardImageData {
@@ -42,6 +42,7 @@ export interface HighlightImageData {
   lapCount: number | null;
   badges: HighlightBadge[];
   shareUrl?: string;
+  t: TranslateFn;
 }
 
 const truncateCanvasText = (
@@ -180,7 +181,11 @@ export async function generateShareImage(data: ShareCardData): Promise<string> {
 
     ctx.fillStyle = '#64748b';
     ctx.font = '14px sans-serif';
-    ctx.fillText(improved ? '前回より改善' : '前回より遅延', 60, 355);
+    ctx.fillText(
+      data.t(improved ? 'share.image.improvedFromLast' : 'share.image.delayedFromLast'),
+      60,
+      355,
+    );
   }
 
   // Session type
@@ -200,7 +205,7 @@ export async function generateShareImage(data: ShareCardData): Promise<string> {
   ctx.fillRect(0, H - 60, W, 60);
   ctx.fillStyle = '#475569';
   ctx.font = '13px sans-serif';
-  ctx.fillText('VELOCITY LOGGER — セットアップ記録・テレメトリ分析', 60, H - 25);
+  ctx.fillText(data.t('share.image.footerTagline'), 60, H - 25);
   drawWatermark(ctx, { shareUrl: data.shareUrl });
 
   // Convert to blob URL
@@ -477,7 +482,7 @@ export async function generateHighlightImage(data: HighlightImageData): Promise<
 
     ctx.font = badgeFont;
     for (const badge of data.badges.slice(0, 4)) {
-      const label = HIGHLIGHT_BADGE_LABELS[badge];
+      const label = data.t(`share.image.badge.${badge}`);
       const textWidth = ctx.measureText(label).width;
       const pillW = textWidth + badgePadX * 2;
       const pillH = 32;
@@ -501,7 +506,7 @@ export async function generateHighlightImage(data: HighlightImageData): Promise<
   ctx.fillRect(0, H - 60, W, 60);
   ctx.fillStyle = '#475569';
   ctx.font = '13px sans-serif';
-  ctx.fillText('VELOCITY LOGGER — セッションハイライト', 60, H - 25);
+  ctx.fillText(data.t('share.image.highlightFooter'), 60, H - 25);
   drawWatermark(ctx, { shareUrl: data.shareUrl });
 
   return createPngBlob(canvas);
@@ -545,7 +550,11 @@ export async function shareViaWebShare(data: ShareCardData): Promise<boolean> {
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         title: `${data.circuit} — ${data.bestLap}`,
-        text: `${data.carModel} @ ${data.circuit} — ベストラップ ${data.bestLap}`,
+        text: data.t('share.image.shareCardText', {
+          car: data.carModel,
+          circuit: data.circuit,
+          lap: data.bestLap,
+        }),
         files: [file],
       });
       URL.revokeObjectURL(url);

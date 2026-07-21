@@ -10,15 +10,29 @@
 
 import type { DeltaTResult, LapMetrics, SegmentDelta } from './compare';
 
-/** アノテーションの種別 */
+/** アノテーションの種別（色・トーン用） */
 export type AnnotationKind = 'loss' | 'gain' | 'info';
+
+/**
+ * アノテーションの安定コード（言語非依存の判別子）。
+ * text は表示専用（将来 i18n 化しうる）ため、ロジック分岐は必ずこの code で行う。
+ */
+export type AnnotationCode =
+  | 'lossSegment'        // 最大ロス区間
+  | 'gainSegment'        // 最大ゲイン区間
+  | 'brakeStartEarlier'  // ブレーキ開始がAより手前（早い）
+  | 'brakeStartLater'    // ブレーキ開始がAより奥（遅い）
+  | 'cornerSpeedLower'   // 最小コーナー速度がAより低い
+  | 'cornerSpeedHigher'; // 最小コーナー速度がAより高い
 
 /** デルタT 上にピン留めする1アノテーション */
 export interface Annotation {
   /** 発生地点（ラップ開始からの距離 m） */
   distance: number;
   kind: AnnotationKind;
-  /** 表示テキスト（日本語・単位つき） */
+  /** 判別用の安定コード（言語非依存。ロジック分岐にはこれを使う） */
+  code: AnnotationCode;
+  /** 表示テキスト（日本語・単位つき。表示専用） */
   text: string;
 }
 
@@ -135,6 +149,7 @@ export function buildCoachingReadout(
     annotations.push({
       distance: at,
       kind: 'loss',
+      code: 'lossSegment',
       text: `${fmtDist(maxLoss.fromM)}〜${fmtDist(maxLoss.toM)}で ${fmtSecAbs(maxLoss.amount)} ロス`,
     });
   }
@@ -143,6 +158,7 @@ export function buildCoachingReadout(
     annotations.push({
       distance: at,
       kind: 'gain',
+      code: 'gainSegment',
       text: `${fmtDist(maxGain.fromM)}〜${fmtDist(maxGain.toM)}で ${fmtSecAbs(maxGain.amount)} ゲイン`,
     });
   }
@@ -155,6 +171,7 @@ export function buildCoachingReadout(
       annotations.push({
         distance: metricsB.brakingPointM,
         kind: earlier ? 'loss' : 'info',
+        code: earlier ? 'brakeStartEarlier' : 'brakeStartLater',
         text: `ブレーキ開始がAより${Math.abs(Math.round(diff))}m${earlier ? '手前（早い）' : '奥（遅い）'}`,
       });
     }
@@ -171,6 +188,7 @@ export function buildCoachingReadout(
       annotations.push({
         distance: metricsB.slowestCornerAtM,
         kind: diff < 0 ? 'loss' : 'gain',
+        code: diff < 0 ? 'cornerSpeedLower' : 'cornerSpeedHigher',
         text: `最小コーナー速度がAより ${Math.abs(diff).toFixed(1)} km/h ${diff < 0 ? '低い' : '高い'}`,
       });
     }

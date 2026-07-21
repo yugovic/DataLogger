@@ -9,7 +9,6 @@ import { useTranslation } from 'react-i18next';
 import { Modal, Button, Checkbox, message } from 'antd';
 import { DownloadOutlined, ShareAltOutlined } from '@ant-design/icons';
 import type { SessionHighlight } from '../../lib/sessionHighlights';
-import { HIGHLIGHT_BADGE_LABELS } from '../../lib/sessionHighlights';
 import { generateHighlightImage } from '../../utils/shareImage';
 import type { HighlightImageData } from '../../utils/shareImage';
 import { createPublicShare } from '../../services/publicShareService';
@@ -78,6 +77,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
     lapCount: highlight.lapCount,
     badges: highlight.badges,
     shareUrl,
+    t,
   });
 
   /**
@@ -245,7 +245,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
                 key={badge}
                 className="bg-blue-700 dark:bg-blue-700 text-blue-100 dark:text-blue-100 text-xs font-bold px-3 py-1 rounded-full"
               >
-                {HIGHLIGHT_BADGE_LABELS[badge]}
+                {t(`share.image.badge.${badge}`)}
               </span>
             ))}
           </div>

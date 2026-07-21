@@ -45,20 +45,20 @@ const SLOT_COLORS: Record<LapSlot, string> = { A: '#3b82f6', B: '#f59e0b' };
 const GAIN_COLOR = '#10b981'; // B が速い（緑）
 const LOSS_COLOR = '#ef4444'; // B が遅い（赤）
 
-/** チャンネルの表示メタ（軸名・整形・系列取得） */
+// チャンネルの表示メタ（整形・系列取得）。
+// 表示名（label / axisName）は言語依存のため定義に持たず、
+// telemetry.cockpit.channel.<key> / channelAxis.<key> を t() で解決する（下の channelLabel / channelAxisName）。
 interface ChannelDef {
   key: ChannelKey;
-  label: string;
-  axisName: string;
   unit: string;
   digits: number;
   pick: (p: LapProfile) => number[];
 }
 
 const CHANNEL_DEFS: ChannelDef[] = [
-  { key: 'speed', label: '速度', axisName: '速度 (km/h)', unit: ' km/h', digits: 1, pick: (p) => p.speed },
-  { key: 'longG', label: '前後G', axisName: '前後G (G)', unit: ' G', digits: 2, pick: (p) => p.longG },
-  { key: 'latG', label: '横G', axisName: '横G (G)', unit: ' G', digits: 2, pick: (p) => p.latG },
+  { key: 'speed', unit: ' km/h', digits: 1, pick: (p) => p.speed },
+  { key: 'longG', unit: ' G', digits: 2, pick: (p) => p.longG },
+  { key: 'latG', unit: ' G', digits: 2, pick: (p) => p.latG },
 ];
 
 export interface CockpitSlot {

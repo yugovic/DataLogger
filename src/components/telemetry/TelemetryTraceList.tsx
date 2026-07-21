@@ -1378,9 +1378,9 @@ function buildReferenceCandidate(current: TelemetryTrace, reference: TelemetryTr
 }
 
 function buildNextAction(readout: CoachingReadout, t: TFunction): string {
-  const braking = readout.annotations.find((annotation) => annotation.text.includes('ブレーキ開始') && annotation.text.includes('手前'));
+  const braking = readout.annotations.find((annotation) => annotation.code === 'brakeStartEarlier');
   if (braking) return t('telemetry.list.actionBrakeLater');
-  const cornerSpeed = readout.annotations.find((annotation) => annotation.text.includes('最小コーナー速度') && annotation.text.includes('低い'));
+  const cornerSpeed = readout.annotations.find((annotation) => annotation.code === 'cornerSpeedLower');
   if (cornerSpeed) return t('telemetry.list.actionKeepMinSpeed');
   if (readout.topOpportunity) return t('telemetry.list.actionCheckOpportunity', { opportunity: readout.topOpportunity });
   return t('telemetry.list.actionRepeatGoodSection');
