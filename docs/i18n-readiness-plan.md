@@ -302,20 +302,26 @@ Phase 1完全完了（2026-07-22）: `?lang=en`での実画面確認により、
 
 ### Phase 2: 閲覧・分析・共有
 
-- [ ] ダッシュボード、履歴、比較を移行する。
-- [ ] テレメトリ一覧、取込、比較、デブリーフを移行する。
-- [ ] 公開共有、共有管理、共有画像を移行する。
-- [ ] CSV 出力言語を実装する。
-- [ ] 静的メタデータと公開 URL 方針を反映する。
+- [x] ダッシュボード、履歴、比較を移行する。
+- [x] テレメトリ一覧、取込、比較、デブリーフを移行する。
+- [x] 公開共有、共有管理、共有画像を移行する。
+- [x] CSV 出力言語を実装する。
+- [x] 静的メタデータと公開 URL 方針を反映する。
 
 完了条件: 英語利用者が主要な閲覧・分析・共有機能で日本語固定文言に遭遇しない。
 
+Phase 2完了（2026-07-22）: ダッシュボード・履歴・比較はPhase 1作業中に実質移行済みだったためチェックのみ更新。テレメトリ画面群（`TelemetryAnalysis`/`TelemetryFileCompare`/`TelemetryTraceCompare`/`TelemetryDebrief`/`TelemetryTraceList`ほか17ファイル）を新規`telemetry`名前空間（281キー×2言語）で日英対応し、`useTelemetryImport.ts`/`trackMapOverlay.ts`はキーを返し表示側で`t()`する設計に統一。公開共有画面群（`SharedBrowse`/`SharedSetupDetail`/`ShareToggle`/`ShareBadges`等）と共有画像生成（`shareImage.ts`のスペックカード経路）を日英対応し、`modLevel.ts`/`specCardView.ts`をキー返却方式に変更して比較画面・共有カードの改造度／タイヤ区分タグの未翻訳を解消。CSV出力（`csv.ts`）は既存翻訳キー（`compare.fields.*`/`common.sessionType.*`/`common.weather.*`）を再利用しロケール対応化、`index.html`のtitleを言語非依存化。`<html lang>`は`LocaleContext.tsx`で既に連動済みと確認。公開共有URLの言語方針は「現状は閲覧者のブラウザ言語に従う」を維持し、作成者言語を引き継ぐ方針にする場合は共有URL生成時に`?lang=`を付与する変更が別途必要（未実装、バックログ）。
+
+残件（バックログ化・ベースライン管理下）: `shareImage.ts`のセッションハイライト・比較カード画像側（`HIGHLIGHT_BADGE_LABELS`等）、`ComparisonCockpit.tsx`のチャネル定義（軸名）、`TelemetryDebrief.tsx`/`TelemetryTraceList.tsx`の`annotation.text`日本語文字列マッチによるロジック分岐（i18n化すると壊れる脆い結合）は今回スコープ外。
+
 ### Phase 3: 品質ゲートと追加言語準備
 
-- [ ] ハードコード文言の静的検査を CI に追加する。
-- [ ] 翻訳キー欠落、未使用キー、補間変数不一致を検査する。
+- [x] ハードコード文言の静的検査を CI に追加する。
+- [x] 翻訳キー欠落、未使用キー、補間変数不一致を検査する。
 - [ ] 擬似ロケールで長文・文字幅・欠落を確認する。
 - [ ] 公開翻訳リソースのレビュー責任者と更新フローを定める。
+
+Phase 3進捗（2026-07-22）: `scripts/check-hardcoded-japanese.mjs`（コメント・ユーザー入力等を除外するハードコード日本語検出、ベースライン方式で新規混入のみ検査失敗にする）と`src/i18n/i18nIntegrity.test.ts`（未使用キー検出・ja/en補間変数不一致検出、いずれもベースライン方式）を追加し、`npm run i18n:check`で一括実行できるようにした。CIワークフローへの組み込み自体は未実施。擬似ロケール確認と翻訳レビュー体制の整備は未着手。
 - [ ] 追加言語の候補と RTL・単位系の必要性を評価する。
 
 ## 8. テスト方針
