@@ -263,9 +263,9 @@ type AppErrorCode =
 
 - [x] Header と認証画面を移行する。
 - [x] オンボーディングを移行する。
-- [ ] セットアップ新規作成・編集と共有フォーム部品を移行する。
-- [ ] 車両一覧・車両編集を移行する。
-- [ ] 保存、削除、未保存離脱、検証エラーを移行する。
+- [x] セットアップ新規作成・編集と共有フォーム部品を移行する。
+- [x] 車両一覧・車両編集を移行する。
+- [x] 保存、削除、未保存離脱、検証エラーを移行する。
 - [ ] 日本語・英語でデスクトップ、モバイル、ダークモードを実画面確認する。
 
 完了条件: 新規ユーザーが英語だけで登録、車両作成、セットアップ保存まで完了できる。
@@ -295,6 +295,8 @@ type AppErrorCode =
 比較定義の移行完了（2026-07-20）: `setupFields.ts` の全固定セクション・行ラベルを翻訳キーへ変更し、純粋な `resolveCompareSections` で表示時に解決する構成へ統一した。`SetupCompare`、`SharedSetupDetail`、`TelemetryTraceList`、`TelemetryDebrief` は同じ resolver を利用し、テレメトリのコンポーネント外集計には translator を明示的に渡す。比較表内のセッション種別・天候値と、共有カード／詳細のセッション種別も日英連動する。車両固有の保存済み調整ラベルはユーザー定義値として原文を維持する。
 
 ダッシュボード完了（2026-07-20）: `Dashboard.tsx` の見出し、説明、主要導線、読込エラー、空状態、KPI、成長共有、通知、全チャート名・系列・凡例、最近のセッション、ナレッジノート、使用車両を日英対応した。セッション種別・天候は安定コードから翻訳し、日付・月表示・件数・軸目盛は選択ロケールの formatter を使用する。サーキット名・車種・ナレッジ本文はユーザー入力として原文を維持し、コメント以外の固定日本語は0件。
+
+Phase 1完了（2026-07-21）: `VehicleModal` 残存2箇所、セットアップ作成・編集フォーム（`BasicInfoTab`, `DrivingTab`, `LapTimeModal`, `SessionHighlightModal`, `VehicleAdjustmentsTab`）、保存・削除・検証エラー（`setupService`, `vehicleService`, `vehicleProfileSchema`）を日英対応した。エラーメッセージは新規 `src/i18n/errorMessages.ts` の `AppError`/`zodKey` によりエラーコード化し、UI側で言語別に解決する方式へ統一。この過程で、i18next設定の `nsSeparator` が既定値`:`のままだったため、既存のドット区切り名前空間キー（`dashboard.title` 等、以前からの実装分も含む）が実行時に一切解決されず生キーが表示される重大バグを発見。`nsSeparator`/`keySeparator` を `.` に統一し、コロン記法だった `Login`/`SignUp`/`Header`/`CarSetup`/`authService` を全てドット記法へ変換、`ns` 配列に不足していた名前空間を追加して解消した。実画面確認（デスクトップ／モバイル／ダークモード）は未実施のため、Phase 1最終項目のみ残件。
 
 ### Phase 2: 閲覧・分析・共有
 
