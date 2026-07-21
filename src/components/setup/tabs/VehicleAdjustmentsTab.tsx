@@ -2,6 +2,7 @@ import React from 'react';
 import { Input, InputNumber, Select } from 'antd';
 import type { VehicleSetupConfig } from '../../../types/vehicle';
 import { AxleFieldPair, SetupEmptyState, SetupField, SetupSection } from '../SetupFormParts';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   config: VehicleSetupConfig | null;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export const VehicleAdjustmentsTab: React.FC<Props> = ({ config, values, onChange, disabled }) => {
+  const { t } = useTranslation();
   // 車両未選択・旧車両は全項目を表示し、既存の自由入力動作を維持する。
   const unrestricted = !config;
   const showBrake = unrestricted || config.brake.padTypes.length > 0 || (config.brake.rotorTypes?.length ?? 0) > 0 || config.brake.balanceAdjustable;
@@ -25,22 +27,22 @@ export const VehicleAdjustmentsTab: React.FC<Props> = ({ config, values, onChang
       value={values[key] || undefined}
       onChange={(value) => onChange(key, value)}
       options={options.map((value) => ({ value, label: value }))}
-      placeholder="未選択"
+      placeholder={t('setupTabs.common.notSelected')}
       allowClear
       showSearch
       disabled={disabled}
-    /> : <Input value={values[key]} onChange={(e) => onChange(key, e.target.value)} placeholder="未入力" disabled={disabled} />
+    /> : <Input value={values[key]} onChange={(e) => onChange(key, e.target.value)} placeholder={t('setupTabs.common.notEntered')} disabled={disabled} />
   );
 
   if (!showBrake && !showAero && !showEngine) {
-    return <div className="p-4 sm:p-6"><SetupEmptyState>この車両には追加の調整項目が設定されていません。</SetupEmptyState></div>;
+    return <div className="p-4 sm:p-6"><SetupEmptyState>{t('setupTabs.adjustments.empty')}</SetupEmptyState></div>;
   }
 
   return <div className="space-y-6 p-4 sm:p-6">
-    {showBrake && <SetupSection title="ブレーキ設定" meta="パッド / ローター / バランス" icon="fas fa-stop-circle">
+    {showBrake && <SetupSection title={t('setupTabs.adjustments.brakes')} meta={t('setupTabs.adjustments.brakeMeta')} icon="fas fa-stop-circle">
       <div className="space-y-4">
-        <AxleFieldPair front={choice('frontBrakePad', config?.brake.padTypes ?? [])} rear={choice('rearBrakePad', config?.brake.padTypes ?? [])} frontHint="ブレーキパッド" rearHint="ブレーキパッド" />
-        <AxleFieldPair front={choice('frontBrakeRotor', config?.brake.rotorTypes ?? [])} rear={choice('rearBrakeRotor', config?.brake.rotorTypes ?? [])} frontHint="ローター" rearHint="ローター" />
+        <AxleFieldPair front={choice('frontBrakePad', config?.brake.padTypes ?? [])} rear={choice('rearBrakePad', config?.brake.padTypes ?? [])} frontHint={t('setupTabs.adjustments.brakePad')} rearHint={t('setupTabs.adjustments.brakePad')} />
+        <AxleFieldPair front={choice('frontBrakeRotor', config?.brake.rotorTypes ?? [])} rear={choice('rearBrakeRotor', config?.brake.rotorTypes ?? [])} frontHint={t('setupTabs.adjustments.rotor')} rearHint={t('setupTabs.adjustments.rotor')} />
         {(unrestricted || config.brake.balanceAdjustable) && <div className="max-w-md"><SetupField label="フロントブレーキ配分"><InputNumber className="w-full" min={0} max={100} addonAfter="%" value={values.brakeBalance ? Number(values.brakeBalance) : null} onChange={(v) => onChange('brakeBalance', v == null ? '' : String(v))} disabled={disabled} /></SetupField></div>}
       </div>
     </SetupSection>}

@@ -30,6 +30,9 @@ import { CarSetup } from '../types/setup';
 import { downloadShareImage, shareViaWebShare } from '../utils/shareImage';
 import { normalizeWeather } from '../lib/weather';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { useLocale } from '../contexts/LocaleContext';
+import { formatDate, formatNumber } from '../i18n/formatters';
 
 // ─── Helper functions ───────────────────────────────────────
 
@@ -54,13 +57,6 @@ const secondsToLapTime = (s: number): string => {
   return min > 0 ? `${min}:${parseFloat(sec) < 10 ? '0' : ''}${sec}` : sec;
 };
 
-const formatDate = (d: Date) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}/${m}/${day}`;
-};
-
 const weatherIcon = (condition: string) => {
   switch (normalizeWeather(condition)) {
     case 'sunny': return <SunOutlined className="text-orange-400" />;
@@ -71,14 +67,8 @@ const weatherIcon = (condition: string) => {
   }
 };
 
-const sessionLabel = (t: string) => {
-  switch (t) {
-    case 'practice': return '練習走行';
-    case 'qualifying': return '予選';
-    case 'race': return 'レース';
-    default: return t;
-  }
-};
+const sessionLabel = (type: string, t: TFunction) =>
+  t(`common.sessionType.${type}`, { defaultValue: type });
 
 const sessionColor = (t: string) => {
   switch (t) {
@@ -122,7 +112,8 @@ const useChart = (
 // ─── Main Component ─────────────────────────────────────────
 
 export const Dashboard: React.FC = () => {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation();
+  const { locale } = useLocale();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { darkMode } = useTheme();
@@ -141,13 +132,13 @@ export const Dashboard: React.FC = () => {
         const data = await getUserSetups(currentUser.uid, 100);
         setSetups(data);
       } catch (_e) {
-        message.error('データの読み込みに失敗しました');
+        message.error(t('dashboard.errors.load'));
       } finally {
         setLoading(false);
       }
     };
     fetch();
-  }, [currentUser]);
+  }, [currentUser, t]);
 
   // ─── Derived stats ──────────────────────────────────────
 
@@ -263,7 +254,7 @@ export const Dashboard: React.FC = () => {
     const monthlyCounts: Record<string, number> = {};
     setups.forEach(s => {
       const d = new Date(s.date);
-      const key = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const key = formatDate(d, locale, { year: 'numeric', month: 'short' });
       monthlyCounts[key] = (monthlyCounts[key] || 0) + 1;
     });
 
@@ -284,7 +275,7 @@ export const Dashboard: React.FC = () => {
       recentSessions,
       monthlyCounts,
     };
-  }, [setups]);
+  }, [setups, locale]);
 
   // ─── Chart options ──────────────────────────────────────
 
@@ -316,7 +307,7 @@ export const Dashboard: React.FC = () => {
         axisLabel: {
           color: darkMode ? '#9ca3af' : '#6b7280',
           fontSize: 10,
-          formatter: '{MM}/{dd}',
+          formatter: (value: number) => formatDate(value, locale, { month: '2-digit', day: '2-digit' }),
         },
         axisLine: { lineStyle: { color: darkMode ? '#374151' : '#e5e7eb' } },
       },
@@ -341,7 +332,7 @@ export const Dashboard: React.FC = () => {
           .map(l => [new Date(l.date).getTime(), l.bestLap]),
       })),
     };
-  }, [stats, darkMode]);
+  }, [stats, darkMode, locale]);
 
   const sessionDistOption = useMemo<echarts.EChartsOption | null>(() => {
     if (!stats) return null;
@@ -358,13 +349,13 @@ export const Dashboard: React.FC = () => {
         label: { show: false },
         emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
         data: [
-          { value: practice, name: '練習走行', itemStyle: { color: '#10b981' } },
-          { value: qualifying, name: '予選', itemStyle: { color: '#8b5cf6' } },
-          { value: race, name: 'レース', itemStyle: { color: '#ef4444' } },
+          { value: practice, name: t('common.sessionType.practice'), itemStyle: { color: '#10b981' } },
+          { value: qualifying, name: t('common.sessionType.qualifying'), itemStyle: { color: '#8b5cf6' } },
+          { value: race, name: t('common.sessionType.race'), itemStyle: { color: '#ef4444' } },
         ].filter(d => d.value > 0),
       }],
     };
-  }, [stats, darkMode]);
+  }, [stats, darkMode, t]);
 
   const weatherDistOption = useMemo<echarts.EChartsOption | null>(() => {
     if (!stats?.weatherCounts || Object.keys(stats.weatherCounts).length === 0) return null;
@@ -385,7 +376,7 @@ export const Dashboard: React.FC = () => {
         emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
         data: Object.entries(stats.weatherCounts).map(([name, value]) => ({
           value,
-          name: t(`weather.${name}`),
+          name: t(`common.weather.${name}`),
           itemStyle: { color: colorMap[name] || '#6b7280' },
         })),
       }],
@@ -408,10 +399,11 @@ export const Dashboard: React.FC = () => {
       yAxis: {
         type: 'value',
         minInterval: 1,
-        axisLabel: { color: darkMode ? '#9ca3af' : '#6b7280', fontSize: 10 },
+        axisLabel: { color: darkMode ? '#9ca3af' : '#6b7280', fontSize: 10, formatter: (value: number) => formatNumber(value, locale) },
         splitLine: { lineStyle: { color: darkMode ? '#1f2937' : '#f3f4f6' } },
       },
       series: [{
+        name: t('dashboard.charts.sessionCountSeries'),
         type: 'bar',
         data: entries.map(([, v]) => v),
         itemStyle: {
@@ -424,7 +416,7 @@ export const Dashboard: React.FC = () => {
         barWidth: '60%',
       }],
     };
-  }, [stats, darkMode]);
+  }, [stats, darkMode, t, locale]);
 
   const circuitBarOption = useMemo<echarts.EChartsOption | null>(() => {
     if (!stats?.circuitCounts || Object.keys(stats.circuitCounts).length === 0) return null;
@@ -436,7 +428,7 @@ export const Dashboard: React.FC = () => {
       xAxis: {
         type: 'value',
         minInterval: 1,
-        axisLabel: { color: darkMode ? '#9ca3af' : '#6b7280', fontSize: 10 },
+        axisLabel: { color: darkMode ? '#9ca3af' : '#6b7280', fontSize: 10, formatter: (value: number) => formatNumber(value, locale) },
         splitLine: { lineStyle: { color: darkMode ? '#1f2937' : '#f3f4f6' } },
       },
       yAxis: {
@@ -446,6 +438,7 @@ export const Dashboard: React.FC = () => {
         axisLine: { lineStyle: { color: darkMode ? '#374151' : '#e5e7eb' } },
       },
       series: [{
+        name: t('dashboard.charts.sessionCountSeries'),
         type: 'bar',
         data: entries.map(([, v]) => v).reverse(),
         itemStyle: {
@@ -458,15 +451,15 @@ export const Dashboard: React.FC = () => {
         barWidth: '60%',
       }],
     };
-  }, [stats, darkMode]);
+  }, [stats, darkMode, t, locale]);
 
   const copyGrowthShareUrl = async () => {
     if (!growthShareUrl) return;
     try {
       await navigator.clipboard.writeText(growthShareUrl);
-      message.success('公開リンクをコピーしました');
+      message.success(t('dashboard.share.linkCopied'));
     } catch {
-      message.error('公開リンクのコピーに失敗しました');
+      message.error(t('dashboard.share.linkCopyError'));
     }
   };
 
@@ -489,7 +482,7 @@ export const Dashboard: React.FC = () => {
       backgroundColor: 'transparent',
       tooltip: { trigger: 'axis' },
       legend: {
-        data: ['走行前', '走行後'],
+        data: [t('dashboard.charts.beforeRun'), t('dashboard.charts.afterRun')],
         textStyle: { color: darkMode ? '#9ca3af' : '#6b7280', fontSize: 11 },
         bottom: 0,
       },
@@ -511,21 +504,21 @@ export const Dashboard: React.FC = () => {
       },
       series: [
         {
-          name: '走行前',
+          name: t('dashboard.charts.beforeRun'),
           type: 'bar',
           data: beforeData,
           itemStyle: { color: '#3b82f6', borderRadius: [4, 4, 0, 0] },
           barGap: '10%',
         },
         {
-          name: '走行後',
+          name: t('dashboard.charts.afterRun'),
           type: 'bar',
           data: afterData,
           itemStyle: { color: '#f59e0b', borderRadius: [4, 4, 0, 0] },
         },
       ],
     };
-  }, [stats, darkMode]);
+  }, [stats, darkMode, t]);
 
   // Chart refs
   const lapTrendRef = useChart(lapTrendOption, darkMode);
@@ -560,13 +553,13 @@ export const Dashboard: React.FC = () => {
                 <span className="grid h-8 w-8 place-items-center rounded-md bg-blue-600 text-white">
                   <DashboardOutlined />
                 </span>
-                <span className={headingClass}>Operations Overview</span>
+                <span className={headingClass}>{t('dashboard.eyebrow')}</span>
               </div>
               <h2 className="text-2xl font-black leading-tight tracking-normal text-slate-950 dark:text-white sm:text-3xl">
-                ダッシュボード
+                {t('dashboard.title')}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-                セットアップ、ラップ、車両、走行ログを横断して次の改善ポイントを判断します。
+                {t('dashboard.description')}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
@@ -574,13 +567,13 @@ export const Dashboard: React.FC = () => {
                 onClick={() => navigate('/')}
                 className="inline-flex h-10 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
               >
-                記録する
+                {t('dashboard.actions.record')}
               </button>
               <button
                 onClick={() => navigate('/telemetry')}
                 className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-bold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
               >
-                走行ログ
+                {t('dashboard.actions.telemetry')}
               </button>
             </div>
           </div>
@@ -590,23 +583,23 @@ export const Dashboard: React.FC = () => {
         {stats && (
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div className={headingClass}>最終走行</div>
+              <div className={headingClass}>{t('dashboard.summary.lastRun')}</div>
               <div className="mt-2 truncate text-sm font-bold text-slate-900 dark:text-white">
-                {stats.recentSessions[0]?.circuit || '未記録'}
+                {stats.recentSessions[0]?.circuit || t('dashboard.notRecorded')}
               </div>
             </div>
             <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div className={headingClass}>登録車両</div>
-              <div className="mt-2 font-mono text-lg font-black text-slate-900 dark:text-white">{stats.cars.length}</div>
+              <div className={headingClass}>{t('dashboard.summary.registeredVehicles')}</div>
+              <div className="mt-2 font-mono text-lg font-black text-slate-900 dark:text-white">{formatNumber(stats.cars.length, locale)}</div>
             </div>
             <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div className={headingClass}>ベスト会場</div>
-              <div className="mt-2 truncate text-sm font-bold text-slate-900 dark:text-white">{stats.overallBest?.circuit || '記録なし'}</div>
+              <div className={headingClass}>{t('dashboard.summary.bestVenue')}</div>
+              <div className="mt-2 truncate text-sm font-bold text-slate-900 dark:text-white">{stats.overallBest?.circuit || t('dashboard.noRecord')}</div>
             </div>
             <div className="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div className={headingClass}>データ蓄積</div>
+              <div className={headingClass}>{t('dashboard.summary.dataAccumulation')}</div>
               <div className="mt-2 font-mono text-lg font-black text-slate-900 dark:text-white">
-                {stats.totalSessions > 0 ? `${Math.round(stats.totalLaps / stats.totalSessions)}` : '0'} <span className="text-xs font-bold text-slate-500">周/回</span>
+                {formatNumber(stats.totalSessions > 0 ? Math.round(stats.totalLaps / stats.totalSessions) : 0, locale)} <span className="text-xs font-bold text-slate-500">{t('dashboard.units.lapsPerSession')}</span>
               </div>
             </div>
           </div>
@@ -619,14 +612,14 @@ export const Dashboard: React.FC = () => {
         ) : !stats ? (
           <div className={`${cardClass} p-12`}>
             <Empty
-              description="まだセットアップデータがありません"
+              description={t('dashboard.empty.description')}
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             >
               <button
                 onClick={() => navigate('/')}
                 className="mt-4 rounded-md bg-slate-950 px-6 py-2 text-sm font-bold text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950"
               >
-                最初のセットアップを記録する
+                {t('dashboard.empty.action')}
               </button>
             </Empty>
           </div>
@@ -637,29 +630,29 @@ export const Dashboard: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className={headingClass}>走行回数</span>
+                  <span className={headingClass}>{t('dashboard.kpi.sessions')}</span>
                   <span className={iconShellClass}>
                     <CalendarOutlined className="text-blue-600 dark:text-blue-400" />
                   </span>
                 </div>
-                <div className={statValueClass}>{stats.totalSessions}</div>
-                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">セッション</div>
+                <div className={statValueClass}>{formatNumber(stats.totalSessions, locale)}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{t('dashboard.units.sessions')}</div>
               </div>
 
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className={headingClass}>総ラップ数</span>
+                  <span className={headingClass}>{t('dashboard.kpi.totalLaps')}</span>
                   <span className={iconShellClass}>
                     <FieldTimeOutlined className="text-emerald-500" />
                   </span>
                 </div>
-                <div className={statValueClass}>{stats.totalLaps}</div>
-                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">ラップ</div>
+                <div className={statValueClass}>{formatNumber(stats.totalLaps, locale)}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{t('dashboard.units.laps')}</div>
               </div>
 
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className={headingClass}>ベストラップ</span>
+                  <span className={headingClass}>{t('dashboard.kpi.bestLap')}</span>
                   <span className={iconShellClass}>
                     <ThunderboltOutlined className="text-amber-500" />
                   </span>
@@ -668,19 +661,19 @@ export const Dashboard: React.FC = () => {
                   {stats.overallBest ? secondsToLapTime(stats.overallBest.time) : '---'}
                 </div>
                 <div className="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {stats.overallBest ? stats.overallBest.circuit : '記録なし'}
+                  {stats.overallBest ? stats.overallBest.circuit : t('dashboard.noRecord')}
                 </div>
               </div>
 
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className={headingClass}>サーキット</span>
+                  <span className={headingClass}>{t('dashboard.kpi.circuits')}</span>
                   <span className={iconShellClass}>
                     <EnvironmentOutlined className="text-blue-600 dark:text-blue-400" />
                   </span>
                 </div>
-                <div className={statValueClass}>{stats.circuits.length}</div>
-                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">コース</div>
+                <div className={statValueClass}>{formatNumber(stats.circuits.length, locale)}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{t('dashboard.units.courses')}</div>
               </div>
             </div>
 
@@ -691,7 +684,7 @@ export const Dashboard: React.FC = () => {
                   <div>
                     <div className="flex items-center space-x-2">
                       <RiseOutlined className="text-emerald-500" />
-                      <span className={headingClass}>成長タイムライン</span>
+                      <span className={headingClass}>{t('dashboard.growth.title')}</span>
                     </div>
                     <label className="mt-2 flex items-start gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                       <Checkbox
@@ -700,9 +693,9 @@ export const Dashboard: React.FC = () => {
                         className="mt-0.5 shrink-0"
                       />
                       <span>
-                        公開リンクを発行して画像に含める
+                        {t('dashboard.growth.includePublicLink')}
                         <span className="mt-0.5 block font-normal text-slate-400 dark:text-slate-500">
-                          発行すると誰でも閲覧できる公開ページが作られます。履歴ページの「公開リンク管理」からいつでも削除できます。
+                          {t('dashboard.growth.publicLinkDescription')}
                         </span>
                       </span>
                     </label>
@@ -714,7 +707,7 @@ export const Dashboard: React.FC = () => {
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 bg-blue-50 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/20"
                       >
                         <CopyOutlined style={{ fontSize: 13 }} />
-                        公開リンクをコピー
+                        {t('dashboard.share.copyLink')}
                       </button>
                     )}
                     <button
@@ -728,9 +721,9 @@ export const Dashboard: React.FC = () => {
                           circuit: last.circuit,
                           carModel: last.setup.carModel,
                           bestLap: secondsToLapTime(last.bestLap),
-                          dateLabel: formatDate(last.date),
+                          dateLabel: formatDate(last.date, locale),
                           deltaSeconds: delta,
-                          sessionType: sessionLabel(last.sessionType),
+                          sessionType: sessionLabel(last.sessionType, t),
                         };
 
                         try {
@@ -746,14 +739,14 @@ export const Dashboard: React.FC = () => {
                           const shared = await shareViaWebShare(dataWithLink);
                           if (!shared) {
                             await downloadShareImage(dataWithLink);
-                            message.success('シェア画像をダウンロードしました');
+                            message.success(t('dashboard.share.imageDownloaded'));
                           }
                           if (shareUrl) {
-                            message.success('公開リンクを発行しました');
+                            message.success(t('dashboard.share.linkCreated'));
                           }
                         } catch (error) {
                           console.error('Growth share error:', error);
-                          message.error('シェア画像の作成に失敗しました');
+                          message.error(t('dashboard.share.imageError'));
                         } finally {
                           setGrowthSharing(false);
                         }
@@ -761,7 +754,7 @@ export const Dashboard: React.FC = () => {
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
                       <ShareAltOutlined style={{ fontSize: 13 }} />
-                      {growthSharing ? '作成中' : 'シェア'}
+                      {growthSharing ? t('dashboard.share.creating') : t('dashboard.share.action')}
                     </button>
                   </div>
                 </div>
@@ -775,32 +768,32 @@ export const Dashboard: React.FC = () => {
                     return (
                       <>
                         <div className="text-center bg-slate-50 dark:bg-slate-800/40 rounded-lg p-3">
-                          <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">開始時</div>
+                          <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('dashboard.growth.start')}</div>
                           <div className="mt-1 font-mono text-xl font-black text-slate-700 dark:text-slate-300">
                             {secondsToLapTime(first.bestLap)}
                           </div>
                           <div className="text-[10px] text-slate-400 mt-0.5">
-                            {formatDate(first.date)} ・ {first.circuit}
+                            {formatDate(first.date, locale)} · {first.circuit}
                           </div>
                         </div>
                         <div className={`text-center rounded-lg p-3 ${improved ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50'}`}>
                           <div className={`text-[10px] font-bold uppercase tracking-wider ${improved ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                            改善幅
+                            {t('dashboard.growth.improvement')}
                           </div>
                           <div className={`mt-1 font-mono text-2xl font-black ${improved ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
                             {improved ? '−' : '+'}{Math.abs(delta).toFixed(3)}s
                           </div>
                           <div className="text-[10px] text-slate-400 mt-0.5">
-                            {trend.length}セッション分
+                            {t('dashboard.growth.sessionCount', { count: formatNumber(trend.length, locale) })}
                           </div>
                         </div>
                         <div className="text-center bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-lg p-3">
-                          <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">現在</div>
+                          <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t('dashboard.growth.current')}</div>
                           <div className="mt-1 font-mono text-xl font-black text-emerald-600 dark:text-emerald-400">
                             {secondsToLapTime(last.bestLap)}
                           </div>
                           <div className="text-[10px] text-slate-400 mt-0.5">
-                            {formatDate(last.date)} ・ {last.circuit}
+                            {formatDate(last.date, locale)} · {last.circuit}
                           </div>
                         </div>
                       </>
@@ -816,7 +809,7 @@ export const Dashboard: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-2">
                     <RiseOutlined className="text-blue-500" />
-                    <span className={headingClass}>ラップタイム推移</span>
+                    <span className={headingClass}>{t('dashboard.charts.lapTrend')}</span>
                   </div>
                 </div>
                 <div ref={lapTrendRef} className="w-full h-72" />
@@ -829,18 +822,18 @@ export const Dashboard: React.FC = () => {
                 <div className={`${cardClass} p-5`}>
                   <div className="flex items-center space-x-2 mb-4">
                     <FireOutlined className="text-red-500" />
-                    <span className={headingClass}>セッション種別</span>
+                    <span className={headingClass}>{t('dashboard.charts.sessionTypes')}</span>
                   </div>
                   <div ref={sessionDistRef} className="w-full h-48" />
                   <div className="flex justify-center gap-4 mt-2">
                     {stats.sessionTypes.practice > 0 && (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400">練習走行 {stats.sessionTypes.practice}</span>
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400">{t('common.sessionType.practice')} {formatNumber(stats.sessionTypes.practice, locale)}</span>
                     )}
                     {stats.sessionTypes.qualifying > 0 && (
-                      <span className="text-xs text-violet-600 dark:text-violet-400">予選 {stats.sessionTypes.qualifying}</span>
+                      <span className="text-xs text-violet-600 dark:text-violet-400">{t('common.sessionType.qualifying')} {formatNumber(stats.sessionTypes.qualifying, locale)}</span>
                     )}
                     {stats.sessionTypes.race > 0 && (
-                      <span className="text-xs text-red-600 dark:text-red-400">レース {stats.sessionTypes.race}</span>
+                      <span className="text-xs text-red-600 dark:text-red-400">{t('common.sessionType.race')} {formatNumber(stats.sessionTypes.race, locale)}</span>
                     )}
                   </div>
                 </div>
@@ -850,13 +843,13 @@ export const Dashboard: React.FC = () => {
                 <div className={`${cardClass} p-5`}>
                   <div className="flex items-center space-x-2 mb-4">
                     <CloudOutlined className="text-blue-400" />
-                    <span className={headingClass}>天候分布</span>
+                    <span className={headingClass}>{t('dashboard.charts.weather')}</span>
                   </div>
                   <div ref={weatherDistRef} className="w-full h-48" />
                   <div className="flex justify-center gap-3 mt-2">
                     {Object.entries(stats.weatherCounts).map(([w, c]) => (
                       <span key={w} className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                        {weatherIcon(w)} {t(`weather.${w}`)} {c}
+                        {weatherIcon(w)} {t(`common.weather.${w}`)} {formatNumber(c, locale)}
                       </span>
                     ))}
                   </div>
@@ -867,7 +860,7 @@ export const Dashboard: React.FC = () => {
                 <div className={`${cardClass} p-5`}>
                   <div className="flex items-center space-x-2 mb-4">
                     <CalendarOutlined className="text-blue-500" />
-                    <span className={headingClass}>月別走行回数</span>
+                    <span className={headingClass}>{t('dashboard.charts.monthlyActivity')}</span>
                   </div>
                   <div ref={monthlyActivityRef} className="w-full h-52" />
                 </div>
@@ -880,7 +873,7 @@ export const Dashboard: React.FC = () => {
                 <div className={`${cardClass} p-5`}>
                   <div className="flex items-center space-x-2 mb-4">
                     <EnvironmentOutlined className="text-violet-500" />
-                    <span className={headingClass}>サーキット別走行回数</span>
+                    <span className={headingClass}>{t('dashboard.charts.circuitActivity')}</span>
                   </div>
                   <div ref={circuitBarRef} className="w-full h-64" />
                 </div>
@@ -890,7 +883,7 @@ export const Dashboard: React.FC = () => {
                 <div className={`${cardClass} p-5`}>
                   <div className="flex items-center space-x-2 mb-4">
                     <ExperimentOutlined className="text-amber-500" />
-                    <span className={headingClass}>平均タイヤ空気圧</span>
+                    <span className={headingClass}>{t('dashboard.charts.tirePressure')}</span>
                   </div>
                   <div ref={tirePressureRef} className="w-full h-64" />
                 </div>
@@ -904,7 +897,7 @@ export const Dashboard: React.FC = () => {
                 <div className={`${cardClass} p-5`}>
                   <div className="flex items-center space-x-2 mb-4">
                     <TrophyOutlined className="text-amber-500" />
-                    <span className={headingClass}>サーキット別ベストラップ</span>
+                    <span className={headingClass}>{t('dashboard.bestByCircuit')}</span>
                   </div>
                   <div className="space-y-2">
                     {Object.entries(stats.bestByCircuit)
@@ -918,7 +911,7 @@ export const Dashboard: React.FC = () => {
                             <EnvironmentOutlined className="text-gray-400" />
                             <div>
                               <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{circuit}</div>
-                              <div className="text-xs text-gray-400">{formatDate(setup.date)}</div>
+                              <div className="text-xs text-gray-400">{formatDate(setup.date, locale)}</div>
                             </div>
                           </div>
                           <div className="text-right">
@@ -926,7 +919,7 @@ export const Dashboard: React.FC = () => {
                               {secondsToLapTime(time)}
                             </div>
                             <div className={`text-xs px-1.5 py-0.5 rounded ${sessionColor(setup.sessionType)}`}>
-                              {sessionLabel(setup.sessionType)}
+                              {sessionLabel(setup.sessionType, t)}
                             </div>
                           </div>
                         </div>
@@ -940,13 +933,13 @@ export const Dashboard: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-2">
                     <FieldTimeOutlined className="text-emerald-500" />
-                    <span className={headingClass}>最近のセッション</span>
+                    <span className={headingClass}>{t('dashboard.recent.title')}</span>
                   </div>
                   <button
                     onClick={() => navigate('/history')}
                     className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
                   >
-                    すべて表示 <RightOutlined style={{ fontSize: 10 }} />
+                    {t('dashboard.recent.showAll')} <RightOutlined style={{ fontSize: 10 }} />
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -963,7 +956,7 @@ export const Dashboard: React.FC = () => {
                             {s.circuit || '---'}
                           </div>
                           <div className="flex items-center gap-2 text-xs text-gray-400">
-                            <span>{formatDate(s.date)}</span>
+                            <span>{formatDate(s.date, locale)}</span>
                             <span>{s.carModel}</span>
                           </div>
                         </div>
@@ -975,7 +968,7 @@ export const Dashboard: React.FC = () => {
                           </div>
                         )}
                         <div className={`text-xs px-1.5 py-0.5 rounded inline-block ${sessionColor(s.sessionType)}`}>
-                          {sessionLabel(s.sessionType)}
+                          {sessionLabel(s.sessionType, t)}
                         </div>
                       </div>
                     </div>
@@ -989,7 +982,7 @@ export const Dashboard: React.FC = () => {
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center space-x-2 mb-4">
                   <BulbOutlined className="text-amber-500" />
-                  <span className={headingClass}>ナレッジノート</span>
+                  <span className={headingClass}>{t('dashboard.knowledge.title')}</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {stats.knowledgeNotes.map((note, i) => (
@@ -998,24 +991,24 @@ export const Dashboard: React.FC = () => {
                       className="p-4 rounded-lg bg-gray-50 dark:bg-gray-700/30 border border-gray-100 dark:border-gray-700"
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs text-gray-400">{formatDate(note.date)}</span>
+                        <span className="text-xs text-gray-400">{formatDate(note.date, locale)}</span>
                         <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{note.circuit}</span>
                       </div>
                       {note.intention && (
                         <div className="mb-1.5">
-                          <span className="text-xs font-semibold text-blue-500 mr-1">意図:</span>
+                          <span className="text-xs font-semibold text-blue-500 mr-1">{t('dashboard.knowledge.intention')}:</span>
                           <span className="text-xs text-gray-700 dark:text-gray-300">{note.intention}</span>
                         </div>
                       )}
                       {note.result && (
                         <div className="mb-1.5">
-                          <span className="text-xs font-semibold text-emerald-500 mr-1">結果:</span>
+                          <span className="text-xs font-semibold text-emerald-500 mr-1">{t('dashboard.knowledge.result')}:</span>
                           <span className="text-xs text-gray-700 dark:text-gray-300">{note.result}</span>
                         </div>
                       )}
                       {note.learning && (
                         <div>
-                          <span className="text-xs font-semibold text-amber-500 mr-1">学び:</span>
+                          <span className="text-xs font-semibold text-amber-500 mr-1">{t('dashboard.knowledge.learning')}:</span>
                           <span className="text-xs text-gray-700 dark:text-gray-300">{note.learning}</span>
                         </div>
                       )}
@@ -1030,7 +1023,7 @@ export const Dashboard: React.FC = () => {
               <div className={`${cardClass} p-5`}>
                 <div className="flex items-center space-x-2 mb-4">
                   <CarOutlined className="text-blue-500" />
-                  <span className={headingClass}>使用車両</span>
+                  <span className={headingClass}>{t('dashboard.vehicles.title')}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {stats.cars.map(car => {
@@ -1043,7 +1036,7 @@ export const Dashboard: React.FC = () => {
                         <CarOutlined className="text-gray-400" />
                         <div>
                           <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{car}</div>
-                          <div className="text-xs text-gray-400">{count} セッション</div>
+                          <div className="text-xs text-gray-400">{t('dashboard.vehicles.sessionCount', { count: formatNumber(count, locale) })}</div>
                         </div>
                       </div>
                     );

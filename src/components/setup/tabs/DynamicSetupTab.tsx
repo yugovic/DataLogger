@@ -7,6 +7,7 @@ import {
 } from '../../../lib/setupAdjustments';
 import type { SetupAdjustmentValue } from '../../../types/setup';
 import type { SetupAdjustmentDefinition, SetupAdjustmentGroup } from '../../../types/vehicle';
+import { useTranslation } from 'react-i18next';
 
 interface DynamicSetupTabProps {
   definitions: SetupAdjustmentDefinition[];
@@ -44,6 +45,7 @@ function AdjustmentInput({
   onChange: (value: SetupAdjustmentValue['value']) => void;
   inputId: string;
 }) {
+  const { t } = useTranslation();
   if (definition.valueType === 'number') {
     return (
       <InputNumber
@@ -54,7 +56,7 @@ function AdjustmentInput({
         max={definition.max}
         step={definition.step ?? 1}
         addonAfter={definition.unit || undefined}
-        placeholder="未入力"
+        placeholder={t('setupTabs.common.notEntered')}
         disabled={disabled}
         onChange={(next) => onChange(next)}
       />
@@ -68,7 +70,7 @@ function AdjustmentInput({
         className="w-full"
         value={typeof value === 'string' && value !== '' ? value : undefined}
         options={(definition.options ?? []).map((option) => ({ value: option, label: option }))}
-        placeholder="未選択"
+        placeholder={t('setupTabs.common.notSelected')}
         allowClear
         showSearch
         disabled={disabled}
@@ -87,7 +89,7 @@ function AdjustmentInput({
           { value: true, label: 'ON' },
           { value: false, label: 'OFF' },
         ]}
-        placeholder="未記録"
+        placeholder={t('setupTabs.common.notRecorded')}
         allowClear
         disabled={disabled}
         onChange={(next) => onChange(typeof next === 'boolean' ? next : null)}
@@ -99,7 +101,7 @@ function AdjustmentInput({
     <Input
       id={inputId}
       value={typeof value === 'string' ? value : ''}
-      placeholder="未入力"
+      placeholder={t('setupTabs.common.notEntered')}
       disabled={disabled}
       suffix={definition.unit || undefined}
       onChange={(event) => onChange(event.target.value || null)}
@@ -113,6 +115,7 @@ export function DynamicSetupTab({
   onChange,
   disabled,
 }: DynamicSetupTabProps) {
+  const { t } = useTranslation();
   const activeDefinitions = useMemo(
     () => activeAdjustmentDefinitions(definitions),
     [definitions],
@@ -130,7 +133,7 @@ export function DynamicSetupTab({
   );
 
   if (activeDefinitions.length === 0) {
-    return <Empty className="py-12" description="この車両にはセッティング項目が定義されていません" />;
+    return <Empty className="py-12" description={t('setupTabs.dynamic.empty')} />;
   }
 
   return (
@@ -138,8 +141,8 @@ export function DynamicSetupTab({
       <Alert
         type="info"
         showIcon
-        message="この走行で実際に使った設定値を記録します"
-        description="未変更でも、走行時の値が分かる項目は入力してください。後から同じ状態を再現し、ラップやフィードバックと比較するために使います。"
+        message={t('setupTabs.dynamic.message')}
+        description={t('setupTabs.dynamic.description')}
       />
 
       {grouped.map(({ group, definitions: groupDefinitions }) => (
@@ -148,7 +151,7 @@ export function DynamicSetupTab({
             id={`adjustment-group-${group}`}
             className="mb-3 text-base font-semibold text-gray-800 dark:text-gray-100"
           >
-            {ADJUSTMENT_GROUP_LABELS[group]}
+            {t(`setupTabs.dynamic.groups.${group}`, { defaultValue: ADJUSTMENT_GROUP_LABELS[group] })}
           </h3>
           <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2">
             {groupDefinitions.map((definition) => (
@@ -160,7 +163,7 @@ export function DynamicSetupTab({
                   {definition.label}
                   {definition.position !== 'vehicle' && (
                     <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">
-                      {ADJUSTMENT_POSITION_LABELS[definition.position]}
+                      {t(`setupTabs.dynamic.positions.${definition.position}`, { defaultValue: ADJUSTMENT_POSITION_LABELS[definition.position] })}
                     </span>
                   )}
                 </label>

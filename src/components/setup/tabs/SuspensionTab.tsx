@@ -13,6 +13,7 @@ import { AxleFieldPair, SetupSection } from '../SetupFormParts';
 import { toNumberOrNull } from '../../../lib/units';
 import { unconstrainedSuspension } from '../../../lib/vehicleSetupConstraints';
 import type { SuspensionFormConstraints } from '../../../lib/vehicleSetupConstraints';
+import { useTranslation } from 'react-i18next';
 
 interface SuspensionTabProps {
   frontSpringRate: string;
@@ -48,6 +49,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = ({
   disabled,
   constraints = unconstrainedSuspension(),
 }) => {
+  const { t } = useTranslation();
   // 文字列 draft ↔ StepNumber(number|null) の橋渡し
   const numOf = (s: string): number | null => toNumberOrNull(s);
   const strOf = (n: number | null): string => (n === null ? '' : String(n));
@@ -90,14 +92,14 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = ({
     <div className="p-4 sm:p-6 space-y-6">
       {/* スプリングレート */}
       {constraints.springRate.visible && (
-        <SetupSection title="スプリングレート" icon="fas fa-compress-arrows-alt" meta="kgf/mm">
+        <SetupSection title={t('setupTabs.suspension.springRate')} icon="fas fa-compress-arrows-alt" meta="kgf/mm">
           {axleRow('kgf/mm', frontSpringRate, setFrontSpringRate, rearSpringRate, setRearSpringRate, { min: 0, max: 200, step: 0.5, largeStep: 5 })}
         </SetupSection>
       )}
 
       {/* 車高 */}
       {constraints.height.visible && (
-        <SetupSection title="車高" icon="fas fa-ruler-vertical" meta="mm">
+        <SetupSection title={t('setupTabs.suspension.rideHeight')} icon="fas fa-ruler-vertical" meta="mm">
           <AxleFieldPair
             front={<StepNumber
                 value={numOf(frontRideHeight)}
@@ -127,7 +129,7 @@ export const SuspensionTab: React.FC<SuspensionTabProps> = ({
 
       {/* スタビライザー / ARB */}
       {constraints.stabilizer.visible && (
-        <SetupSection title="スタビライザー / ARB" icon="fas fa-grip-lines" meta="調整値">
+        <SetupSection title={t('setupTabs.suspension.antiRollBar')} icon="fas fa-grip-lines" meta={t('setupTabs.suspension.adjustmentValue')}>
           {axleRow('', frontStabilizer, setFrontStabilizer, rearStabilizer, setRearStabilizer, { min: 0, max: 100, step: 1 })}
         </SetupSection>
       )}
