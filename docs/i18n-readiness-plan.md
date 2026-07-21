@@ -314,6 +314,8 @@ Phase 2完了（2026-07-22）: ダッシュボード・履歴・比較はPhase 1
 
 残件（バックログ化・ベースライン管理下）: `shareImage.ts`のセッションハイライト・比較カード画像側（`HIGHLIGHT_BADGE_LABELS`等）、`ComparisonCockpit.tsx`のチャネル定義（軸名）、`TelemetryDebrief.tsx`/`TelemetryTraceList.tsx`の`annotation.text`日本語文字列マッチによるロジック分岐（i18n化すると壊れる脆い結合）は今回スコープ外。
 
+バックログ解消（2026-07-22）: 上記3件を追加対応した。`shareImage.ts`のハイライト・比較カード画像経路を日英対応し、`sessionHighlights.ts`の`HIGHLIGHT_BADGE_LABELS`（日本語定数）を削除してlib層は列挙値のみ返す設計に統一。`ComparisonCockpit.tsx`の`CHANNEL_DEFS`に残っていた未使用の日本語`label`/`axisName`（表示は既にt()経由で移行済みの死んだコードだった）を削除。`annotation.text.includes('ブレーキ開始'等)`という日本語文字列マッチによる脆いロジック分岐は、`Annotation`型に追加した安定コード`AnnotationCode`判定に置き換え、annotationの表示テキスト自体（コーチング読み上げ文）は引き続き未i18n化のままベースラインに残置。CIワークフロー（`.github/workflows/ci.yml`）に`npm run i18n:check`を組み込み、push/PR時に自動検査されるようにした。
+
 ### Phase 3: 品質ゲートと追加言語準備
 
 - [x] ハードコード文言の静的検査を CI に追加する。
@@ -321,7 +323,7 @@ Phase 2完了（2026-07-22）: ダッシュボード・履歴・比較はPhase 1
 - [ ] 擬似ロケールで長文・文字幅・欠落を確認する。
 - [ ] 公開翻訳リソースのレビュー責任者と更新フローを定める。
 
-Phase 3進捗（2026-07-22）: `scripts/check-hardcoded-japanese.mjs`（コメント・ユーザー入力等を除外するハードコード日本語検出、ベースライン方式で新規混入のみ検査失敗にする）と`src/i18n/i18nIntegrity.test.ts`（未使用キー検出・ja/en補間変数不一致検出、いずれもベースライン方式）を追加し、`npm run i18n:check`で一括実行できるようにした。CIワークフローへの組み込み自体は未実施。擬似ロケール確認と翻訳レビュー体制の整備は未着手。
+Phase 3進捗（2026-07-22）: `scripts/check-hardcoded-japanese.mjs`（コメント・ユーザー入力等を除外するハードコード日本語検出、ベースライン方式で新規混入のみ検査失敗にする）と`src/i18n/i18nIntegrity.test.ts`（未使用キー検出・ja/en補間変数不一致検出、いずれもベースライン方式）を追加し、`npm run i18n:check`で一括実行できるようにした。`.github/workflows/ci.yml`に`i18n check`ステップを追加し、push/PR時に自動検査されるようにした。擬似ロケール確認と翻訳レビュー体制の整備は未着手。
 - [ ] 追加言語の候補と RTL・単位系の必要性を評価する。
 
 ## 8. テスト方針
