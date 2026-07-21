@@ -62,7 +62,7 @@ import { TIRE_PRODUCT_CATALOG } from './src/lib/tireCatalog';
 import type { TireSet } from './src/types/tire';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from './src/contexts/LocaleContext';
-import { formatDateTime } from './src/i18n/formatters';
+import { formatDate, formatDateTime } from './src/i18n/formatters';
 import { WEATHER_CODES } from './src/lib/weather';
 import { trackEvent } from './src/lib/analytics';
 interface DropdownState {
@@ -402,7 +402,7 @@ const handleTelemetryAttach = (payload: LapAttachPayload, result: TelemetryImpor
     format: payload.evidence.format,
     circuit: result.track?.name,
   });
-  message.success('ロガーのラップタイムを証憑つきで添付しました。保存時に走行ログも作成します');
+  message.success(t('setup.messages.loggerLapAttached'));
 };
 
 // 証憑の整合性ルール: logger 由来のラップを手動編集する前に警告する。
@@ -410,11 +410,10 @@ const handleTelemetryAttach = (payload: LapAttachPayload, result: TelemetryImpor
 // 証憑が実ファイルと食い違う状態を作らない。
 const confirmManualEditOfEvidence = (onOk: () => void) => {
   Modal.confirm({
-    title: '手動編集すると証憑が外れます',
-    content:
-      'このラップタイムはロガーファイルから取り込まれた証憑つきデータです。手動で編集して保存すると「手動入力」扱いとなり、ロガー証憑は削除されます。',
-    okText: '編集を続行',
-    cancelText: 'キャンセル',
+    title: t('setup.dialogs.evidenceManualEditTitle'),
+    content: t('setup.dialogs.evidenceManualEditContent'),
+    okText: t('setup.dialogs.continueEditing'),
+    cancelText: t('setup.dialogs.cancel'),
     okButtonProps: { danger: true },
     onOk,
   });
@@ -423,18 +422,17 @@ const confirmManualEditOfEvidence = (onOk: () => void) => {
 // 証憑を明示的に外す（ラップ値はそのまま手動入力扱いへ降格）
 const handleDetachEvidence = () => {
   Modal.confirm({
-    title: 'ロガー証憑を外しますか？',
-    content:
-      'ラップタイムの値は残りますが「手動入力」扱いとなり、ロガー由来の証憑情報（ファイル名・形式・取込日時）は削除されます。',
-    okText: '証憑を外す',
-    cancelText: 'キャンセル',
+    title: t('setup.dialogs.detachEvidenceTitle'),
+    content: t('setup.dialogs.detachEvidenceContent'),
+    okText: t('setup.dialogs.detachEvidence'),
+    cancelText: t('setup.dialogs.cancel'),
     okButtonProps: { danger: true },
     onOk: () => {
       setLapSource('manual');
       setLapEvidence(null);
       setPendingTelemetryResult(null);
       setTelemetryRefs((prev) => (prev.traceIds.length > 0 ? prev : emptyTelemetryRefs()));
-      message.info('ロガー証憑を外しました（手動入力扱い）');
+      message.info(t('setup.messages.evidenceDetached'));
     },
   });
 };
@@ -493,7 +491,7 @@ document.removeEventListener('mousedown', handleClickOutside);
 // 保存処理
 const handleSave = async () => {
   if (!currentUser) {
-    message.error('ログインが必要です');
+    message.error(t('setup.messages.loginRequired'));
     return;
   }
 
@@ -529,7 +527,7 @@ const handleSave = async () => {
           if (matchingVehicle?.id && matchingVehicle.isActive === false) {
             await updateVehicle(matchingVehicle.id, { isActive: true });
             vehicleId = matchingVehicle.id;
-            message.success('削除済みの車両を復元しました');
+            message.success(t('setup.messages.vehicleRestored'));
           } else {
             // 確認中に別処理で同名車両が作成されていないか再確認して重複を避ける。
             const latestVehicles = await getUserVehicles(currentUser.uid, true);
@@ -548,7 +546,7 @@ const handleSave = async () => {
                 isActive: true,
               });
             }
-            message.success('車両管理にも登録しました');
+            message.success(t('setup.messages.vehicleRegistered'));
           }
           draftForSave = { ...draftForSave, vehicleId };
           setSelectedVehicleId(vehicleId);
@@ -569,13 +567,13 @@ const handleSave = async () => {
     if (!isNew) {
       // 編集モードから保存する場合は更新
       await updateSetup(setupId!, setupData);
-      message.success('セットアップデータを更新しました');
+      message.success(t('setup.messages.setupUpdated'));
       logger.log('Updated setup with ID:', setupId);
     } else {
       // 新規作成（セットアップ本体はここで1回だけ作成する）
       const newSetupId = await saveSetup(setupData);
       savedSetupId = newSetupId;
-      message.success('セットアップデータを保存しました');
+      message.success(t('setup.messages.setupSaved'));
       logger.log('Saved setup with ID:', newSetupId);
     }
 
@@ -597,9 +595,9 @@ const handleSave = async () => {
           const currentBest = toSeconds(bestLap)!;
           const delta = pastBest - currentBest;
           if (delta > 0) {
-            message.success(`ベストラップ更新（前回比 −${delta.toFixed(3)}s）`, 4);
+            message.success(t('setup.messages.bestLapUpdated', { delta: delta.toFixed(3) }), 4);
           } else if (delta < 0) {
-            message.info(`ベストラップまで +${Math.abs(delta).toFixed(3)}s`, 4);
+            message.info(t('setup.messages.bestLapGap', { delta: Math.abs(delta).toFixed(3) }), 4);
           }
         }
 
@@ -648,8 +646,8 @@ const handleSave = async () => {
           setPendingTelemetryResult(null);
           message.success(
             trace.lap.valid
-              ? '比較用テレメトリトレースを保存しました'
-              : '単独確認用の走行ログを保存しました（比較には完全なNORMALラップが必要です）',
+              ? t('setup.messages.traceSaved')
+              : t('setup.messages.traceSavedSolo'),
           );
 
           if (trace.lap.valid && trace.lap.type === 'NORMAL') {
@@ -670,7 +668,7 @@ const handleSave = async () => {
             format: pendingTelemetryResult.session.meta.format,
             circuit: pendingTelemetryResult.track?.name,
           });
-          message.warning('セットアップは保存しましたが、走行ログを作成できませんでした。ラップを確認して再保存してください', 8);
+          message.warning(t('setup.messages.traceCreateFailed'), 8);
         }
       } catch (telemetryError) {
         logger.error('セットアップ保存後の走行ログ保存に失敗しました:', telemetryError);
@@ -679,7 +677,7 @@ const handleSave = async () => {
           circuit: pendingTelemetryResult.track?.name,
         });
         void trackEvent('setup_save_failed', { stage: 'telemetry', reason: 'trace_save_failed' });
-        message.warning('セットアップは保存済みです。走行ログのみ保存できなかったため、通信を確認してもう一度「保存」してください', 10);
+        message.warning(t('setup.messages.traceSaveFailedRetry'), 10);
       }
     }
 
@@ -704,7 +702,7 @@ const handleSave = async () => {
       ? resolveAppErrorMessage(error, t)
       : error?.code === 'permission-denied'
         ? t('history.errors.permission')
-        : `${t('setup.saveFailed', { defaultValue: '保存に失敗しました' })}: ${error?.message || t('errors.generic')}`;
+        : `${t('setup.saveFailed')}: ${error?.message || t('errors.generic')}`;
     message.error(errorMessage, 6); // 長めに表示（6秒）
   } finally {
     savingRef.current = false;
@@ -717,7 +715,7 @@ const handleSave = async () => {
 // （ユーザーがモーダルで確認 → confirmPendingLoad で初めて複製を適用する）。
 const openDuplicatePreview = async () => {
   if (!currentUser) {
-    message.error('ログインが必要です');
+    message.error(t('setup.messages.loginRequired'));
     return;
   }
 
@@ -727,7 +725,7 @@ const openDuplicatePreview = async () => {
     const previousSetups = await getUserSetups(currentUser.uid, 1);
 
     if (previousSetups.length === 0) {
-      message.warning('直近のセッションが見つかりません');
+      message.warning(t('setup.messages.noRecentSession'));
       return;
     }
 
@@ -736,8 +734,8 @@ const openDuplicatePreview = async () => {
   } catch (error: any) {
     logger.error('Load previous data error:', error);
     const errorMessage = error?.code === 'permission-denied'
-      ? 'アクセス権限がありません。再度ログインしてください'
-      : `直近セッションの取得に失敗しました: ${error?.message || 'エラーが発生しました'}`;
+      ? t('history.errors.permission')
+      : `${t('setup.messages.fetchRecentFailed')}: ${error?.message || t('errors.generic')}`;
     message.error(errorMessage);
   } finally {
     setIsLoadingPrevious(false);
@@ -749,11 +747,11 @@ const openDuplicatePreview = async () => {
 // 引き継がない: 空気圧の実測値・天候・ラップタイム・走行距離/燃料（=セッション固有値）
 const openInheritPreview = async () => {
   if (!currentUser) {
-    message.error('ログインが必要です');
+    message.error(t('setup.messages.loginRequired'));
     return;
   }
   if (!carModel.trim()) {
-    message.warning('先に車種を選択すると、その車種の前回セットアップを引き継げます');
+    message.warning(t('setup.messages.selectModelFirst'));
     return;
   }
 
@@ -761,7 +759,7 @@ const openInheritPreview = async () => {
   try {
     const sameModel = await getSetupsByCarModel(currentUser.uid, carModel);
     if (sameModel.length === 0) {
-      message.warning(`「${carModel}」の過去のセットアップが見つかりません`);
+      message.warning(t('setup.messages.noModelHistory', { model: carModel }));
       return;
     }
     // date desc 取得済みなので先頭が最新
@@ -771,8 +769,8 @@ const openInheritPreview = async () => {
     logger.error('Inherit setup error:', error);
     const err = error as { code?: string; message?: string } | undefined;
     const errorMessage = err?.code === 'permission-denied'
-      ? 'アクセス権限がありません。再度ログインしてください'
-      : `引き継ぎ元の取得に失敗しました: ${err?.message || 'エラーが発生しました'}`;
+      ? t('history.errors.permission')
+      : `${t('setup.messages.fetchInheritFailed')}: ${err?.message || t('errors.generic')}`;
     message.error(errorMessage);
   } finally {
     setIsInheriting(false);
@@ -791,12 +789,14 @@ const confirmPendingLoad = () => {
     // 新規セッションとして直近の記録を複製（コピーと同じ変換関数を通す）。
     // セッション日時は今、ラップ・証憑・テレメトリ・共有状態は初期化される。
     replaceDraft(copySetupToDraft(source));
-    message.success(`直近セッション（${srcDate.toLocaleDateString('ja-JP')}）を複製しました`);
+    message.success(t('setup.messages.duplicated', { date: formatDate(srcDate, locale) }));
   } else {
     // セッション非依存の設定だけを現在の draft へ上書き（純粋関数を通す）。
     replaceDraft(inheritSetupSettings(draft, source));
     message.success(
-      `${srcDate.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })}のセットアップから引き継ぎました`,
+      t('setup.messages.inherited', {
+        date: formatDate(srcDate, locale, { month: 'long', day: 'numeric' }),
+      }),
     );
   }
   setPendingLoad(null);
@@ -815,7 +815,7 @@ const openSourcePicker = async () => {
     setPickerOpen(true);
   } catch (error: any) {
     logger.error('Load source candidates error:', error);
-    message.error('候補の取得に失敗しました');
+    message.error(t('setup.messages.fetchCandidatesFailed'));
   } finally {
     setPickerLoading(false);
   }
@@ -832,25 +832,25 @@ const handleDeleteSetup = () => {
   if (!setupId) return;
   const shared = draft.visibility === 'shared';
   Modal.confirm({
-    title: 'この走行データを削除しますか？',
+    title: t('setup.dialogs.deleteTitle'),
     content: (
       <div>
-        <p>この操作は取り消せません。</p>
-        {shared && <p className="text-red-500">共有プールからも削除されます。</p>}
+        <p>{t('setup.dialogs.deleteIrreversible')}</p>
+        {shared && <p className="text-red-500">{t('setup.dialogs.deleteSharedNote')}</p>}
       </div>
     ),
-    okText: '削除する',
-    cancelText: 'キャンセル',
+    okText: t('setup.dialogs.deleteConfirm'),
+    cancelText: t('setup.dialogs.cancel'),
     okButtonProps: { danger: true },
     onOk: async () => {
       setIsDeleting(true);
       try {
         await deleteSetup(setupId);
-        message.success('削除しました');
+        message.success(t('setup.messages.deleted'));
         navigate('/history');
       } catch (error) {
         logger.error('Delete setup error:', error);
-        message.error('削除に失敗しました');
+        message.error(t('setup.messages.deleteFailed'));
       } finally {
         setIsDeleting(false);
       }
@@ -872,7 +872,7 @@ useEffect(() => {
     try {
       const setupData = await getSetup(setupId);
       if (!setupData) {
-        message.error('セットアップデータが見つかりません');
+        message.error(t('setup.messages.setupNotFound'));
         window.location.href = '/history';
         return;
       }
@@ -886,9 +886,9 @@ useEffect(() => {
 
     } catch (error: any) {
       logger.error('Error loading setup:', error);
-      const errorMessage = error?.code === 'permission-denied' 
-        ? 'アクセス権限がありません。再度ログインしてください' 
-        : `セットアップデータの読み込みに失敗しました: ${error?.message || 'エラーが発生しました'}`;
+      const errorMessage = error?.code === 'permission-denied'
+        ? t('history.errors.permission')
+        : `${t('setup.messages.loadFailed')}: ${error?.message || t('errors.generic')}`;
       message.error(errorMessage);
     } finally {
       setLoadingSetup(false);
@@ -908,7 +908,7 @@ useEffect(() => {
     try {
       const setupData = await getSetup(copyId);
       if (!setupData) {
-        message.error('コピー元のデータが見つかりません');
+        message.error(t('setup.messages.copySourceNotFound'));
         return;
       }
 
@@ -919,12 +919,12 @@ useEffect(() => {
       resetBaseline(nextDraft);
       setPendingTelemetryResult(null);
 
-      message.success('セットアップデータをコピーしました');
+      message.success(t('setup.messages.copied'));
     } catch (error: any) {
       logger.error('Error loading copy data:', error);
-      const errorMessage = error?.code === 'permission-denied' 
-        ? 'アクセス権限がありません。再度ログインしてください' 
-        : `データのコピーに失敗しました: ${error?.message || 'エラーが発生しました'}`;
+      const errorMessage = error?.code === 'permission-denied'
+        ? t('history.errors.permission')
+        : `${t('setup.messages.copyFailed')}: ${error?.message || t('errors.generic')}`;
       message.error(errorMessage);
     } finally {
       setLoadingSetup(false);
@@ -1086,7 +1086,7 @@ return (
         onClick={() => setIsViewMode(false)}
       >
         <i className="fas fa-edit mr-1 sm:mr-2"></i>
-        編集
+        {t('setup.actions.edit')}
       </button>
       <button
         className="flex items-center bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm"
@@ -1095,8 +1095,8 @@ return (
         }}
       >
         <i className="fas fa-copy mr-1 sm:mr-2"></i>
-        <span className="hidden sm:inline">コピーして新規作成</span>
-        <span className="sm:hidden">コピー</span>
+        <span className="hidden sm:inline">{t('setup.actions.copyAsNew')}</span>
+        <span className="sm:hidden">{t('setup.actions.copyShort')}</span>
       </button>
       <button
         className={`flex items-center bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 ml-1 pl-3 sm:pl-4 border-l border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1104,20 +1104,20 @@ return (
         disabled={isDeleting}
       >
         <i className="fas fa-trash mr-1 sm:mr-2"></i>
-        <span className="hidden sm:inline">削除</span>
-        <span className="sm:hidden">削除</span>
+        <span className="hidden sm:inline">{t('setup.actions.delete')}</span>
+        <span className="sm:hidden">{t('setup.actions.delete')}</span>
       </button>
     </>
   ) : (
-    <Tooltip title="同じ車種の前回記録から車両設定を選んで反映します。実測値やラップは変更しません。">
+    <Tooltip title={t('setup.actions.inheritTooltip')}>
       <button
         onClick={openInheritPreview}
         disabled={isInheriting}
         className={`flex items-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-md cursor-pointer !rounded-button whitespace-nowrap text-sm ${isInheriting ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         {isInheriting ? <i className="fas fa-spinner fa-spin mr-2"></i> : <i className="fas fa-bolt mr-2"></i>}
-        <span className="hidden sm:inline">前回設定を引き継ぐ</span>
-        <span className="sm:hidden">引き継ぐ</span>
+        <span className="hidden sm:inline">{t('setup.actions.inheritPrevious')}</span>
+        <span className="sm:hidden">{t('setup.actions.inheritShort')}</span>
         <i className="fas fa-info-circle ml-2 text-gray-400" aria-hidden="true"></i>
       </button>
     </Tooltip>
@@ -1177,7 +1177,7 @@ inputMode="decimal"
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">気圧 (hPa)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.pressureHpa')}</label>
 <Input
 value={pressure}
 onChange={(e) => setPressure(e.target.value)}
@@ -1192,11 +1192,11 @@ inputMode="decimal"
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex items-center mb-4">
 <i className="fas fa-tire text-blue-500 dark:text-blue-400 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">タイヤ情報</h3>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.form.tireInfo')}</h3>
 </div>
 {(selectedVehicleSetupConfig?.tire?.tireSetManagementEnabled || tireSetId) && (
   <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/60 dark:bg-blue-900/20">
-    <label htmlFor="tire-set-select" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">使用タイヤセット</label>
+    <label htmlFor="tire-set-select" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('setup.form.tireSet')}</label>
     <Select
       id="tire-set-select"
       value={tireSetId || undefined}
@@ -1205,25 +1205,25 @@ inputMode="decimal"
       allowClear
       showSearch
       optionFilterProp="label"
-      placeholder="登録済みセットを選択"
+      placeholder={t('setup.form.tireSetPlaceholder')}
       className="w-full"
       disabled={isViewMode}
     />
     {selectedTireUsage && (
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
-        <span>使用前 {selectedTireUsage.distanceKm.toLocaleString()} km</span>
-        <span>{selectedTireUsage.laps.toLocaleString()} 周</span>
-        <span>{selectedTireUsage.heatCycles.toLocaleString()} サイクル</span>
+        <span>{t('setup.form.usageDistance', { value: selectedTireUsage.distanceKm.toLocaleString() })}</span>
+        <span>{t('setup.form.usageLaps', { value: selectedTireUsage.laps.toLocaleString() })}</span>
+        <span>{t('setup.form.usageHeatCycles', { value: selectedTireUsage.heatCycles.toLocaleString() })}</span>
       </div>
     )}
     {!isViewMode && tireSetOptions.length === 0 && (
-      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">車両管理から最初のタイヤセットを登録してください。</div>
+      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">{t('setup.form.tireSetRegisterHint')}</div>
     )}
   </div>
 )}
 <div className="grid grid-cols-2 gap-4 mb-4">
 <div>
-<label htmlFor="tire-manufacturer" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">メーカー</label>
+<label htmlFor="tire-manufacturer" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.form.manufacturer')}</label>
 <AutoComplete
 id="tire-manufacturer"
 value={tireBrand}
@@ -1231,7 +1231,7 @@ onChange={setTireBrand}
 className="w-full"
 disabled={isViewMode}
 options={tireManufacturerOptions}
-placeholder="例: 横浜ゴム"
+placeholder={t('setup.form.manufacturerPlaceholder')}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 onOpenChange={(open) => {
   if (open) {
@@ -1246,7 +1246,7 @@ onOpenChange={(open) => {
 />
 </div>
 <div>
-<label htmlFor="tire-product-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">製品名</label>
+<label htmlFor="tire-product-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.form.productName')}</label>
 <AutoComplete
 id="tire-product-name"
 value={tireProductName}
@@ -1254,11 +1254,11 @@ onChange={setTireProductName}
 className="w-full"
 disabled={isViewMode}
 options={tireProductOptions}
-placeholder="例: ADVAN A050"
+placeholder={t('setup.form.productNamePlaceholder')}
 />
 </div>
 <div>
-<label htmlFor="tire-compound" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">コンパウンド</label>
+<label htmlFor="tire-compound" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.form.compound')}</label>
 <AutoComplete
 id="tire-compound"
 value={tireCompound}
@@ -1266,7 +1266,7 @@ onChange={setTireCompound}
 className="w-full"
 disabled={isViewMode}
 options={tireCompoundOptions}
-placeholder="例: M"
+placeholder={t('setup.form.compoundPlaceholder')}
 suffixIcon={<i className="fas fa-chevron-down text-gray-400 dark:text-gray-500"></i>}
 onOpenChange={(open) => {
   if (open) {
@@ -1282,7 +1282,7 @@ onOpenChange={(open) => {
 </div>
 {tireSetId && (
   <div>
-    <label htmlFor="tire-heat-cycles" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">今回のヒートサイクル加算</label>
+    <label htmlFor="tire-heat-cycles" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.form.heatCyclesAdded')}</label>
     <InputNumber
       id="tire-heat-cycles"
       value={tireHeatCyclesAdded === '' ? null : Number(tireHeatCyclesAdded)}
@@ -1290,7 +1290,7 @@ onOpenChange={(open) => {
       min={0}
       max={100}
       precision={0}
-      addonAfter="回"
+      addonAfter={t('setup.form.heatCyclesUnit')}
       className="w-full"
       disabled={isViewMode}
     />
@@ -1299,30 +1299,30 @@ onOpenChange={(open) => {
 </div>
 <div className="grid grid-cols-2 gap-4 mb-4">
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">フロントサイズ</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.form.frontSize')}</label>
 <AutoComplete
 value={frontTireSize}
 onChange={(value) => setField('frontTireSize', value)}
 className="w-full"
 disabled={isViewMode}
 options={(selectedVehicleSetupConfig?.tire.frontSize ?? []).map((value) => ({ value }))}
-placeholder="例: 245/40R18"
+placeholder={t('setup.form.frontSizePlaceholder')}
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">リアサイズ</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.form.rearSize')}</label>
 <AutoComplete
 value={rearTireSize}
 onChange={(value) => setField('rearTireSize', value)}
 className="w-full"
 disabled={isViewMode}
 options={(selectedVehicleSetupConfig?.tire.rearSize ?? []).map((value) => ({ value }))}
-placeholder="例: 275/35R18"
+placeholder={t('setup.form.rearSizePlaceholder')}
 />
 </div>
 </div>
 <div className="mb-4">
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">走行距離 (km)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.form.distanceKm')}</label>
 {/* クリックで増減できる数値入力 */}
 <div className="w-full">
   <StepNumber
@@ -1338,7 +1338,7 @@ placeholder="例: 275/35R18"
   </div>
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">燃料量 (L)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.form.fuelL')}</label>
 <div className="w-full">
   <StepNumber
     value={parseFloat(fuel) || 0}
@@ -1358,7 +1358,7 @@ placeholder="例: 275/35R18"
 <div className="flex items-center justify-between mb-4">
 <div className="flex items-center">
 <i className="fas fa-stopwatch text-blue-500 dark:text-blue-400 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">ラップタイム</h3>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.lap.title')}</h3>
 </div>
 <div className="flex items-center gap-3">
 {!isViewMode && (
@@ -1367,7 +1367,7 @@ placeholder="例: 275/35R18"
     className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm cursor-pointer whitespace-nowrap !rounded-button"
   >
     <i className="fas fa-file-import mr-1"></i>
-    ロガーから取込
+    {t('setup.lap.importFromLogger')}
   </button>
 )}
 {!isViewMode && (
@@ -1382,7 +1382,7 @@ placeholder="例: 275/35R18"
     }}
     className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm cursor-pointer whitespace-nowrap !rounded-button"
   >
-    詳細入力
+    {t('setup.lap.detailedInput')}
   </button>
 )}
 </div>
@@ -1401,7 +1401,7 @@ placeholder="例: 275/35R18"
         className="inline-flex items-center gap-1.5 text-sm text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 whitespace-nowrap"
       >
         <i className="fas fa-rotate"></i>
-        ロガーを再取込して走行ログを保存
+        {t('setup.lap.reimportLogger')}
       </button>
     )}
     {telemetryRefs.primaryTraceId && (
@@ -1411,14 +1411,14 @@ placeholder="例: 275/35R18"
           className="ml-4 inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 whitespace-nowrap"
         >
           <i className="fas fa-clipboard-check"></i>
-          デブリーフを見る
+          {t('setup.lap.viewDebrief')}
         </Link>
         <Link
           to={`/telemetry/compare?aTrace=${telemetryRefs.primaryTraceId}`}
           className="ml-4 inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 whitespace-nowrap"
         >
           <i className="fas fa-chart-area"></i>
-          自己ベストと比較
+          {t('setup.lap.compareSelfBest')}
         </Link>
       </>
     )}
@@ -1427,21 +1427,21 @@ placeholder="例: 275/35R18"
 <div className="mb-4">
 <div className="space-y-3">
 <div>
-<label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">ベストラップ</label>
+<label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{t('setup.lap.bestLap')}</label>
 <Input
   value={bestLap}
   onChange={(e) => setBestLap(e.target.value)}
-  placeholder="例: 1:58.423"
+  placeholder={t('setup.lap.bestLapPlaceholder')}
   className="w-full"
   disabled={isViewMode || lapSource === 'logger'}
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">総周回数</label>
+<label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{t('setup.lap.totalLaps')}</label>
 <Input
   value={totalLaps}
   onChange={(e) => setTotalLaps(e.target.value)}
-  placeholder="例: 12"
+  placeholder={t('setup.lap.totalLapsPlaceholder')}
   className="w-full"
   type="number"
   inputMode="numeric"
@@ -1450,7 +1450,7 @@ placeholder="例: 275/35R18"
 </div>
 {lapSource === 'logger' && (
   <p className="text-xs text-gray-400 dark:text-gray-500">
-    ロガー取込値のため直接編集できません。変更する場合は再取込するか、証憑を外してください。
+    {t('setup.lap.loggerReadonlyNote')}
   </p>
 )}
 </div>
@@ -1463,7 +1463,7 @@ placeholder="例: 275/35R18"
   const tabItems = [
     {
       key: '1',
-      label: usesDynamicSetup ? 'タイヤ・計測' : '基本設定',
+      label: usesDynamicSetup ? t('setup.tabs.tireMeasurement') : t('setup.tabs.basic'),
       children: (
         <BasicInfoTab
           tirePressures={tirePressures}
@@ -1486,7 +1486,7 @@ placeholder="例: 275/35R18"
     },
     ...(usesDynamicSetup ? [{
       key: '2',
-      label: 'セッティング',
+      label: t('setup.tabs.tuning'),
       children: (
         <DynamicSetupTab
           definitions={selectedAdjustmentDefinitions}
@@ -1497,7 +1497,7 @@ placeholder="例: 275/35R18"
       ),
     }] : [{
       key: '2',
-      label: 'サスペンション',
+      label: t('setup.tabs.suspension'),
       children: (
         <>
           <SuspensionTab
@@ -1536,7 +1536,7 @@ placeholder="例: 275/35R18"
       ),
     }, {
       key: '3',
-      label: '車両調整',
+      label: t('setup.tabs.vehicleAdjustments'),
       children: (
         <VehicleAdjustmentsTab
           config={selectedVehicleSetupConfig}
@@ -1548,7 +1548,7 @@ placeholder="例: 275/35R18"
     }]),
     {
       key: '4',
-      label: 'ドライバーフィードバック',
+      label: t('setup.tabs.driverFeedback'),
       children: (
         <DrivingTab
           notes={notes}
@@ -1572,34 +1572,34 @@ placeholder="例: 275/35R18"
       onClick={openDuplicatePreview}
       disabled={isLoadingPrevious}
       className={`bg-blue-500 text-white px-4 py-3 rounded-full hover:bg-blue-600 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 ${isLoadingPrevious ? 'opacity-50 cursor-not-allowed' : ''}`}
-      title="直近セッションの内容を新規記録として複製します（ラップ・証憑・共有状態はリセット）"
+      title={t('setup.actions.duplicateTooltip')}
     >
       {isLoadingPrevious ? (
         <i className="fas fa-spinner fa-spin text-lg"></i>
       ) : (
         <ReloadOutlined style={{ fontSize: '18px' }} />
       )}
-      <span className="text-sm font-medium">直近を複製</span>
+      <span className="text-sm font-medium">{t('setup.actions.duplicateRecent')}</span>
     </button>
     <button
       onClick={handleSave}
       disabled={isSaving}
       className={`bg-gray-800 text-white px-4 py-3 rounded-full hover:bg-gray-700 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
-      title="保存"
+      title={t('setup.actions.save')}
     >
       {isSaving ? (
         <i className="fas fa-spinner fa-spin text-lg"></i>
       ) : (
         <i className="fas fa-save text-lg"></i>
       )}
-      <span className="text-sm font-medium">保存</span>
+      <span className="text-sm font-medium">{t('setup.actions.save')}</span>
     </button>
   </div>
 )}
 
 {/* 未登録車種の保存確認。画面を開いただけでは車両を作成せず、ここで明示的に選択する。 */}
 <Modal
-  title={vehicleRegistrationPrompt?.inactiveVehicle ? '削除済みの車両が見つかりました' : '車両管理にも登録しますか？'}
+  title={vehicleRegistrationPrompt?.inactiveVehicle ? t('setup.vehicleModal.foundInactiveTitle') : t('setup.vehicleModal.registerTitle')}
   open={vehicleRegistrationPrompt !== null}
   closable={false}
   maskClosable={false}
@@ -1611,7 +1611,7 @@ placeholder="例: 275/35R18"
       onClick={() => settleVehicleRegistration('cancel')}
       className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300"
     >
-      キャンセル
+      {t('setup.vehicleModal.cancel')}
     </button>,
     <button
       key="without"
@@ -1619,7 +1619,7 @@ placeholder="例: 275/35R18"
       onClick={() => settleVehicleRegistration('without')}
       className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200"
     >
-      登録せず保存
+      {t('setup.vehicleModal.saveWithoutRegister')}
     </button>,
     <button
       key="register"
@@ -1627,21 +1627,21 @@ placeholder="例: 275/35R18"
       onClick={() => settleVehicleRegistration('register')}
       className="px-4 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700"
     >
-      {vehicleRegistrationPrompt?.inactiveVehicle ? '復元して保存' : '登録して保存'}
+      {vehicleRegistrationPrompt?.inactiveVehicle ? t('setup.vehicleModal.restoreAndSave') : t('setup.vehicleModal.registerAndSave')}
     </button>,
   ]}
 >
   {vehicleRegistrationPrompt && (
     <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
       <p>
-        「{vehicleRegistrationPrompt.candidate.name}」は現在の登録車両にありません。
+        {t('setup.vehicleModal.notRegistered', { name: vehicleRegistrationPrompt.candidate.name })}
         {vehicleRegistrationPrompt.inactiveVehicle
-          ? ' 以前削除した同名車両を復元して、このセットアップに紐付けられます。'
-          : ' セットアップだけを保存するか、車両管理にも登録するか選択してください。'}
+          ? t('setup.vehicleModal.restoreDesc')
+          : t('setup.vehicleModal.registerDesc')}
       </p>
       {!vehicleRegistrationPrompt.inactiveVehicle && (
         <div>
-          <label className="block mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">登録する年式</label>
+          <label className="block mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{t('setup.vehicleModal.registrationYear')}</label>
           <InputNumber
             value={registrationYear}
             onChange={(value) => setRegistrationYear(value ?? new Date().getFullYear())}
@@ -1670,9 +1670,9 @@ placeholder="例: 275/35R18"
       setLapEvidence(null);
       setPendingTelemetryResult(null);
       setTelemetryRefs((prev) => (prev.traceIds.length > 0 ? prev : emptyTelemetryRefs()));
-      message.info('手動編集のため、ロガー証憑を外しました（手動入力扱い）');
+      message.info(t('setup.messages.manualEditDetached'));
     } else {
-      message.success('ラップタイムが保存されました');
+      message.success(t('setup.messages.lapSaved'));
     }
   }}
   initialLaps={detailedLaps}
@@ -1696,20 +1696,20 @@ placeholder="例: 275/35R18"
       {pendingLoad?.kind === 'inherit' ? (
         <>
           <i className="fas fa-bolt text-amber-500 mr-2"></i>
-          同じ車種の設定を引き継ぐ
+          {t('setup.preview.inheritTitle')}
         </>
       ) : (
         <>
           <ReloadOutlined style={{ color: '#3b82f6' }} className="mr-2" />
-          直近セッションを複製
+          {t('setup.preview.duplicateTitle')}
         </>
       )}
     </span>
   }
   open={pendingLoad !== null}
   onCancel={() => { setPendingLoad(null); setPickerOpen(false); }}
-  okText={pendingLoad?.kind === 'inherit' ? '引き継いで反映' : '複製して反映'}
-  cancelText="キャンセル"
+  okText={pendingLoad?.kind === 'inherit' ? t('setup.preview.inheritApply') : t('setup.preview.duplicateApply')}
+  cancelText={t('setup.preview.cancel')}
   onOk={confirmPendingLoad}
   okButtonProps={isDirty ? { danger: true } : undefined}
   footer={pickerOpen ? null : undefined}
@@ -1718,13 +1718,13 @@ placeholder="例: 275/35R18"
     <div className="space-y-2 pt-1">
       <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
         {pendingLoad.kind === 'inherit'
-          ? `「${pendingLoad.source.carModel}」の過去セッションから選ぶ（最大10件）`
-          : '直近のセッションから選ぶ（最大10件）'}
+          ? t('setup.preview.pickFromModelHistory', { model: pendingLoad.source.carModel })
+          : t('setup.preview.pickFromRecent')}
       </div>
       {pickerLoading ? (
-        <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">読み込み中...</div>
+        <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">{t('setup.preview.loading')}</div>
       ) : pickerList.length === 0 ? (
-        <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">候補が見つかりません</div>
+        <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">{t('setup.preview.noCandidates')}</div>
       ) : (
         <ul className="space-y-1 max-h-72 overflow-y-auto">
           {pickerList.map((item) => {
@@ -1737,7 +1737,7 @@ placeholder="例: 275/35R18"
                   className="w-full text-left px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm flex items-center justify-between gap-2"
                 >
                   <span className="text-gray-800 dark:text-gray-200">
-                    {d.toLocaleDateString('ja-JP')} ・ {item.circuit || '（サーキット未設定）'}
+                    {formatDate(d, locale)} ・ {item.circuit || t('setup.preview.circuitNotSet')}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{item.carModel}</span>
                 </button>
@@ -1751,17 +1751,17 @@ placeholder="例: 275/35R18"
         onClick={() => { setPendingLoad(null); setPickerOpen(false); navigate('/history'); }}
         className="text-sm text-blue-500 hover:text-blue-600 pt-1"
       >
-        履歴一覧で探す
+        {t('setup.preview.findInHistory')}
       </button>
     </div>
   ) : pendingLoad && (() => {
     const preview = pendingLoad.kind === 'inherit'
-      ? buildInheritPreview(pendingLoad.source)
-      : buildDuplicatePreview(pendingLoad.source);
+      ? buildInheritPreview(pendingLoad.source, locale)
+      : buildDuplicatePreview(pendingLoad.source, locale);
     const targetItems = pendingLoad.kind === 'inherit'
       ? (preview as ReturnType<typeof buildInheritPreview>).inheritedItems
       : (preview as ReturnType<typeof buildDuplicatePreview>).copiedItems;
-    const notAppliedTitle = pendingLoad.kind === 'inherit' ? '引き継がない項目（現在の入力を保持）' : '新規セッションとして初期化する項目';
+    const notAppliedTitle = pendingLoad.kind === 'inherit' ? t('setup.preview.notInheritedTitle') : t('setup.preview.resetInitTitle');
     const notAppliedItems = pendingLoad.kind === 'inherit'
       ? (preview as ReturnType<typeof buildInheritPreview>).keptItems
       : (preview as ReturnType<typeof buildDuplicatePreview>).resetItems;
@@ -1770,11 +1770,11 @@ placeholder="例: 275/35R18"
         {/* コピー元の識別情報 */}
         <div className="rounded-lg bg-gray-50 dark:bg-gray-700/40 px-3 py-2.5 text-sm">
           <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1">
-            <span className="text-gray-500 dark:text-gray-400">車種</span>
-            <span className="font-medium text-gray-800 dark:text-gray-200">{preview.carModel}</span>
-            <span className="text-gray-500 dark:text-gray-400">サーキット</span>
-            <span className="font-medium text-gray-800 dark:text-gray-200">{preview.circuit}</span>
-            <span className="text-gray-500 dark:text-gray-400">記録日時</span>
+            <span className="text-gray-500 dark:text-gray-400">{t('setup.preview.carModel')}</span>
+            <span className="font-medium text-gray-800 dark:text-gray-200">{preview.carModel ?? t('setup.preview.carModelNotSet')}</span>
+            <span className="text-gray-500 dark:text-gray-400">{t('setup.preview.circuit')}</span>
+            <span className="font-medium text-gray-800 dark:text-gray-200">{preview.circuit ?? t('setup.preview.circuitNotSet')}</span>
+            <span className="text-gray-500 dark:text-gray-400">{t('setup.preview.recordedAt')}</span>
             <span className="font-medium text-gray-800 dark:text-gray-200">{preview.dateLabel}</span>
           </div>
         </div>
@@ -1784,25 +1784,25 @@ placeholder="例: 275/35R18"
           onClick={openSourcePicker}
           className="text-xs text-blue-500 hover:text-blue-600"
         >
-          別のセッションを選ぶ
+          {t('setup.preview.selectAnotherSession')}
         </button>
 
         {/* 反映される対象項目（値の有無を明示） */}
         <div>
           <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
-            {pendingLoad.kind === 'inherit' ? '引き継ぐ項目' : '複製する項目'}
+            {pendingLoad.kind === 'inherit' ? t('setup.preview.inheritedItems') : t('setup.preview.copiedItems')}
           </div>
           <ul className="space-y-1">
             {targetItems.map((item) => (
-              <li key={item.label} className="flex items-center gap-2 text-sm">
+              <li key={item.labelKey} className="flex items-center gap-2 text-sm">
                 {item.filled ? (
                   <i className="fas fa-check-circle text-green-500 text-xs"></i>
                 ) : (
                   <i className="fas fa-minus-circle text-gray-300 dark:text-gray-600 text-xs"></i>
                 )}
                 <span className={item.filled ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'}>
-                  {item.label}
-                  {!item.filled && <span className="ml-1 text-xs">（コピー元は未入力）</span>}
+                  {t(item.labelKey)}
+                  {!item.filled && <span className="ml-1 text-xs">{t('setup.preview.sourceNotEntered')}</span>}
                 </span>
               </li>
             ))}
@@ -1812,7 +1812,7 @@ placeholder="例: 275/35R18"
         {/* 反映されない項目 */}
         <div>
           <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">{notAppliedTitle}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">{notAppliedItems.join(' / ')}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">{notAppliedItems.map((key) => t(key)).join(' / ')}</div>
         </div>
 
         {/* 編集中データの上書き警告 */}
@@ -1820,8 +1820,8 @@ placeholder="例: 275/35R18"
           <div className="rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
             <i className="fas fa-exclamation-triangle mr-1.5"></i>
             {pendingLoad.kind === 'inherit'
-              ? '編集中の設定値が上書きされます。空気圧やラップなどセッション固有値は保持されます。'
-              : '編集中の入力内容がすべて上書きされます。この操作は元に戻せません。'}
+              ? t('setup.preview.inheritOverwriteWarning')
+              : t('setup.preview.duplicateOverwriteWarning')}
           </div>
         )}
       </div>
@@ -1834,7 +1834,7 @@ placeholder="例: 275/35R18"
   title={
     <span>
       <i className="fas fa-file-import text-blue-500 mr-2"></i>
-      ロガーから取込
+      {t('setup.telemetry.importTitle')}
     </span>
   }
   open={showTelemetryImport}
@@ -1847,7 +1847,7 @@ placeholder="例: 275/35R18"
     <div className="pt-2">
       <TelemetryImport onAttach={handleTelemetryAttach} />
       <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500">
-        ここで取り込んだ走行ログは、セットアップ保存後にデブリーフと自己ベスト比較へつながります。
+        {t('setup.telemetry.importNote')}
       </div>
     </div>
   )}
@@ -1880,21 +1880,21 @@ onClick={() => handleOptionSelect(option.value)}
 
 {/* P0-1: 比較候補プロンプトモーダル */}
 <Modal
-  title="📊 比較候補が見つかりました"
+  title={t('setup.compare.promptTitle')}
   open={showComparePrompt}
   onCancel={() => setShowComparePrompt(false)}
   footer={[
     <button key="later" className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => setShowComparePrompt(false)}>
-      後で
+      {t('setup.compare.later')}
     </button>,
     <button key="compare" className="px-4 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700" onClick={() => { if (savedTraceId) { const firstCandidateId = compareCandidates[0]?.trace.id; const url = firstCandidateId ? `/telemetry/compare?aTrace=${savedTraceId}&bTrace=${firstCandidateId}` : `/telemetry/compare?aTrace=${savedTraceId}`; navigate(url); } } }>
-      比較を見る
+      {t('setup.compare.view')}
     </button>,
   ]}
 >
   <div className="space-y-2">
     <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-      保存した走行ログと比較できる過去データが見つかりました。
+      {t('setup.compare.promptDesc')}
     </p>
     {compareCandidates.map((c, i) => (
       <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-md px-3 py-2">
@@ -1904,10 +1904,10 @@ onClick={() => handleOptionSelect(option.value)}
             c.kind === 'previous' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' :
             'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
           }`}>
-            {c.label}
+            {t(c.labelKey)}
           </span>
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {c.trace.sessionDate.toLocaleDateString('ja-JP')}
+            {formatDate(c.trace.sessionDate, locale)}
           </span>
         </div>
         <span className={`font-mono text-sm font-bold ${c.deltaSeconds < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>

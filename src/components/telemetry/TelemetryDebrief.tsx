@@ -191,7 +191,7 @@ export const TelemetryDebrief: React.FC = () => {
               <>
                 <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   <DebriefMetric
-                    label={`${reference.label}比`}
+                    label={`${t(reference.labelKey)}比`}
                     value={formatSignedSeconds(debrief.delta.finalDelta)}
                     tone={debrief.delta.finalDelta <= 0 ? 'good' : 'bad'}
                     detail={debrief.delta.finalDelta <= 0 ? '今回が速い' : '今回が遅い'}
@@ -255,7 +255,7 @@ export const TelemetryDebrief: React.FC = () => {
                       <div>
                         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">セット差分</h3>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                          A={reference.label} / B=今回。テレメトリ差分の原因候補として見る項目です。
+                          A={t(reference.labelKey)} / B=今回。テレメトリ差分の原因候補として見る項目です。
                         </p>
                       </div>
                       <Tag color="purple">{setupDiffs.length}項目</Tag>
@@ -308,7 +308,9 @@ const DebriefHeader: React.FC<{
   trace: TelemetryTrace;
   setup: CarSetup | null;
   reference: ComparableTraceCandidate | null;
-}> = ({ trace, setup, reference }) => (
+}> = ({ trace, setup, reference }) => {
+  const { t } = useTranslation();
+  return (
   <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-4">
     <div className="flex flex-col lg:flex-row lg:items-center gap-3">
       <div className="min-w-0">
@@ -324,14 +326,15 @@ const DebriefHeader: React.FC<{
         <Tag color="blue">今回 LAP {trace.lap.lapNumber}: {formatLapSeconds(trace.lap.timeSeconds)}</Tag>
         {reference && (
           <Tag color="geekblue">
-            A={reference.label}: {formatLapSeconds(reference.trace.lap.timeSeconds)}
+            A={t(reference.labelKey)}: {formatLapSeconds(reference.trace.lap.timeSeconds)}
           </Tag>
         )}
         {setup && <Tag>{setup.sessionType}</Tag>}
       </div>
     </div>
   </section>
-);
+  );
+};
 
 const FirstTraceCard: React.FC<{ trace: TelemetryTrace }> = ({ trace }) => {
   const profile = traceToLapProfile(trace);

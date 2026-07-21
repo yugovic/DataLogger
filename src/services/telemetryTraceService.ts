@@ -20,6 +20,9 @@ import {
   isSampleTelemetryTraceId,
 } from '../components/telemetry/sampleTelemetryTrace';
 import logger from '../utils/logger';
+import type { TFunction } from 'i18next';
+import type { SupportedLocale } from '../i18n/locale';
+import { formatDate } from '../i18n/formatters';
 
 const COLLECTION_NAME = 'telemetryTraces';
 const INCLUDE_SAMPLE_TRACES = import.meta.env.DEV;
@@ -117,13 +120,44 @@ export interface UserTelemetryTraceFilter {
 
 export type ComparableTraceKind = 'self_best' | 'previous' | 'condition_match';
 
+// この service は React コンポーネント外で動くため t() を直接使えない。
+// 表示ラベルは i18n キー（labelKey）だけを返し、翻訳・日付整形は表示側で行う。
+// 説明文（日付＋条件差スコア＋今回比）の組み立ては formatComparableTraceDescription を使う。
 export interface ComparableTraceCandidate {
   trace: TelemetryTrace;
   kind: ComparableTraceKind;
-  label: string;
-  description: string;
+  /** i18n キー（表示側で t(labelKey) する） */
+  labelKey: string;
   score: number;
   deltaSeconds: number;
+}
+
+const COMPARABLE_LABEL_KEYS: Record<ComparableTraceKind, string> = {
+  self_best: 'setup.compare.candidate.selfBest',
+  previous: 'setup.compare.candidate.previous',
+  condition_match: 'setup.compare.candidate.conditionMatch',
+};
+
+/**
+ * 比較候補の説明文（日付 / 条件差スコア / 今回比）を呼び出し元ロケールで組み立てる。
+ * 日本語ハードコードを避けるため、表示側から t と locale を受け取る。
+ */
+export function formatComparableTraceDescription(
+  candidate: ComparableTraceCandidate,
+  t: TFunction,
+  locale: SupportedLocale,
+): string {
+  const dateLabel = formatDate(candidate.trace.sessionDate, locale);
+  const deltaLabel = t('setup.compare.candidateDesc.delta', {
+    delta: formatDeltaSeconds(candidate.deltaSeconds),
+  });
+  if (candidate.kind === 'condition_match') {
+    const scoreLabel = t('setup.compare.candidateDesc.conditionScore', {
+      score: candidate.score.toFixed(1),
+    });
+    return `${dateLabel} / ${scoreLabel} / ${deltaLabel}`;
+  }
+  return `${dateLabel} / ${deltaLabel}`;
 }
 
 export async function getUserTelemetryTraces(
@@ -210,16 +244,7 @@ function buildCandidate(
   score: number,
 ): ComparableTraceCandidate {
   const deltaSeconds = current.lap.timeSeconds - trace.lap.timeSeconds;
-  const label = kind === 'self_best'
-    ? '自己ベスト'
-    : kind === 'previous'
-      ? '前回セッション'
-      : '条件が近いログ';
-  const description = kind === 'condition_match'
-    ? `${trace.sessionDate.toLocaleDateString('ja-JP')} / 条件差スコア ${score.toFixed(1)} / 今回比 ${formatDeltaSeconds(deltaSeconds)}`
-    : `${trace.sessionDate.toLocaleDateString('ja-JP')} / 今回比 ${formatDeltaSeconds(deltaSeconds)}`;
-
-  return { trace, kind, label, description, score, deltaSeconds };
+  return { trace, kind, labelKey: COMPARABLE_LABEL_KEYS[kind], score, deltaSeconds };
 }
 
 /**

@@ -50,28 +50,28 @@ const makeSetup = (overrides: Partial<CarSetup> = {}): CarSetup =>
 
 describe('formatLoadPreviewDate', () => {
   it('Date を日付＋時刻の文字列に整形する', () => {
-    const label = formatLoadPreviewDate(new Date('2026-07-19T14:30:00'));
+    const label = formatLoadPreviewDate(new Date('2026-07-19T14:30:00'), 'ja-JP');
     expect(label).toContain('2026');
     expect(label).toMatch(/14:30/);
   });
 
   it('Date でない値（文字列）も受け付ける', () => {
-    expect(() => formatLoadPreviewDate('2026-07-19T14:30:00' as unknown as Date)).not.toThrow();
+    expect(() => formatLoadPreviewDate('2026-07-19T14:30:00' as unknown as Date, 'ja-JP')).not.toThrow();
   });
 });
 
 describe('buildDuplicatePreview', () => {
   it('車種・サーキット・日時を提示する', () => {
-    const p = buildDuplicatePreview(makeSetup());
+    const p = buildDuplicatePreview(makeSetup(), 'ja-JP');
     expect(p.carModel).toBe('Toyota GR86');
     expect(p.circuit).toBe('鈴鹿サーキット');
     expect(p.dateLabel).toContain('2026');
   });
 
-  it('コピー元が空でも車種・サーキットにプレースホルダを出す', () => {
-    const p = buildDuplicatePreview(makeSetup({ carModel: '', circuit: '' }));
-    expect(p.carModel).toBe('（車種未設定）');
-    expect(p.circuit).toBe('（サーキット未設定）');
+  it('コピー元が空なら車種・サーキットは null（表示側でプレースホルダを t() する）', () => {
+    const p = buildDuplicatePreview(makeSetup({ carModel: '', circuit: '' }), 'ja-JP');
+    expect(p.carModel).toBeNull();
+    expect(p.circuit).toBeNull();
   });
 
   it('値のあるカテゴリを filled=true として示す', () => {
@@ -86,39 +86,41 @@ describe('buildDuplicatePreview', () => {
           antiRollBar: { front: null, rear: null },
         },
       }),
+      'ja-JP',
     );
-    const tire = p.copiedItems.find((i) => i.label.includes('タイヤ情報'));
-    const damper = p.copiedItems.find((i) => i.label.includes('ダンパー'));
-    const align = p.copiedItems.find((i) => i.label.includes('アライメント'));
+    const tire = p.copiedItems.find((i) => i.labelKey === 'setup.preview.items.tireInfo');
+    const damper = p.copiedItems.find((i) => i.labelKey === 'setup.preview.items.damper');
+    const align = p.copiedItems.find((i) => i.labelKey === 'setup.preview.items.alignment');
     expect(tire?.filled).toBe(true);
     expect(damper?.filled).toBe(true);
     expect(align?.filled).toBe(false);
   });
 
   it('リセットされる項目にラップ・証憑・共有状態・日時を含む', () => {
-    const p = buildDuplicatePreview(makeSetup());
-    expect(p.resetItems.join(' ')).toMatch(/ラップ/);
-    expect(p.resetItems.join(' ')).toMatch(/証憑/);
-    expect(p.resetItems.join(' ')).toMatch(/共有/);
+    const p = buildDuplicatePreview(makeSetup(), 'ja-JP');
+    expect(p.resetItems).toContain('setup.preview.reset.lapTime');
+    expect(p.resetItems).toContain('setup.preview.reset.evidence');
+    expect(p.resetItems).toContain('setup.preview.reset.shareState');
   });
 });
 
 describe('buildInheritPreview', () => {
   it('セッション非依存の対象項目だけを列挙する', () => {
-    const p = buildInheritPreview(makeSetup({ tireInfo: { brand: 'ADVAN', compound: 'A050' } }));
-    const labels = p.inheritedItems.map((i) => i.label).join(' ');
-    expect(labels).toMatch(/タイヤ銘柄/);
-    expect(labels).toMatch(/ダンパー/);
-    expect(labels).toMatch(/アライメント/);
+    const p = buildInheritPreview(makeSetup({ tireInfo: { brand: 'ADVAN', compound: 'A050' } }), 'ja-JP');
+    const keys = p.inheritedItems.map((i) => i.labelKey);
+    expect(keys).toContain('setup.preview.items.tireBrandCompound');
+    expect(keys).toContain('setup.preview.items.damper');
+    expect(keys).toContain('setup.preview.items.alignment');
     // 空気圧の実測値やラップは引き継がない旨を keptItems に含む
-    expect(p.keptItems.join(' ')).toMatch(/空気圧/);
-    expect(p.keptItems.join(' ')).toMatch(/ラップ/);
+    expect(p.keptItems).toContain('setup.preview.kept.measuredPressure');
+    expect(p.keptItems).toContain('setup.preview.kept.lapTime');
   });
 
   it('タイヤ情報の有無を filled で示す', () => {
-    const withTire = buildInheritPreview(makeSetup({ tireInfo: { brand: 'ADVAN', compound: '' } }));
-    const withoutTire = buildInheritPreview(makeSetup({ tireInfo: { brand: '', compound: '' } }));
-    expect(withTire.inheritedItems.find((i) => i.label.includes('タイヤ銘柄'))?.filled).toBe(true);
-    expect(withoutTire.inheritedItems.find((i) => i.label.includes('タイヤ銘柄'))?.filled).toBe(false);
+    const withTire = buildInheritPreview(makeSetup({ tireInfo: { brand: 'ADVAN', compound: '' } }), 'ja-JP');
+    const withoutTire = buildInheritPreview(makeSetup({ tireInfo: { brand: '', compound: '' } }), 'ja-JP');
+    const key = 'setup.preview.items.tireBrandCompound';
+    expect(withTire.inheritedItems.find((i) => i.labelKey === key)?.filled).toBe(true);
+    expect(withoutTire.inheritedItems.find((i) => i.labelKey === key)?.filled).toBe(false);
   });
 });

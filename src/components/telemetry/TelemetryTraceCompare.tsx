@@ -5,11 +5,14 @@ import { ArrowLeftOutlined, LoadingOutlined, ReloadOutlined } from '@ant-design/
 import { Header } from '../common/Header';
 import { PersistedTraceComparison } from './PersistedTraceComparison';
 import type { TelemetryTrace } from '../../types/telemetryTrace';
+import { useTranslation } from 'react-i18next';
 import {
+  formatComparableTraceDescription,
   getComparableTraceCandidates,
   getTelemetryTrace,
   type ComparableTraceCandidate,
 } from '../../services/telemetryTraceService';
+import { useLocale } from '../../contexts/LocaleContext';
 import logger from '../../utils/logger';
 import { DropZone, ImportErrorPanel, ImportProgress, SessionSummaryPanel } from './ImportPanels';
 import { LapList } from './LapList';
@@ -25,6 +28,8 @@ import { traceToLapProfile } from '../../lib/telemetry';
 import { findTrackById } from '../../lib/tracks';
 
 export const TelemetryTraceCompare: React.FC = () => {
+  const { t } = useTranslation();
+  const { locale } = useLocale();
   const location = useLocation();
   const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
@@ -79,7 +84,10 @@ export const TelemetryTraceCompare: React.FC = () => {
         setTraceA(a);
         setTraceB(b);
         setSelectedCandidateId(b.id ?? null);
-        setCandidateLabel(nextCandidates.find((candidate) => candidate.trace.id === b.id)?.label ?? (bTraceId ? '指定ラップ' : null));
+        {
+          const matched = nextCandidates.find((candidate) => candidate.trace.id === b.id);
+          setCandidateLabel(matched ? t(matched.labelKey) : (bTraceId ? t('setup.compare.candidate.specified') : null));
+        }
       } catch (error) {
         logger.error('保存済みテレメトリ比較の読み込みに失敗しました:', error);
         setLoadError('保存済みテレメトリ比較の読み込みに失敗しました');
@@ -96,7 +104,7 @@ export const TelemetryTraceCompare: React.FC = () => {
     const candidate = candidates.find((item) => item.trace.id === traceId);
     if (candidate) {
       setTraceB(candidate.trace);
-      setCandidateLabel(candidate.label);
+      setCandidateLabel(t(candidate.labelKey));
       return;
     }
     try {
@@ -106,7 +114,7 @@ export const TelemetryTraceCompare: React.FC = () => {
         return;
       }
       setTraceB(nextTrace);
-      setCandidateLabel('指定ラップ');
+      setCandidateLabel(t('setup.compare.candidate.specified'));
     } catch (error) {
       logger.error('比較対象の切り替えに失敗しました:', error);
       message.error('比較対象の切り替えに失敗しました');
@@ -209,7 +217,7 @@ export const TelemetryTraceCompare: React.FC = () => {
                       .filter((candidate) => candidate.trace.id)
                       .map((candidate) => ({
                         value: candidate.trace.id as string,
-                        label: `${candidate.label} - ${candidate.description}`,
+                        label: `${t(candidate.labelKey)} - ${formatComparableTraceDescription(candidate, t, locale)}`,
                       }))}
                   />
                 </div>

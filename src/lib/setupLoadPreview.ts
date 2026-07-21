@@ -5,42 +5,47 @@
 // ここでは Modal 表示用のプレーンなデータ構造だけを生成し、副作用は持たない。
 
 import type { CarSetup } from '../types/setup';
+import type { SupportedLocale } from '../i18n/locale';
+import { formatDateTime } from '../i18n/formatters';
+
+// このモジュールは lib 層（React コンポーネント外）で動くため、useTranslation の t() は使えない。
+// 日本語ハードコードを避けるため、表示ラベルは i18n のキー（labelKey）だけを返し、
+// 実際の翻訳は表示側（呼び出し元コンポーネント）で t(labelKey) する。
+// 車種・サーキットの未設定フォールバックも null を返し、表示側で t() する。
+// 日付フォーマットは呼び出し元のロケールを受け取って locale 対応の formatDateTime を使う。
 
 /** source.date（Date か文字列/数値）を Date に正規化する */
 const toDate = (d: CarSetup['date']): Date => (d instanceof Date ? d : new Date(d));
 
-/** 実行前プレビューの日時表示（例: 2026/7/19 14:30） */
-export const formatLoadPreviewDate = (d: CarSetup['date']): string => {
-  const date = toDate(d);
-  return `${date.toLocaleDateString('ja-JP')} ${date.toLocaleTimeString('ja-JP', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })}`;
-};
+/** 実行前プレビューの日時表示（呼び出し元ロケールに追従） */
+export const formatLoadPreviewDate = (d: CarSetup['date'], locale: SupportedLocale): string =>
+  formatDateTime(toDate(d), locale);
 
-/** プレビュー内の1カテゴリ（対象項目）。filled=コピー元に値があるか */
+/** プレビュー内の1カテゴリ（対象項目）。filled=コピー元に値があるか、labelKey=i18nキー */
 export interface LoadPreviewItem {
-  label: string;
+  labelKey: string;
   filled: boolean;
 }
 
 export interface DuplicatePreview {
-  carModel: string;
-  circuit: string;
+  /** コピー元の車種。未設定なら null（表示側で t() する） */
+  carModel: string | null;
+  /** コピー元のサーキット。未設定なら null（表示側で t() する） */
+  circuit: string | null;
   dateLabel: string;
   /** 複製で引き継がれる項目カテゴリ（値の有無つき） */
   copiedItems: LoadPreviewItem[];
-  /** 新規セッションとして初期化される項目 */
+  /** 新規セッションとして初期化される項目（i18nキー） */
   resetItems: string[];
 }
 
 export interface InheritPreview {
-  carModel: string;
-  circuit: string;
+  carModel: string | null;
+  circuit: string | null;
   dateLabel: string;
   /** セッション非依存で引き継がれる項目カテゴリ（値の有無つき） */
   inheritedItems: LoadPreviewItem[];
-  /** 引き継がれない（現在の入力が保持される）項目 */
+  /** 引き継がれない（現在の入力が保持される）項目（i18nキー） */
   keptItems: string[];
 }
 
@@ -98,40 +103,52 @@ const hasTirePressures = (setup: CarSetup): boolean => {
  * 「直近セッションを複製」の実行前プレビュー。
  * copySetupToDraft と同じ範囲（設定値・実測値は引き継ぎ、ラップ/証憑/共有/日時は初期化）を説明する。
  */
-export const buildDuplicatePreview = (source: CarSetup): DuplicatePreview => ({
-  carModel: source.carModel || '（車種未設定）',
-  circuit: source.circuit || '（サーキット未設定）',
-  dateLabel: formatLoadPreviewDate(source.date),
+export const buildDuplicatePreview = (
+  source: CarSetup,
+  locale: SupportedLocale,
+): DuplicatePreview => ({
+  carModel: source.carModel || null,
+  circuit: source.circuit || null,
+  dateLabel: formatLoadPreviewDate(source.date, locale),
   copiedItems: [
-    { label: '環境データ（天候・気温・路温ほか）', filled: hasEnvironment(source) },
-    { label: 'タイヤ情報（銘柄・コンパウンド）', filled: hasTire(source) },
-    { label: 'タイヤ空気圧', filled: hasTirePressures(source) },
-    { label: 'ダンパー（Bump / Rebound）', filled: hasSuspensionDamper(source) },
-    { label: 'スプリング / 車高 / スタビ', filled: hasSuspensionGeometry(source) },
-    { label: 'アライメント（キャンバー / トー / キャスター）', filled: hasAlignment(source) },
+    { labelKey: 'setup.preview.items.environment', filled: hasEnvironment(source) },
+    { labelKey: 'setup.preview.items.tireInfo', filled: hasTire(source) },
+    { labelKey: 'setup.preview.items.tirePressure', filled: hasTirePressures(source) },
+    { labelKey: 'setup.preview.items.damper', filled: hasSuspensionDamper(source) },
+    { labelKey: 'setup.preview.items.springHeightArb', filled: hasSuspensionGeometry(source) },
+    { labelKey: 'setup.preview.items.alignment', filled: hasAlignment(source) },
   ],
-  resetItems: ['日時（現在時刻）', 'ラップタイム', 'ロガー証憑', 'テレメトリ', '公開・共有状態'],
+  resetItems: [
+    'setup.preview.reset.dateNow',
+    'setup.preview.reset.lapTime',
+    'setup.preview.reset.evidence',
+    'setup.preview.reset.telemetry',
+    'setup.preview.reset.shareState',
+  ],
 });
 
 /**
  * 「同じ車種の設定を引き継ぐ」の実行前プレビュー。
  * inheritSetupSettings と同じ範囲（セッション非依存値だけ）を説明する。
  */
-export const buildInheritPreview = (source: CarSetup): InheritPreview => ({
-  carModel: source.carModel || '（車種未設定）',
-  circuit: source.circuit || '（サーキット未設定）',
-  dateLabel: formatLoadPreviewDate(source.date),
+export const buildInheritPreview = (
+  source: CarSetup,
+  locale: SupportedLocale,
+): InheritPreview => ({
+  carModel: source.carModel || null,
+  circuit: source.circuit || null,
+  dateLabel: formatLoadPreviewDate(source.date, locale),
   inheritedItems: [
-    { label: 'タイヤ銘柄・コンパウンド', filled: hasTire(source) },
-    { label: 'ダンパー（Bump / Rebound）', filled: hasSuspensionDamper(source) },
-    { label: 'スプリング / 車高 / スタビ', filled: hasSuspensionGeometry(source) },
-    { label: 'アライメント（キャンバー / トー / キャスター）', filled: hasAlignment(source) },
+    { labelKey: 'setup.preview.items.tireBrandCompound', filled: hasTire(source) },
+    { labelKey: 'setup.preview.items.damper', filled: hasSuspensionDamper(source) },
+    { labelKey: 'setup.preview.items.springHeightArb', filled: hasSuspensionGeometry(source) },
+    { labelKey: 'setup.preview.items.alignment', filled: hasAlignment(source) },
   ],
   keptItems: [
-    'タイヤ空気圧の実測値',
-    '天候・気温・路温',
-    'ラップタイム',
-    '走行距離・燃料',
-    '日時',
+    'setup.preview.kept.measuredPressure',
+    'setup.preview.kept.weatherTemps',
+    'setup.preview.kept.lapTime',
+    'setup.preview.kept.distanceFuel',
+    'setup.preview.kept.dateTime',
   ],
 });
