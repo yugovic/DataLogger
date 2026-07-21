@@ -16,4 +16,11 @@ void i18n.use(initReactI18next).init({
   returnNull: false,
 });
 
+// 開発ビルド時のみ、疑似ロケール品質ゲート（tests/pseudo-locale.spec.ts）が
+// ブラウザ側から addResourceBundle / changeLanguage を呼べるよう i18n を公開する。
+// 本番ビルドでは公開しない。
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as unknown as { __i18n?: typeof i18n }).__i18n = i18n;
+}
+
 export default i18n;

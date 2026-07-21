@@ -1,0 +1,26 @@
+{
+  "login:mobile": {
+    "horizontalOverflow": false,
+    "truncatedCount": 1
+  },
+  "login:desktop": {
+    "horizontalOverflow": false,
+    "truncatedCount": 1
+  },
+  "signup:mobile": {
+    "horizontalOverflow": false,
+    "truncatedCount": 1
+  },
+  "signup:desktop": {
+    "horizontalOverflow": false,
+    "truncatedCount": 1
+  },
+  "public-share-error:mobile": {
+    "horizontalOverflow": false,
+    "truncatedCount": 0
+  },
+  "public-share-error:desktop": {
+    "horizontalOverflow": false,
+    "truncatedCount": 0
+  }
+}
