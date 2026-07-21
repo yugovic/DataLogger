@@ -6,6 +6,7 @@ import { StepNumber } from './src/components/common/StepNumber';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from './src/contexts/AuthContext';
 import { saveSetup, getUserSetups, getUserSetupsForTireUsage, getSetup, updateSetup, getSetupsByCarModel, deleteSetup } from './src/services/setupService';
+import { AppError, resolveAppErrorMessage } from './src/i18n/errorMessages';
 import { getUserVehicles, addVehicle, updateVehicle } from './src/services/vehicleService';
 import type { Vehicle } from './src/types/vehicle';
 import type { CarSetup as CarSetupType, LapTime, WeatherType, SetupTelemetryRefs, DrivingFeedback } from './src/types/setup';
@@ -698,13 +699,12 @@ const handleSave = async () => {
   } catch (error: any) {
     logger.error('Save error:', error);
     void trackEvent('setup_save_failed', { stage: 'setup', reason: error?.code ?? 'unknown' });
-    // zodバリデーションエラーは項目名付きの読める日本語として表示
-    const rawMsg: string = error?.message || 'エラーが発生しました';
-    const errorMessage = error?.code === 'permission-denied'
-      ? 'アクセス権限がありません。再度ログインしてください'
-      : rawMsg.startsWith('入力値エラー:')
-        ? rawMsg // setupService で整形済みの項目名付きメッセージをそのまま表示
-        : `保存に失敗しました: ${rawMsg}`;
+    // AppError（サービス層のエラーコード方式）は現在言語のメッセージへ解決して表示
+    const errorMessage = error instanceof AppError
+      ? resolveAppErrorMessage(error, t)
+      : error?.code === 'permission-denied'
+        ? t('history.errors.permission')
+        : `${t('setup.saveFailed', { defaultValue: '保存に失敗しました' })}: ${error?.message || t('errors.generic')}`;
     message.error(errorMessage, 6); // 長めに表示（6秒）
   } finally {
     savingRef.current = false;
@@ -984,7 +984,7 @@ return (
 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
   {/* 日時 */}
   <div className="col-span-2 sm:col-span-1">
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup:dateTime')}</p>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup.dateTime')}</p>
     {isViewMode ? (
       <span className="block text-sm text-gray-800 dark:text-gray-200 font-medium py-1">
         {formatDateTime(sessionDate, locale)}
@@ -1001,7 +1001,7 @@ return (
   {/* サーキット */}
   <div>
     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-      {t('setup:circuit')} <span className="text-red-500">*</span>
+      {t('setup.circuit')} <span className="text-red-500">*</span>
     </p>
     <AutoComplete
       value={circuit}
@@ -1020,14 +1020,14 @@ return (
   {/* 車両: 登録車両を選ぶ。未登録の場合だけ車種名を直接入力する。 */}
   <div className="col-span-2 sm:col-span-1 xl:col-span-2">
     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-      {t('setup:vehicle')} <span className="text-red-500">*</span>
+      {t('setup.vehicle')} <span className="text-red-500">*</span>
     </p>
     <Select
       value={selectedVehicleId ?? (manualVehicleEntry ? '__manual__' : undefined)}
       onChange={handleRegisteredVehicleSelect}
       className="w-full"
       disabled={isViewMode}
-      placeholder={t('setup:selectVehicle')}
+      placeholder={t('setup.selectVehicle')}
       options={[
         ...vehicles
           .filter((vehicle) => vehicle.id)
@@ -1035,7 +1035,7 @@ return (
             value: vehicle.id as string,
             label: `${vehicle.make} ${vehicle.model}`,
           })),
-        { value: '__manual__', label: t('setup:manualVehicle') },
+        { value: '__manual__', label: t('setup.manualVehicle') },
       ]}
     />
     {manualVehicleEntry && !selectedVehicleId && (
@@ -1043,7 +1043,7 @@ return (
         value={carModel}
         onChange={setCarModel}
         className="mt-2 w-full"
-        placeholder={t('setup:manualVehiclePlaceholder')}
+        placeholder={t('setup.manualVehiclePlaceholder')}
         disabled={isViewMode}
         options={[...new Set(vehicles.map(v => `${v.make} ${v.model}`))].map(name => ({ value: name }))}
       />
@@ -1051,11 +1051,11 @@ return (
   </div>
   {/* ドライバー名 */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup:driver')}</p>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup.driver')}</p>
     <AutoComplete
       value={driver}
       onChange={setDriver}
-      placeholder={t('setup:driver')}
+      placeholder={t('setup.driver')}
       className="w-full"
       disabled={isViewMode}
       options={driver ? [{ value: driver }] : []}
@@ -1063,16 +1063,16 @@ return (
   </div>
   {/* セッション種別 */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup:sessionType')}</p>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup.sessionType')}</p>
     <Select
       value={sessionType}
       onChange={setSessionType}
       className="w-full"
       disabled={isViewMode}
       options={[
-        { value: 'practice', label: t('common:sessionType.practice') },
-        { value: 'qualifying', label: t('common:sessionType.qualifying') },
-        { value: 'race', label: t('common:sessionType.race') }
+        { value: 'practice', label: t('common.sessionType.practice') },
+        { value: 'qualifying', label: t('common.sessionType.qualifying') },
+        { value: 'race', label: t('common.sessionType.race') }
       ]}
     />
   </div>
@@ -1130,24 +1130,24 @@ return (
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex flex-wrap items-center gap-2 mb-4">
 <i className="fas fa-temperature-high text-blue-500 dark:text-blue-400 mr-2"></i>
-<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup:environment')}</h3>
+<h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.environment')}</h3>
 <div className="ml-auto text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-{t('setup:airTemperature')}: {airTemp !== '' ? `${airTemp}°C` : '—'} &nbsp; {t('setup:shortTrackTemperature')}: {trackTemp !== '' ? `${trackTemp}°C` : '—'}
+{t('setup.airTemperature')}: {airTemp !== '' ? `${airTemp}°C` : '—'} &nbsp; {t('setup.shortTrackTemperature')}: {trackTemp !== '' ? `${trackTemp}°C` : '—'}
 </div>
 </div>
 <div className="mb-4">
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup:weather')}</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.weather')}</label>
 <Select
 value={weatherCondition}
 onChange={setWeatherCondition}
 className="w-full"
 disabled={isViewMode}
-options={WEATHER_CODES.map((value) => ({ value, label: t(`common:weather.${value}`) }))}
+options={WEATHER_CODES.map((value) => ({ value, label: t(`common.weather.${value}`) }))}
 />
 </div>
 <div className="grid grid-cols-2 gap-4">
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup:airTemperature')} (°C)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.airTemperature')} (°C)</label>
 <Input
 value={airTemp}
 onChange={(e) => setAirTemp(e.target.value)}
@@ -1157,7 +1157,7 @@ inputMode="decimal"
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup:trackTemperature')} (°C)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.trackTemperature')} (°C)</label>
 <Input
 value={trackTemp}
 onChange={(e) => setTrackTemp(e.target.value)}
@@ -1167,7 +1167,7 @@ inputMode="decimal"
 />
 </div>
 <div>
-<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup:humidity')} (%)</label>
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.humidity')} (%)</label>
 <Input
 value={humidity}
 onChange={(e) => setHumidity(e.target.value)}

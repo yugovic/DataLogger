@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Tabs, Button, Select, message, Empty, Input, Alert } from 'antd';
 import { PlusOutlined, DeleteOutlined, CameraOutlined, CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons';
 import { LapTime, LapType } from '../../../types/setup';
@@ -22,6 +23,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
   initialLaps = [],
   evidenceActive = false
 }) => {
+  const { t } = useTranslation();
   const [laps, setLaps] = useState<LapTime[]>(initialLaps);
   const [activeTab, setActiveTab] = useState('manual');
   const [csvText, setCsvText] = useState<string>('');
@@ -323,7 +325,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
   };
 
   const handleOCRClick = () => {
-    message.info('OCR機能は現在準備中です');
+    message.info(t('setupTabs.lapTime.ocrPreparing'));
   };
 
   // Enterキーで次のラップを追加
@@ -384,7 +386,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
             updateLapTimeString(index, formatTime(lap.minutes || 0, lap.seconds || 0, lap.milliseconds || 0));
           }
         }}
-        placeholder="例: 123456 → 1:23.456"
+        placeholder={t('setupTabs.lapTime.timeInputPlaceholder')}
         className="flex-1"
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -539,7 +541,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
           {formatTime(wheelMinutes, wheelSeconds, wheelMilliseconds)}
         </div>
         <div className="text-sm text-gray-500">
-          スクロールまたは+/-ボタンで時間を選択
+          {t('setupTabs.lapTime.wheelHint')}
         </div>
       </div>
       
@@ -564,7 +566,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
             }}
           >
             <div className="text-3xl font-mono font-bold">{wheelMinutes}</div>
-            <div className="text-xs text-gray-500 mt-1">分</div>
+            <div className="text-xs text-gray-500 mt-1">{t('setupTabs.lapTime.minuteLabel')}</div>
           </div>
           <button
             className="px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors"
@@ -615,7 +617,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
             <div className="text-3xl font-mono font-bold">
               {wheelSeconds.toString().padStart(2, '0')}
             </div>
-            <div className="text-xs text-gray-500 mt-1">秒</div>
+            <div className="text-xs text-gray-500 mt-1">{t('setupTabs.lapTime.secondLabel')}</div>
           </div>
           <button
             className="px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors"
@@ -656,7 +658,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
             <div className="text-3xl font-mono font-bold">
               {wheelMilliseconds.toString().padStart(3, '0')}
             </div>
-            <div className="text-xs text-gray-500 mt-1">ミリ秒</div>
+            <div className="text-xs text-gray-500 mt-1">{t('setupTabs.lapTime.millisecondLabel')}</div>
           </div>
           <button
             className="px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors"
@@ -674,7 +676,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
           onClick={addLap}
           size="large"
         >
-          このタイムでラップを追加
+          {t('setupTabs.lapTime.addLapWithThisTime')}
         </Button>
       </div>
     </div>
@@ -682,16 +684,16 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
 
   return (
     <Modal
-      title="ラップタイム詳細入力"
+      title={t('setupTabs.lapTime.title')}
       open={visible}
       onCancel={onClose}
       width={900}
       footer={[
         <Button key="cancel" onClick={onClose}>
-          キャンセル
+          {t('common.cancel')}
         </Button>,
         <Button key="save" type="primary" onClick={handleSave}>
-          保存
+          {t('common.save')}
         </Button>
       ]}
     >
@@ -701,38 +703,38 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
           type="warning"
           showIcon
           className="mb-4"
-          message="このラップタイムはロガー証憑つきです"
-          description="保存すると手動入力扱いとなり、ロガー証憑（ファイル名・形式・取込日時）は外れます。"
+          message={t('setupTabs.lapTime.evidenceWarningTitle')}
+          description={t('setupTabs.lapTime.evidenceWarningDesc')}
         />
       )}
       <Tabs activeKey={activeTab} onChange={setActiveTab}
         items={[
           {
             key: 'manual',
-            label: '手動入力',
+            label: t('setupTabs.lapTime.manualTab'),
             children: (
           <div className="space-y-4" onKeyDown={handleKeyDown}>
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">入力方式:</span>
+                <span className="text-sm text-gray-600">{t('setupTabs.lapTime.inputMethod')}</span>
                 <div className="flex items-center space-x-2">
                   <button
                     className={`px-3 py-1 rounded ${inputMode === 'keyboard' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
                     onClick={() => setInputMode('keyboard')}
                   >
-                    キーボード
+                    {t('setupTabs.lapTime.keyboardMode')}
                   </button>
                   <button
                     className={`px-3 py-1 rounded ${inputMode === 'button' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
                     onClick={() => setInputMode('button')}
                   >
-                    ボタン
+                    {t('setupTabs.lapTime.buttonMode')}
                   </button>
                   <button
                     className={`px-3 py-1 rounded ${inputMode === 'wheel' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
                     onClick={() => setInputMode('wheel')}
                   >
-                    ホイール
+                    {t('setupTabs.lapTime.wheelMode')}
                   </button>
                 </div>
               </div>
@@ -742,14 +744,14 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
                   icon={<PlusOutlined />}
                   onClick={addLap}
                 >
-                  ラップ追加
+                  {t('setupTabs.lapTime.addLap')}
                 </Button>
               )}
             </div>
             
             {inputMode === 'keyboard' && (
               <div className="text-sm text-gray-500 mb-2">
-                数字のみで入力可能（例: 123456 → 1:23.456）｜ Enterキーで次のラップを追加
+                {t('setupTabs.lapTime.keyboardHint')}
               </div>
             )}
             
@@ -759,11 +761,11 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
               <>
                 {laps.length === 0 ? (
                   <Empty
-                    description="ラップデータがありません"
+                    description={t('setupTabs.lapTime.noLapData')}
                     className="py-8"
                   >
                     <Button type="primary" onClick={addLap}>
-                      最初のラップを追加
+                      {t('setupTabs.lapTime.addFirstLap')}
                     </Button>
                   </Empty>
                 ) : (
@@ -789,7 +791,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
                           className="w-24"
                         >
                           <Option value="IN">IN</Option>
-                          <Option value="NORMAL">通常</Option>
+                          <Option value="NORMAL">{t('setupTabs.lapTime.normalType')}</Option>
                           <Option value="OUT">OUT</Option>
                         </Select>
                         
@@ -808,7 +810,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
             
             {inputMode === 'wheel' && laps.length > 0 && (
               <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">追加されたラップ:</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">{t('setupTabs.lapTime.addedLaps')}</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {laps.map((lap, index) => (
                     <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
@@ -832,17 +834,17 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
           },
           {
             key: 'csv',
-            label: 'CSV/貼り付け',
+            label: t('setupTabs.lapTime.csvTab'),
             children: (
               <div className="space-y-4">
                 <div className="text-sm text-gray-600">
-                  1列に1ラップの形式（例: 1:58.423）。カンマ区切りや改行を自動判定します。
+                  {t('setupTabs.lapTime.csvHint')}
                 </div>
                 <Input.TextArea
                   rows={8}
                   value={csvText}
                   onChange={(e) => setCsvText(e.target.value)}
-                  placeholder={`例\n1:58.423\n1:59.012\n2:00.100`}
+                  placeholder={t('setupTabs.lapTime.csvPlaceholder')}
                 />
                 <div className="flex gap-2">
                   <Button
@@ -877,7 +879,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
                       });
 
                       if (times.length === 0) {
-                        message.warning('タイムが検出できませんでした');
+                        message.warning(t('setupTabs.lapTime.noTimeDetected'));
                         return;
                       }
                       const newLaps: LapTime[] = times.map((t, i) => {
@@ -885,29 +887,29 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
                         return { lapNumber: i + 1, time: t, type: 'NORMAL', minutes: p.minutes, seconds: p.seconds, milliseconds: p.milliseconds };
                       });
                       setLaps(newLaps);
-                      message.success(`${newLaps.length}ラップを取り込みました`);
+                      message.success(t('setupTabs.lapTime.lapsImported', { count: newLaps.length }));
                       setActiveTab('manual');
                     }}
                   >
-                    取り込みして置換
+                    {t('setupTabs.lapTime.importAndReplace')}
                   </Button>
-                  <Button onClick={() => setCsvText('')}>クリア</Button>
+                  <Button onClick={() => setCsvText('')}>{t('setupTabs.lapTime.clear')}</Button>
                 </div>
               </div>
             )
           },
           {
             key: 'ocr',
-            label: 'OCR読み取り',
+            label: t('setupTabs.lapTime.ocrTab'),
             disabled: true,
             children: (
           <div className="text-center py-12">
             <CameraOutlined className="text-6xl text-gray-300 mb-4" />
             <p className="text-gray-500 mb-2">
-              OCR機能は現在準備中です
+              {t('setupTabs.lapTime.ocrPreparing')}
             </p>
             <p className="text-sm text-gray-400">
-              将来的にはカメラで撮影した画像からラップタイムを自動で読み取ることができます
+              {t('setupTabs.lapTime.ocrFutureDesc')}
             </p>
             <Button
               type="primary"
@@ -916,7 +918,7 @@ export const LapTimeModal: React.FC<LapTimeModalProps> = ({
               className="mt-6"
               disabled
             >
-              カメラを起動（準備中）
+              {t('setupTabs.lapTime.startCameraPreparing')}
             </Button>
           </div>
             )

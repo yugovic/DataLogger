@@ -4,6 +4,7 @@ import { CarOutlined, PlusOutlined, LoadingOutlined, DeleteOutlined, StopOutline
 import dayjs, { Dayjs } from 'dayjs';
 import { estimateModLevel } from '../../lib/modLevel';
 import { vehicleProfileSchema } from '../../schemas/vehicleProfileSchema';
+import { AppError, resolveAppErrorMessage, resolveZodMessage } from '../../i18n/errorMessages';
 import { addVehicle, updateVehicle, generateDefaultSetupConfig } from '../../services/vehicleService';
 import { MOD_CATEGORY_LABELS, TIRE_CLASS_LABELS, Vehicle, VehicleProfile } from '../../types/vehicle';
 import type { SetupAdjustmentDefinition } from '../../types/vehicle';
@@ -274,7 +275,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
       const profileValidation = vehicleProfileSchema.safeParse(normalizedProfile);
       if (!profileValidation.success) {
         const errorMessage = profileValidation.error.issues
-          .map((issue) => issue.message)
+          .map((issue) => resolveZodMessage(issue.message, t))
           .join(' / ');
         form.setFields([{ name: ['profile'], errors: [errorMessage] }]);
         setActiveTab('profile');
@@ -313,7 +314,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
       onClose();
     } catch (error) {
       console.error('Error saving vehicle:', error);
-      message.error(t('vehicle.modal.errors.save'));
+      message.error(error instanceof AppError ? resolveAppErrorMessage(error, t) : t('vehicle.modal.errors.save'));
     } finally {
       setLoading(false);
     }
@@ -456,7 +457,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
               />
             </Form.Item>
 
-            <Form.Item name="photoURL" label="車両写真URL" style={{ display: 'none' }}>
+            <Form.Item name="photoURL" label={t('vehicle.modal.fields.photoURL')} style={{ display: 'none' }}>
               <Input />
             </Form.Item>
             
@@ -486,7 +487,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({ visible, onClose, ve
                 customRequest={async ({ file, onSuccess, onError }) => {
                   if (!currentUser) {
                     message.error(t('vehicle.modal.errors.notLoggedIn'));
-                    onError?.(new Error('ユーザーがログインしていません'));
+                    onError?.(new Error(t('vehicle.modal.errors.notLoggedIn')));
                     return;
                   }
                   

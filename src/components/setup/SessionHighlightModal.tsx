@@ -5,6 +5,7 @@
 // null 保存原則: bestLap がない走行ではこのモーダル自体を表示しない。
 
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Button, Checkbox, message } from 'antd';
 import { DownloadOutlined, ShareAltOutlined } from '@ant-design/icons';
 import type { SessionHighlight } from '../../lib/sessionHighlights';
@@ -39,6 +40,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
   highlight,
   savedSetup,
 }) => {
+  const { t } = useTranslation();
   const webShareSupported = typeof navigator !== 'undefined' && 'share' in navigator;
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -116,9 +118,9 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
       if (shareUrl) {
         try {
           await navigator.clipboard.writeText(shareUrl);
-          message.success('公開リンクをコピーしました（URLが画像に焼き込まれています）', 4);
+          message.success(t('setupTabs.highlight.publicLinkCopied'), 4);
         } catch {
-          message.success(`公開リンクを発行しました: ${shareUrl}`, 5);
+          message.success(t('setupTabs.highlight.publicLinkIssued', { url: shareUrl }), 5);
         }
         void trackEvent('session_highlight_shared', {
           circuit: highlight.circuit,
@@ -126,7 +128,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
         });
       }
     } catch {
-      message.error('画像の生成に失敗しました');
+      message.error(t('setupTabs.highlight.imageGenerationFailed'));
       setIsPublishing(false);
     } finally {
       setIsGenerating(false);
@@ -137,7 +139,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
   // ── Web Share API で共有 ────────────────────────────────
   const handleShare = async () => {
     if (!navigator.share) {
-      message.info('お使いの環境では共有機能を利用できません');
+      message.info(t('setupTabs.highlight.shareNotSupported'));
       return;
     }
     setIsGenerating(true);
@@ -157,7 +159,11 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
         try {
           await navigator.share({
             title: `${highlight.circuit} — ${highlight.bestLap}`,
-            text: `${highlight.carModel} @ ${highlight.circuit} ベストラップ ${highlight.bestLap}`,
+            text: t('setupTabs.highlight.shareText', {
+              carModel: highlight.carModel,
+              circuit: highlight.circuit,
+              bestLap: highlight.bestLap,
+            }),
             files: [file],
           });
           void trackEvent('session_highlight_shared', {
@@ -177,10 +183,10 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
           throw error;
         }
       } else {
-        message.info('お使いの環境ではファイル共有を利用できません');
+        message.info(t('setupTabs.highlight.fileShareNotSupported'));
       }
     } catch {
-      message.error('共有に失敗しました');
+      message.error(t('setupTabs.highlight.shareFailed'));
       setIsPublishing(false);
     } finally {
       setIsGenerating(false);
@@ -254,10 +260,10 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
             onChange={(e) => setIncludePublicLink(e.target.checked)}
             disabled={isBusy}
           />
-          公開リンクを発行して画像に含める
+          {t('setupTabs.highlight.includePublicLink')}
         </label>
         <p className="mt-1 ml-6 text-xs text-slate-500 dark:text-slate-400">
-          発行すると、このセッションの概要ページを誰でも閲覧できるようになります
+          {t('setupTabs.highlight.includePublicLinkHint')}
         </p>
       </div>
 
@@ -273,7 +279,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
             className="w-full"
             size="large"
           >
-            共有
+            {t('setupTabs.highlight.share')}
           </Button>
         )}
 
@@ -286,7 +292,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
           className="w-full"
           size="large"
         >
-          画像を保存
+          {t('setupTabs.highlight.saveImage')}
         </Button>
 
         <Button
@@ -294,7 +300,7 @@ export const SessionHighlightModal: React.FC<SessionHighlightModalProps> = ({
           className="w-full"
           size="large"
         >
-          閉じる
+          {t('common.close')}
         </Button>
       </div>
     </Modal>

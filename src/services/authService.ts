@@ -148,7 +148,7 @@ export const getAuthErrorMessage = (errorCode: string, t?: TFunction): string =>
   }
   })();
 
-  if (t) return t(`errors:auth.${key}`);
+  if (t) return t(`errors.auth.${key}`);
 
   const fallback: Record<string, string> = {
     emailAlreadyInUse: 'このメールアドレスは既に使用されています。',

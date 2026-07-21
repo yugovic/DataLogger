@@ -19,6 +19,7 @@ import { toPublicVehicleProfile } from '../lib/vehicleProfilePublic';
 import { CarSetup, SetupVisibility } from '../types/setup';
 import { carSetupSchema } from '../schemas/setupSchema';
 import logger from '../utils/logger';
+import { AppError } from '../i18n/errorMessages';
 import { trackEvent } from '../lib/analytics';
 import { recomputeSharingActive } from './profileService';
 import { getVehicle } from './vehicleService';
@@ -63,10 +64,10 @@ const resolveVehicleProfileSnapshot = async <
 
   const vehicle = await getVehicle(setup.vehicleId);
   if (!vehicle) {
-    throw new Error('選択された登録車両が見つかりません');
+    throw new AppError('setup.vehicleNotFound');
   }
   if (setup.userId && vehicle.userId !== setup.userId) {
-    throw new Error('選択された登録車両を使用する権限がありません');
+    throw new AppError('setup.vehicleForbidden');
   }
 
   return {
@@ -82,35 +83,9 @@ export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'upda
   // zodスキーマによる保存前バリデーション
   const parsed = carSetupSchema.safeParse(setupWithSnapshot);
   if (!parsed.success) {
-    // フィールドパスと日本語メッセージを組み合わせて分かりやすいエラー文を生成
-    const fieldLabels: Record<string, string> = {
-      carModel: '車種',
-      circuit: 'サーキット',
-      userId: 'ユーザーID',
-      date: '日時',
-      'tireSettings.fl.before': 'FL 走行前空気圧',
-      'tireSettings.fl.after': 'FL 走行後空気圧',
-      'tireSettings.fr.before': 'FR 走行前空気圧',
-      'tireSettings.fr.after': 'FR 走行後空気圧',
-      'tireSettings.rl.before': 'RL 走行前空気圧',
-      'tireSettings.rl.after': 'RL 走行後空気圧',
-      'tireSettings.rr.before': 'RR 走行前空気圧',
-      'tireSettings.rr.after': 'RR 走行後空気圧',
-      'targetPressures.front': '目標温間圧 フロント',
-      'targetPressures.rear': '目標温間圧 リア',
-      'weather.airTemp': '気温',
-      'weather.trackTemp': '路面温度',
-      'weather.humidity': '湿度',
-      'weather.pressure': '気圧',
-      'sessionInfo.distance': '走行距離',
-      'sessionInfo.fuel': '燃料量',
-    };
-    const msg = parsed.error.issues.map(i => {
-      const path = i.path.join('.');
-      const label = fieldLabels[path] ?? path;
-      return `${label}: ${i.message}`;
-    }).join(' / ');
-    throw new Error(`入力値エラー: ${msg}`);
+    // 表示は UI 側で翻訳する。ログ検索用にエラー箇所のフィールドパスだけを技術情報として渡す。
+    const fields = parsed.error.issues.map(i => i.path.join('.')).join(', ');
+    throw new AppError('setup.validationFailed', { fields }, { cause: parsed.error });
   }
 
   try {
@@ -129,7 +104,7 @@ export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'upda
     trackEvent('setup_saved', { circuit: setupWithSnapshot.circuit, car_model: setupWithSnapshot.carModel });
     return docRef.id;
   } catch (error: any) {
-    logger.error('セットアップの保存に失敗しました:', error);
+    logger.error('Failed to save setup:', error);
     throw error;
   }
 };
@@ -163,7 +138,7 @@ export const getSetup = async (setupId: string): Promise<CarSetup | null> => {
     }
     return null;
   } catch (error) {
-    logger.error('セットアップの取得に失敗しました:', error);
+    logger.error('Failed to load setup:', error);
     throw error;
   }
 };
@@ -182,7 +157,7 @@ export const getUserSetups = async (userId: string, limitCount: number = 20): Pr
     logger.log('Found', querySnapshot.size, 'setups');
     return querySnapshot.docs.map(d => fromFirestoreDoc(d.id, d.data()));
   } catch (error: any) {
-    logger.error('セットアップ一覧の取得に失敗しました:', error);
+    logger.error('Failed to load setup list:', error);
     throw error;
   }
 };
@@ -193,7 +168,7 @@ export const getUserSetupsForTireUsage = async (userId: string): Promise<CarSetu
     const snapshot = await getDocs(query(collection(db, COLLECTION_NAME), where('userId', '==', userId)));
     return snapshot.docs.map((entry) => fromFirestoreDoc(entry.id, entry.data()));
   } catch (error) {
-    logger.error('タイヤ使用履歴の取得に失敗しました:', error);
+    logger.error('Failed to load tire usage history:', error);
     throw error;
   }
 };
@@ -211,7 +186,7 @@ export const getSetupsByCarModel = async (userId: string, carModel: string): Pro
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(d => fromFirestoreDoc(d.id, d.data()));
   } catch (error) {
-    logger.error('車種別セットアップの取得に失敗しました:', error);
+    logger.error('Failed to load setups by car model:', error);
     throw error;
   }
 };
@@ -220,10 +195,10 @@ export const getSetupsByCarModel = async (userId: string, carModel: string): Pro
 export const updateSetup = async (setupId: string, updates: Partial<CarSetup>): Promise<void> => {
   // 更新時も部分バリデーション（circuit/carModelが含まれる場合は必須チェック）
   if (updates.circuit !== undefined && !updates.circuit) {
-    throw new Error('サーキット名を入力してください');
+    throw new AppError('setup.circuitRequired');
   }
   if (updates.carModel !== undefined && !updates.carModel) {
-    throw new Error('車種を入力してください');
+    throw new AppError('setup.carModelRequired');
   }
 
   try {
@@ -241,7 +216,7 @@ export const updateSetup = async (setupId: string, updates: Partial<CarSetup>): 
     // 更新成功時に計測イベントを発火
     trackEvent('setup_updated', { circuit: updatesWithSnapshot.circuit, car_model: updatesWithSnapshot.carModel });
   } catch (error) {
-    logger.error('セットアップの更新に失敗しました:', error);
+    logger.error('Failed to update setup:', error);
     throw error;
   }
 };
@@ -253,7 +228,7 @@ export const deleteSetup = async (setupId: string): Promise<void> => {
     // 削除成功時に計測イベントを発火
     trackEvent('setup_deleted', {});
   } catch (error) {
-    logger.error('セットアップの削除に失敗しました:', error);
+    logger.error('Failed to delete setup:', error);
     throw error;
   }
 };
@@ -316,7 +291,7 @@ export const setSetupVisibility = async (
       trackEvent('share_disabled', { circuit: meta?.circuit, car_model: meta?.carModel });
     }
   } catch (error) {
-    logger.error('公開設定の更新に失敗しました:', error);
+    logger.error('Failed to update sharing visibility:', error);
     throw error;
   }
 };
@@ -364,7 +339,7 @@ export const getSharedSetups = async (
     // 自分のドキュメントはクライアント側で除外
     return all.filter((s) => s.userId !== excludeUserId).slice(0, limitCount);
   } catch (error) {
-    logger.error('共有セットアップ一覧の取得に失敗しました:', error);
+    logger.error('Failed to load shared setups:', error);
     throw error;
   }
 };

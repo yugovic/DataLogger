@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
         applyVehicle(first);
       })
       .catch(() => {
-        if (!cancelled) message.error(t('header:vehicle.loadError'));
+        if (!cancelled) message.error(t('header.vehicle.loadError'));
       });
     return () => { cancelled = true; };
   }, [settingsModal, currentSettingView, currentUser, applyVehicle, t]);
@@ -85,17 +85,17 @@ export const Header: React.FC<HeaderProps> = ({
   const handleVehicleSave = async () => {
     if (!currentUser) return;
     if (!vehicleForm.make.trim() || !vehicleForm.model.trim()) {
-      message.error(t('header:vehicle.makeModelRequired'));
+      message.error(t('header.vehicle.makeModelRequired'));
       return;
     }
     const yearText = vehicleForm.year.trim();
     const year = yearText === '' ? undefined : Number(yearText);
     if (year !== undefined && !Number.isInteger(year)) {
-      message.error(t('header:vehicle.yearInteger'));
+      message.error(t('header.vehicle.yearInteger'));
       return;
     }
     if (!selectedVehicleId && year === undefined) {
-      message.error(t('header:vehicle.yearRequired'));
+      message.error(t('header.vehicle.yearRequired'));
       return;
     }
     setVehicleSaving(true);
@@ -111,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
       };
       if (selectedVehicleId) {
         await updateVehicle(selectedVehicleId, fields);
-        message.success(t('header:vehicle.updated'));
+        message.success(t('header.vehicle.updated'));
       } else {
         const newId = await addVehicle({
           ...fields,
@@ -121,12 +121,12 @@ export const Header: React.FC<HeaderProps> = ({
           setupConfig: generateDefaultSetupConfig()
         });
         setSelectedVehicleId(newId);
-        message.success(t('header:vehicle.created'));
+        message.success(t('header.vehicle.created'));
       }
       const list = await getUserVehicles(currentUser.uid);
       setVehicles(list);
     } catch (_error) {
-      message.error(t('header:vehicle.saveError'));
+      message.error(t('header.vehicle.saveError'));
     } finally {
       setVehicleSaving(false);
     }
@@ -135,10 +135,10 @@ export const Header: React.FC<HeaderProps> = ({
   const handleLogout = async () => {
     try {
       await logout();
-      message.success(t('header:logoutSuccess'));
+      message.success(t('header.logoutSuccess'));
       navigate('/auth');
     } catch (_error) {
-      message.error(t('header:logoutError'));
+      message.error(t('header.logoutError'));
     }
   };
 
@@ -178,93 +178,93 @@ export const Header: React.FC<HeaderProps> = ({
       <button
         className={`${iconButtonClass} md:hidden`}
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        aria-label={mobileMenuOpen ? t('common:menuClose') : t('common:menuOpen')}
+        aria-label={mobileMenuOpen ? t('common.menuClose') : t('common.menuOpen')}
       >
         {mobileMenuOpen ? <CloseOutlined style={{ fontSize: '20px' }} /> : <MenuOutlined style={{ fontSize: '20px' }} />}
       </button>
       {/* デスクトップナビゲーション */}
       <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex">
         <button
-          aria-label={t('common:nav.dashboard')}
+          aria-label={t('common.nav.dashboard')}
           onClick={() => navigate('/dashboard')}
           className={`${navBaseClass} ${isActive('/dashboard') ? navActiveClass : navIdleClass}`}
         >
           <DashboardOutlined />
-          {t('common:nav.dashboard')}
+          {t('common.nav.dashboard')}
         </button>
         <button
-          aria-label={t('common:nav.setup')}
+          aria-label={t('common.nav.setup')}
           onClick={() => navigate('/')}
           className={`${navBaseClass} ${isActive('/') ? navActiveClass : navIdleClass}`}
         >
           <ToolOutlined />
-          {t('common:nav.setup')}
+          {t('common.nav.setup')}
         </button>
         <button
-          aria-label={t('common:nav.history')}
+          aria-label={t('common.nav.history')}
           onClick={() => navigate('/history')}
           className={`${navBaseClass} ${isActive('/history') ? navActiveClass : navIdleClass}`}
         >
           <HistoryOutlined />
-          {t('common:nav.history')}
+          {t('common.nav.history')}
         </button>
         <button
-          aria-label={t('common:nav.vehicles')}
+          aria-label={t('common.nav.vehicles')}
           onClick={() => navigate('/vehicles')}
           className={`${navBaseClass} ${isActive('/vehicles') ? navActiveClass : navIdleClass}`}
         >
           <CarOutlined />
-          {t('common:nav.vehicles')}
+          {t('common.nav.vehicles')}
         </button>
         <button
-          aria-label={t('common:nav.telemetry')}
+          aria-label={t('common.nav.telemetry')}
           onClick={() => navigate('/telemetry')}
           className={`${navBaseClass} ${isActiveSection('/telemetry') ? navActiveClass : navIdleClass}`}
         >
           <DatabaseOutlined />
-          {t('common:nav.telemetry')}
+          {t('common.nav.telemetry')}
         </button>
         <button
-          aria-label={t('common:nav.shared')}
+          aria-label={t('common.nav.shared')}
           onClick={() => navigate('/shared')}
           className={`${navBaseClass} ${isActive('/shared') ? navActiveClass : navIdleClass}`}
         >
           <ExportOutlined />
-          {t('common:nav.shared')}
+          {t('common.nav.shared')}
         </button>
       </div>
       <div className="hidden items-center gap-2 md:flex">
         <button
           className={iconButtonClass}
           onClick={toggleDarkMode}
-          title={darkMode ? t('common:lightMode') : t('common:darkMode')}
+          title={darkMode ? t('common.lightMode') : t('common.darkMode')}
         >
           {darkMode ? <SunOutlined style={{ fontSize: '20px' }} /> : <MoonOutlined style={{ fontSize: '20px' }} />}
         </button>
-        <button className={iconButtonClass} title={t('common:newRecord')}>
+        <button className={iconButtonClass} title={t('common.newRecord')}>
           <PlusOutlined style={{ fontSize: '20px' }} />
         </button>
-        <button className={iconButtonClass} title={t('common:notifications')}>
+        <button className={iconButtonClass} title={t('common.notifications')}>
           <BellOutlined style={{ fontSize: '20px' }} />
         </button>
         <button
           className={iconButtonClass}
           onClick={() => setSettingsModal(true)}
-          title={t('common:settings')}
+          title={t('common.settings')}
         >
           <SettingOutlined style={{ fontSize: '20px' }} />
         </button>
         <button
           className={iconButtonClass}
           onClick={handleLogout}
-          title={t('common:logout')}
+          title={t('common.logout')}
         >
           <LogoutOutlined style={{ fontSize: '20px' }} />
         </button>
 
         {/* Settings Modal */}
         <Modal
-          title={t('common:settings')}
+          title={t('common.settings')}
           open={settingsModal}
           onCancel={() => setSettingsModal(false)}
           width={600}
@@ -279,42 +279,42 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => setCurrentSettingView('account')}
                 >
                   <UserOutlined className="mr-3" />
-                  {t('common:accountSettings')}
+                  {t('common.accountSettings')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'vehicle' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('vehicle')}
                 >
                   <CarOutlined className="mr-3" />
-                  {t('common:vehicleSettings')}
+                  {t('common.vehicleSettings')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'notification' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('notification')}
                 >
                   <NotificationOutlined className="mr-3" />
-                  {t('common:notificationSettings')}
+                  {t('common.notificationSettings')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'default' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('default')}
                 >
                   <DatabaseOutlined className="mr-3" />
-                  {t('common:defaultSettings')}
+                  {t('common.defaultSettings')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'export' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('export')}
                 >
                   <ExportOutlined className="mr-3" />
-                  {t('common:dataExport')}
+                  {t('common.dataExport')}
                 </button>
                 <button
                   className={`flex items-center px-4 py-3 text-left rounded-lg transition-colors ${currentSettingView === 'help' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
                   onClick={() => setCurrentSettingView('help')}
                 >
                   <QuestionCircleOutlined className="mr-3" />
-                  {t('common:helpSupport')}
+                  {t('common.helpSupport')}
                 </button>
               </div>
             </div>
@@ -323,10 +323,10 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                      {t('common:accountSettings')}
+                      {t('common.accountSettings')}
                     </h3>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      {t('common:accountSettingsDescription')}
+                      {t('common.accountSettingsDescription')}
                     </p>
                   </div>
                   <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700">
@@ -336,11 +336,11 @@ export const Header: React.FC<HeaderProps> = ({
               )}
               {currentSettingView === 'vehicle' && (
                 <div className="p-4">
-                  <h3 className="text-lg font-medium mb-6">{t('header:vehicle.title')}</h3>
+                  <h3 className="text-lg font-medium mb-6">{t('header.vehicle.title')}</h3>
                   <div className="space-y-6">
                     {vehicles.length > 0 && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.select')}</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header.vehicle.select')}</label>
                         <select
                           value={selectedVehicleId}
                           onChange={(e) => handleVehicleSelect(e.target.value)}
@@ -351,13 +351,13 @@ export const Header: React.FC<HeaderProps> = ({
                               {v.make} {v.model}{v.year ? ` (${v.year})` : ''}
                             </option>
                           ))}
-                          <option value="">{t('header:vehicle.registerNew')}</option>
+                          <option value="">{t('header.vehicle.registerNew')}</option>
                         </select>
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.make')}</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header.vehicle.make')}</label>
                         <input
                           type="text"
                           value={vehicleForm.make}
@@ -366,7 +366,7 @@ export const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.model')}</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header.vehicle.model')}</label>
                         <input
                           type="text"
                           value={vehicleForm.model}
@@ -377,7 +377,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.year')}</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header.vehicle.year')}</label>
                         <input
                           type="text"
                           value={vehicleForm.year}
@@ -386,7 +386,7 @@ export const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.engineType')}</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header.vehicle.engineType')}</label>
                         <input
                           type="text"
                           value={vehicleForm.engineType}
@@ -397,7 +397,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.drivetrain')}</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header.vehicle.drivetrain')}</label>
                         <input
                           type="text"
                           value={vehicleForm.drivetrain}
@@ -406,7 +406,7 @@ export const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.transmission')}</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header.vehicle.transmission')}</label>
                         <input
                           type="text"
                           value={vehicleForm.transmission}
@@ -416,12 +416,12 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header:vehicle.notes')}</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('header.vehicle.notes')}</label>
                       <textarea
                         rows={4}
                         value={vehicleForm.notes}
                         onChange={(e) => setVehicleField('notes', e.target.value)}
-                        placeholder={t('header:vehicle.notesPlaceholder')}
+                        placeholder={t('header.vehicle.notesPlaceholder')}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
@@ -431,7 +431,7 @@ export const Header: React.FC<HeaderProps> = ({
                         disabled={vehicleSaving}
                         className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {vehicleSaving ? t('common:saving') : t('common:save')}
+                        {vehicleSaving ? t('common.saving') : t('common.save')}
                       </button>
                     </div>
                   </div>
@@ -439,14 +439,14 @@ export const Header: React.FC<HeaderProps> = ({
               )}
               {currentSettingView === 'notification' && (
                 <div className="space-y-8">
-                  <h3 className="text-lg font-medium mb-6">{t('header:notification.title')}</h3>
+                  <h3 className="text-lg font-medium mb-6">{t('header.notification.title')}</h3>
                   <div className="space-y-6">
                     <div className="flex items-center justify-between py-3 border-b">
                       <div className="flex items-center space-x-3">
                         <i className="fas fa-bell text-blue-500"></i>
                         <div>
-                          <div className="font-medium">{t('header:notification.inApp')}</div>
-                          <div className="text-sm text-gray-500">{t('header:notification.inAppDescription')}</div>
+                          <div className="font-medium">{t('header.notification.inApp')}</div>
+                          <div className="text-sm text-gray-500">{t('header.notification.inAppDescription')}</div>
                         </div>
                       </div>
                       <Switch defaultChecked />
@@ -455,8 +455,8 @@ export const Header: React.FC<HeaderProps> = ({
                       <div className="flex items-center space-x-3">
                         <i className="fas fa-envelope text-blue-500"></i>
                         <div>
-                          <div className="font-medium">{t('header:notification.email')}</div>
-                          <div className="text-sm text-gray-500">{t('header:notification.emailDescription')}</div>
+                          <div className="font-medium">{t('header.notification.email')}</div>
+                          <div className="text-sm text-gray-500">{t('header.notification.emailDescription')}</div>
                         </div>
                       </div>
                       <Switch defaultChecked />
@@ -465,58 +465,58 @@ export const Header: React.FC<HeaderProps> = ({
                       <div className="flex items-center space-x-3">
                         <i className="fas fa-mobile-alt text-blue-500"></i>
                         <div>
-                          <div className="font-medium">{t('header:notification.push')}</div>
-                          <div className="text-sm text-gray-500">{t('header:notification.pushDescription')}</div>
+                          <div className="font-medium">{t('header.notification.push')}</div>
+                          <div className="text-sm text-gray-500">{t('header.notification.pushDescription')}</div>
                         </div>
                       </div>
                       <Switch />
                     </div>
                   </div>
                   <div className="mt-8">
-                    <h4 className="text-base font-medium mb-4">{t('header:notification.events')}</h4>
+                    <h4 className="text-base font-medium mb-4">{t('header.notification.events')}</h4>
                     <div className="space-y-4">
                       <div className="flex items-center space-x-3">
                         <Checkbox defaultChecked>
-                          <span className="ml-2">{t('header:notification.lapTime')}</span>
+                          <span className="ml-2">{t('header.notification.lapTime')}</span>
                         </Checkbox>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Checkbox defaultChecked>
-                          <span className="ml-2">{t('header:notification.session')}</span>
+                          <span className="ml-2">{t('header.notification.session')}</span>
                         </Checkbox>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Checkbox defaultChecked>
-                          <span className="ml-2">{t('header:notification.maintenance')}</span>
+                          <span className="ml-2">{t('header.notification.maintenance')}</span>
                         </Checkbox>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Checkbox>
-                          <span className="ml-2">{t('header:notification.system')}</span>
+                          <span className="ml-2">{t('header.notification.system')}</span>
                         </Checkbox>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Checkbox>
-                          <span className="ml-2">{t('header:notification.drivers')}</span>
+                          <span className="ml-2">{t('header.notification.drivers')}</span>
                         </Checkbox>
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-end mt-8">
                     <button className="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition-colors whitespace-nowrap">
-                      {t('header:notification.save')}
+                      {t('header.notification.save')}
                     </button>
                   </div>
                 </div>
               )}
               {currentSettingView === 'default' && (
-                <div className="text-gray-600 dark:text-gray-300">{t('header:placeholders.default')}</div>
+                <div className="text-gray-600 dark:text-gray-300">{t('header.placeholders.default')}</div>
               )}
               {currentSettingView === 'export' && (
-                <div className="text-gray-600 dark:text-gray-300">{t('header:placeholders.export')}</div>
+                <div className="text-gray-600 dark:text-gray-300">{t('header.placeholders.export')}</div>
               )}
               {currentSettingView === 'help' && (
-                <div className="text-gray-600 dark:text-gray-300">{t('header:placeholders.help')}</div>
+                <div className="text-gray-600 dark:text-gray-300">{t('header.placeholders.help')}</div>
               )}
             </div>
           </div>
@@ -532,66 +532,66 @@ export const Header: React.FC<HeaderProps> = ({
               className={`${mobileNavClass} ${isActive('/dashboard') ? navActiveClass : navIdleClass}`}
             >
               <DashboardOutlined className="mr-3" />
-              {t('common:nav.dashboard')}
+              {t('common.nav.dashboard')}
             </button>
             <button
               onClick={() => { navigate('/'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActive('/') ? navActiveClass : navIdleClass}`}
             >
               <ToolOutlined className="mr-3" />
-              {t('common:nav.setup')}
+              {t('common.nav.setup')}
             </button>
             <button
               onClick={() => { navigate('/history'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActive('/history') ? navActiveClass : navIdleClass}`}
             >
               <HistoryOutlined className="mr-3" />
-              {t('common:nav.history')}
+              {t('common.nav.history')}
             </button>
             <button
               onClick={() => { navigate('/vehicles'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActive('/vehicles') ? navActiveClass : navIdleClass}`}
             >
               <CarOutlined className="mr-3" />
-              {t('common:nav.vehicles')}
+              {t('common.nav.vehicles')}
             </button>
             <button
               onClick={() => { navigate('/telemetry'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActiveSection('/telemetry') ? navActiveClass : navIdleClass}`}
             >
               <DatabaseOutlined className="mr-3" />
-              {t('common:nav.telemetry')}
+              {t('common.nav.telemetry')}
             </button>
             <button
               onClick={() => { navigate('/shared'); setMobileMenuOpen(false); }}
               className={`${mobileNavClass} ${isActive('/shared') ? navActiveClass : navIdleClass}`}
             >
               <ExportOutlined className="mr-3" />
-              {t('common:nav.shared')}
+              {t('common.nav.shared')}
             </button>
           </nav>
           <div className="flex items-center justify-around border-t border-slate-200 p-3 dark:border-slate-800">
             <button
               className={iconButtonClass}
               onClick={toggleDarkMode}
-              aria-label={darkMode ? t('common:lightMode') : t('common:darkMode')}
+              aria-label={darkMode ? t('common.lightMode') : t('common.darkMode')}
             >
               {darkMode ? <SunOutlined style={{ fontSize: '20px' }} /> : <MoonOutlined style={{ fontSize: '20px' }} />}
             </button>
-            <button className={iconButtonClass} aria-label={t('common:notifications')}>
+            <button className={iconButtonClass} aria-label={t('common.notifications')}>
               <BellOutlined style={{ fontSize: '20px' }} />
             </button>
             <button
               className={iconButtonClass}
               onClick={() => { setSettingsModal(true); setMobileMenuOpen(false); }}
-              aria-label={t('common:settings')}
+              aria-label={t('common.settings')}
             >
               <SettingOutlined style={{ fontSize: '20px' }} />
             </button>
             <button
               className={iconButtonClass}
               onClick={handleLogout}
-              aria-label={t('common:logout')}
+              aria-label={t('common.logout')}
             >
               <LogoutOutlined style={{ fontSize: '20px' }} />
             </button>

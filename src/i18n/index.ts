@@ -9,7 +9,9 @@ void i18n.use(initReactI18next).init({
   fallbackLng: 'ja-JP',
   supportedLngs: ['ja-JP', 'en'],
   defaultNS: 'common',
-  ns: ['common', 'auth', 'header', 'setup', 'share', 'errors'],
+  ns: ['common', 'auth', 'header', 'setup', 'setupTabs', 'onboarding', 'history', 'vehicle', 'compare', 'dashboard', 'share', 'errors'],
+  nsSeparator: '.',
+  keySeparator: '.',
   interpolation: { escapeValue: false },
   returnNull: false,
 });

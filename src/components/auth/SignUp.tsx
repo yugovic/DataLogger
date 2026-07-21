@@ -21,24 +21,24 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
 
   const handleSignUp = async () => {
     if (!displayName || !email || !password) {
-      message.error(t('auth:errors.missingFields'));
+      message.error(t('auth.errors.missingFields'));
       return;
     }
 
     if (password !== confirmPassword) {
-      message.error(t('auth:errors.passwordMismatch'));
+      message.error(t('auth.errors.passwordMismatch'));
       return;
     }
 
     if (password.length < 6) {
-      message.error(t('auth:errors.passwordTooShort'));
+      message.error(t('auth.errors.passwordTooShort'));
       return;
     }
 
     setLoading(true);
     try {
       await signUpWithEmail(email, password, displayName);
-      message.success(t('auth:success.accountCreated'));
+      message.success(t('auth.success.accountCreated'));
       onSuccess?.();
     } catch (error: any) {
       logger.error('SignUp error:', error);
@@ -52,7 +52,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
     setLoading(true);
     try {
       await signInWithGoogle();
-      message.success(t('auth:success.accountCreated'));
+      message.success(t('auth.success.accountCreated'));
       onSuccess?.();
     } catch (error: any) {
       message.error(getAuthErrorMessage(error.code, t));
@@ -74,14 +74,14 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
           </div>
         </div>
         <div className="mb-5">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{t('auth:driverAccess')}</p>
-          <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{t('auth:signUp')}</h3>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{t('auth.driverAccess')}</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{t('auth.signUp')}</h3>
         </div>
       
       <div className="min-w-0 space-y-4">
         <Input
           prefix={<UserOutlined className="text-gray-400" />}
-          placeholder={t('auth:displayName')}
+          placeholder={t('auth.displayName')}
           size="large"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
@@ -89,7 +89,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
         
         <Input
           prefix={<MailOutlined className="text-gray-400" />}
-          placeholder={t('auth:email')}
+          placeholder={t('auth.email')}
           type="email"
           size="large"
           value={email}
@@ -98,7 +98,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
         
         <Input.Password
           prefix={<LockOutlined className="text-gray-400" />}
-          placeholder={t('auth:passwordMinimum')}
+          placeholder={t('auth.passwordMinimum')}
           size="large"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -106,7 +106,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
         
         <Input.Password
           prefix={<LockOutlined className="text-gray-400" />}
-          placeholder={t('auth:passwordConfirm')}
+          placeholder={t('auth.passwordConfirm')}
           size="large"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
@@ -121,10 +121,10 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
           onClick={handleSignUp}
           className="bg-slate-950 hover:!bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:!bg-slate-200"
         >
-          {t('auth:createAccount')}
+          {t('auth.createAccount')}
         </Button>
         
-        <Divider>{t('auth:or')}</Divider>
+        <Divider>{t('auth.or')}</Divider>
         
         <Button
           size="large"
@@ -133,17 +133,17 @@ export const SignUp: React.FC<SignUpProps> = ({ onSuccess, onLoginClick }) => {
           loading={loading}
           onClick={handleGoogleSignUp}
         >
-          {t('auth:googleSignUp')}
+          {t('auth.googleSignUp')}
         </Button>
         
         <div className="text-center mt-4">
-          <span className="text-gray-600 dark:text-gray-400">{t('auth:hasAccount')}</span>
+          <span className="text-gray-600 dark:text-gray-400">{t('auth.hasAccount')}</span>
           <Button
             type="link"
             onClick={onLoginClick}
             className="p-0 ml-1"
           >
-            {t('auth:login')}
+            {t('auth.login')}
           </Button>
         </div>
       </div>

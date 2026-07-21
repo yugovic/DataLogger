@@ -1,10 +1,6 @@
 import { useMemo } from 'react';
 import { Alert, Empty, Input, InputNumber, Select } from 'antd';
-import {
-  ADJUSTMENT_GROUP_LABELS,
-  ADJUSTMENT_POSITION_LABELS,
-  activeAdjustmentDefinitions,
-} from '../../../lib/setupAdjustments';
+import { activeAdjustmentDefinitions } from '../../../lib/setupAdjustments';
 import type { SetupAdjustmentValue } from '../../../types/setup';
 import type { SetupAdjustmentDefinition, SetupAdjustmentGroup } from '../../../types/vehicle';
 import { useTranslation } from 'react-i18next';
@@ -151,7 +147,7 @@ export function DynamicSetupTab({
             id={`adjustment-group-${group}`}
             className="mb-3 text-base font-semibold text-gray-800 dark:text-gray-100"
           >
-            {t(`setupTabs.dynamic.groups.${group}`, { defaultValue: ADJUSTMENT_GROUP_LABELS[group] })}
+            {t(`vehicle.labels.adjustmentGroup.${group}`)}
           </h3>
           <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2">
             {groupDefinitions.map((definition) => (
@@ -163,7 +159,7 @@ export function DynamicSetupTab({
                   {definition.label}
                   {definition.position !== 'vehicle' && (
                     <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">
-                      {t(`setupTabs.dynamic.positions.${definition.position}`, { defaultValue: ADJUSTMENT_POSITION_LABELS[definition.position] })}
+                      {t(`vehicle.labels.adjustmentPosition.${definition.position}`)}
                     </span>
                   )}
                 </label>

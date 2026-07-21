@@ -18,14 +18,14 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
 
   const handleEmailLogin = async () => {
     if (!email || !password) {
-      message.error(t('auth:errors.missingCredentials'));
+      message.error(t('auth.errors.missingCredentials'));
       return;
     }
 
     setLoading(true);
     try {
       await signInWithEmail(email, password);
-      message.success(t('auth:success.login'));
+      message.success(t('auth.success.login'));
       onSuccess?.();
     } catch (error: any) {
       message.error(getAuthErrorMessage(error.code, t));
@@ -38,7 +38,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
     setLoading(true);
     try {
       await signInWithGoogle();
-      message.success(t('auth:success.login'));
+      message.success(t('auth.success.login'));
       onSuccess?.();
     } catch (error: any) {
       message.error(getAuthErrorMessage(error.code, t));
@@ -60,14 +60,14 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
           </div>
         </div>
         <div className="mb-5">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{t('auth:driverAccess')}</p>
-          <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{t('auth:login')}</h3>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{t('auth.driverAccess')}</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{t('auth.login')}</h3>
         </div>
       
       <div className="min-w-0 space-y-4">
         <Input
           prefix={<MailOutlined className="text-gray-400" />}
-          placeholder={t('auth:email')}
+          placeholder={t('auth.email')}
           type="email"
           size="large"
           value={email}
@@ -77,7 +77,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
         
         <Input.Password
           prefix={<LockOutlined className="text-gray-400" />}
-          placeholder={t('auth:password')}
+          placeholder={t('auth.password')}
           size="large"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -92,10 +92,10 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
           onClick={handleEmailLogin}
           className="bg-slate-950 hover:!bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:!bg-slate-200"
         >
-          {t('auth:login')}
+          {t('auth.login')}
         </Button>
         
-        <Divider>{t('auth:or')}</Divider>
+        <Divider>{t('auth.or')}</Divider>
         
         <Button
           size="large"
@@ -104,17 +104,17 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onSignUpClick }) => {
           loading={loading}
           onClick={handleGoogleLogin}
         >
-          {t('auth:googleLogin')}
+          {t('auth.googleLogin')}
         </Button>
         
         <div className="text-center mt-4">
-          <span className="text-gray-600 dark:text-gray-400">{t('auth:noAccount')}</span>
+          <span className="text-gray-600 dark:text-gray-400">{t('auth.noAccount')}</span>
           <Button
             type="link"
             onClick={onSignUpClick}
             className="p-0 ml-1"
           >
-            {t('auth:signUp')}
+            {t('auth.signUp')}
           </Button>
         </div>
       </div>

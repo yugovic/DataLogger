@@ -43,19 +43,19 @@ export const VehicleAdjustmentsTab: React.FC<Props> = ({ config, values, onChang
       <div className="space-y-4">
         <AxleFieldPair front={choice('frontBrakePad', config?.brake.padTypes ?? [])} rear={choice('rearBrakePad', config?.brake.padTypes ?? [])} frontHint={t('setupTabs.adjustments.brakePad')} rearHint={t('setupTabs.adjustments.brakePad')} />
         <AxleFieldPair front={choice('frontBrakeRotor', config?.brake.rotorTypes ?? [])} rear={choice('rearBrakeRotor', config?.brake.rotorTypes ?? [])} frontHint={t('setupTabs.adjustments.rotor')} rearHint={t('setupTabs.adjustments.rotor')} />
-        {(unrestricted || config.brake.balanceAdjustable) && <div className="max-w-md"><SetupField label="フロントブレーキ配分"><InputNumber className="w-full" min={0} max={100} addonAfter="%" value={values.brakeBalance ? Number(values.brakeBalance) : null} onChange={(v) => onChange('brakeBalance', v == null ? '' : String(v))} disabled={disabled} /></SetupField></div>}
+        {(unrestricted || config.brake.balanceAdjustable) && <div className="max-w-md"><SetupField label={t('setupTabs.adjustments.brakeBalance')}><InputNumber className="w-full" min={0} max={100} addonAfter="%" value={values.brakeBalance ? Number(values.brakeBalance) : null} onChange={(v) => onChange('brakeBalance', v == null ? '' : String(v))} disabled={disabled} /></SetupField></div>}
       </div>
     </SetupSection>}
-    {showAero && <SetupSection title="エアロ設定" meta="段数 / 位置 (0–100)" icon="fas fa-wind">
+    {showAero && <SetupSection title={t('setupTabs.adjustments.aeroTitle')} meta={t('setupTabs.adjustments.aeroMeta')} icon="fas fa-wind">
       <AxleFieldPair
-        front={(unrestricted || config.aero?.frontAdjustable) ? <InputNumber className="w-full" min={0} max={100} value={values.frontAero ? Number(values.frontAero) : null} onChange={(v) => onChange('frontAero', v == null ? '' : String(v))} disabled={disabled} /> : <span className="text-sm text-gray-400">調整不可</span>}
-        rear={(unrestricted || config.aero?.rearAdjustable) ? <InputNumber className="w-full" min={0} max={100} value={values.rearAero ? Number(values.rearAero) : null} onChange={(v) => onChange('rearAero', v == null ? '' : String(v))} disabled={disabled} /> : <span className="text-sm text-gray-400">調整不可</span>}
+        front={(unrestricted || config.aero?.frontAdjustable) ? <InputNumber className="w-full" min={0} max={100} value={values.frontAero ? Number(values.frontAero) : null} onChange={(v) => onChange('frontAero', v == null ? '' : String(v))} disabled={disabled} /> : <span className="text-sm text-gray-400">{t('setupTabs.adjustments.notAdjustable')}</span>}
+        rear={(unrestricted || config.aero?.rearAdjustable) ? <InputNumber className="w-full" min={0} max={100} value={values.rearAero ? Number(values.rearAero) : null} onChange={(v) => onChange('rearAero', v == null ? '' : String(v))} disabled={disabled} /> : <span className="text-sm text-gray-400">{t('setupTabs.adjustments.notAdjustable')}</span>}
       />
     </SetupSection>}
-    {showEngine && <SetupSection title="エンジン設定" meta="ECUマップ / ブースト圧" icon="fas fa-tachometer-alt">
+    {showEngine && <SetupSection title={t('setupTabs.adjustments.engineTitle')} meta={t('setupTabs.adjustments.engineMeta')} icon="fas fa-tachometer-alt">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {(unrestricted || config.engine?.ecuTunable) && <SetupField label="ECUマップ"><Input value={values.ecuMap} onChange={(e) => onChange('ecuMap', e.target.value)} placeholder="例: Map 2 / Wet" disabled={disabled} /></SetupField>}
-        {(unrestricted || config.engine?.boostAdjustable) && <SetupField label="ブースト圧"><InputNumber className="w-full" min={0} max={500} addonAfter="kPa" value={values.boost ? Number(values.boost) : null} onChange={(v) => onChange('boost', v == null ? '' : String(v))} disabled={disabled} /></SetupField>}
+        {(unrestricted || config.engine?.ecuTunable) && <SetupField label={t('setupTabs.adjustments.ecuMap')}><Input value={values.ecuMap} onChange={(e) => onChange('ecuMap', e.target.value)} placeholder={t('setupTabs.adjustments.ecuMapPlaceholder')} disabled={disabled} /></SetupField>}
+        {(unrestricted || config.engine?.boostAdjustable) && <SetupField label={t('setupTabs.adjustments.boost')}><InputNumber className="w-full" min={0} max={500} addonAfter="kPa" value={values.boost ? Number(values.boost) : null} onChange={(v) => onChange('boost', v == null ? '' : String(v))} disabled={disabled} /></SetupField>}
       </div>
     </SetupSection>}
   </div>;

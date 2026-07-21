@@ -1,5 +1,6 @@
 // 基本情報タブコンポーネント
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, message, Dropdown, Tooltip } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import { StepNumber } from '../../common/StepNumber';
@@ -64,6 +65,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   disabled,
   damperConstraints = { visible: true },
 }) => {
+  const { t } = useTranslation();
   const [modal, modalContextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
   const calculatePressureDiff = (before: string, after: string): string => {
@@ -115,17 +117,17 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
       duration: 5,
       content: (
         <span>
-          走行前→走行後にコピーしました{onlyEmpty ? '（空欄のみ）' : ''}
+          {onlyEmpty ? t('setupTabs.basicInfo.copiedBeforeToAfterEmptyOnly') : t('setupTabs.basicInfo.copiedBeforeToAfter')}
           <button
             type="button"
             className="ml-3 text-blue-600 dark:text-blue-400 underline"
             onClick={() => {
               if (snapshot) setTirePressures(snapshot);
               messageApi.destroy();
-              messageApi.info('コピーを元に戻しました', 2);
+              messageApi.info(t('setupTabs.basicInfo.copyUndone'), 2);
             }}
           >
-            元に戻す
+            {t('setupTabs.basicInfo.undo')}
           </button>
         </span>
       ),
@@ -136,7 +138,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const handleCopyBeforeToAfter = () => {
     const hasSource = (['fl', 'fr', 'rl', 'rr'] as const).some((k) => tirePressures[k].before !== '');
     if (!hasSource) {
-      messageApi.warning('コピー元の走行前の値がありません');
+      messageApi.warning(t('setupTabs.basicInfo.noSourceBeforeValue'));
       return;
     }
     // 上書きで失われる既存 after があるか
@@ -145,10 +147,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     );
     if (willOverwrite) {
       modal.confirm({
-        title: '走行後の値を上書きします',
-        content: 'すでに入力済みの走行後の空気圧があります。走行前の値で上書きしますか？（実行後に元に戻せます）',
-        okText: 'すべて上書き',
-        cancelText: 'キャンセル',
+        title: t('setupTabs.basicInfo.overwriteAfterTitle'),
+        content: t('setupTabs.basicInfo.overwriteAfterContent'),
+        okText: t('setupTabs.basicInfo.overwriteAll'),
+        cancelText: t('setupTabs.basicInfo.cancel'),
         onOk: () => applyCopy(false),
       });
     } else {
@@ -178,7 +180,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         <div className="text-center font-semibold dark:text-gray-200">{label}</div>
         {/* 走行前 */}
         <div className="flex items-center gap-1">
-          <span className="text-xs text-gray-500 dark:text-gray-400 w-5 shrink-0">冷</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 w-5 shrink-0">{t('setupTabs.basicInfo.cold')}</span>
           <StepNumber
             value={tp.before !== '' ? parseInt(tp.before, 10) : null}
             onChange={(n) => setTirePressures(prev => ({
@@ -200,7 +202,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </div>
         {/* 走行後 */}
         <div className="flex items-center gap-1">
-          <span className="text-xs text-gray-500 dark:text-gray-400 w-5 shrink-0">温</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 w-5 shrink-0">{t('setupTabs.basicInfo.hot')}</span>
           <StepNumber
             value={tp.after !== '' ? parseInt(tp.after, 10) : null}
             onChange={(n) => setTirePressures(prev => ({
@@ -226,10 +228,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             Δ{hasDiff ? (d! >= 0 ? `+${d}` : `${d}`) : '—'}
           </span>
           <Tooltip
-            title={advice.adjustBy !== null ? `次走行推奨: ${formatAdjust(advice.adjustBy)}` : '目標温間圧または走行後の実測を入力すると表示されます'}
+            title={advice.adjustBy !== null ? t('setupTabs.basicInfo.nextSessionRecommend', { value: formatAdjust(advice.adjustBy) }) : t('setupTabs.basicInfo.enterTargetOrAfterHint')}
           >
             <span className={`text-xs font-mono ${statusClass[advice.status]}`}>
-              目標{advice.diff !== null ? (advice.diff >= 0 ? `+${advice.diff}` : `${advice.diff}`) : '—'}
+              {t('setupTabs.basicInfo.targetLabel')}{advice.diff !== null ? (advice.diff >= 0 ? `+${advice.diff}` : `${advice.diff}`) : '—'}
             </span>
           </Tooltip>
         </div>
@@ -252,10 +254,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
             <div className="flex items-center">
               <i className="fas fa-tachometer-alt text-blue-500 dark:text-blue-400 mr-2"></i>
-              <h3 className="text-base sm:text-lg font-medium text-gray-800 dark:text-gray-200">タイヤ空気圧</h3>
+              <h3 className="text-base sm:text-lg font-medium text-gray-800 dark:text-gray-200">{t('setupTabs.basicInfo.tirePressure')}</h3>
             </div>
             <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              走行前 → 走行後 (kPa)
+              {t('setupTabs.basicInfo.beforeToAfterKpa')}
             </div>
           </div>
           {/* コピー操作 */}
@@ -264,8 +266,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               trigger={['click']}
               menu={{
                 items: [
-                  { key: 'all', label: '走行前→走行後にコピー（上書き）' },
-                  { key: 'empty', label: '空欄のみコピー（既存値は保持）' },
+                  { key: 'all', label: t('setupTabs.basicInfo.copyBeforeToAfterOverwrite') },
+                  { key: 'empty', label: t('setupTabs.basicInfo.copyEmptyOnly') },
                 ],
                 onClick: ({ key }) => {
                   if (key === 'all') handleCopyBeforeToAfter();
@@ -274,18 +276,18 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               }}
             >
               <button type="button" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-                走行前→走行後にコピー <DownOutlined className="text-[10px]" />
+                {t('setupTabs.basicInfo.copyBeforeToAfter')} <DownOutlined className="text-[10px]" />
               </button>
             </Dropdown>
           </div>
 
           {/* 2×2グリッド: 車両配置に対応 (FL FR / RL RR) */}
-          <div className="text-center text-xs text-gray-400 dark:text-gray-500 mb-1">─ フロント ─</div>
+          <div className="text-center text-xs text-gray-400 dark:text-gray-500 mb-1">─ {t('setup.front')} ─</div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             {renderWheelCell('fl', 'FL')}
             {renderWheelCell('fr', 'FR')}
           </div>
-          <div className="text-center text-xs text-gray-400 dark:text-gray-500 mb-1">─ リア ─</div>
+          <div className="text-center text-xs text-gray-400 dark:text-gray-500 mb-1">─ {t('setup.rear')} ─</div>
           <div className="grid grid-cols-2 gap-3">
             {renderWheelCell('rl', 'RL')}
             {renderWheelCell('rr', 'RR')}
@@ -295,14 +297,14 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <div className="mt-4 pt-3 border-t border-blue-200/40">
             <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
               <i className="fas fa-bullseye text-blue-400"></i>
-              目標温間圧 (kPa)
-              <Tooltip title="走行開始から数周後の温まりきった状態での目標空気圧。前後軸で設定します。設定すると各輪の過不足が色で表示されます（緑: ±5以内 / 黄: ±15以内 / 赤: それ超）。">
+              {t('setupTabs.basicInfo.targetHotPressureKpa')}
+              <Tooltip title={t('setupTabs.basicInfo.targetHotPressureTooltip')}>
                 <i className="fas fa-info-circle text-gray-400 cursor-help ml-1"></i>
               </Tooltip>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="border border-blue-200/40 rounded-lg p-2 sm:p-3 space-y-2">
-                <div className="text-center font-semibold dark:text-gray-200">フロント</div>
+                <div className="text-center font-semibold dark:text-gray-200">{t('setup.front')}</div>
                 <div className="flex items-center gap-1">
                   <span className="w-5 shrink-0" />
                   <StepNumber
@@ -314,13 +316,13 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     largeStep={5}
                     size="small"
                     inputWidth={56}
-                    placeholder="例: 200"
+                    placeholder={t('setupTabs.basicInfo.placeholderExample200')}
                     defaultValue={200}
                   />
                 </div>
               </div>
               <div className="border border-blue-200/40 rounded-lg p-2 sm:p-3 space-y-2">
-                <div className="text-center font-semibold dark:text-gray-200">リア</div>
+                <div className="text-center font-semibold dark:text-gray-200">{t('setup.rear')}</div>
                 <div className="flex items-center gap-1">
                   <span className="w-5 shrink-0" />
                   <StepNumber
@@ -332,7 +334,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     largeStep={5}
                     size="small"
                     inputWidth={56}
-                    placeholder="例: 190"
+                    placeholder={t('setupTabs.basicInfo.placeholderExample190')}
                     defaultValue={200}
                   />
                 </div>
@@ -345,7 +347,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <div className="mt-3 pt-3 border-t border-blue-200/40">
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
                 <i className="fas fa-arrow-right text-blue-400"></i>
-                次走行の推奨冷間圧
+                {t('setupTabs.basicInfo.nextSessionRecommendedCold')}
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 {wheels.map(({ key, label }) => {
@@ -386,16 +388,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
           <div className="flex items-center">
             <i className="fas fa-car-side text-blue-500 dark:text-blue-400 mr-2"></i>
-            <h3 className="text-base sm:text-lg font-medium text-gray-800 dark:text-gray-200">ダンパー設定</h3>
+            <h3 className="text-base sm:text-lg font-medium text-gray-800 dark:text-gray-200">{t('setupTabs.basicInfo.damperSettings')}</h3>
           </div>
           <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            Bump / Rebound (クリック)
+            {t('setupTabs.basicInfo.bumpReboundClick')}
           </div>
         </div>
         {/* 前後軸単位（現行スキーマに一致）。左右独立値は事業要件確定まで扱わない */}
         <div className="grid grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-4 sm:gap-y-6">
           <div>
-            <div className="text-center mb-2 font-medium dark:text-gray-200">フロント</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">{t('setup.front')}</div>
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 text-center">Bump</label>
@@ -426,7 +428,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-center mb-2 font-medium dark:text-gray-200">リア</div>
+            <div className="text-center mb-2 font-medium dark:text-gray-200">{t('setup.rear')}</div>
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 text-center">Bump</label>

@@ -12,26 +12,22 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { vehicleProfileSchema } from '../schemas/vehicleProfileSchema';
+import { AppError } from '../i18n/errorMessages';
 import { adjustmentDefinitionErrors, normalizeAdjustmentDefinitions } from '../lib/setupAdjustments';
 import type { ModificationEntry, Vehicle, VehicleProfile } from '../types/vehicle';
 
 const COLLECTION_NAME = 'vehicles';
 
-const hasJapaneseText = (message: string) => /[ぁ-んァ-ン一-龥]/.test(message);
-
 const validateVehicleProfile = (profile: unknown): VehicleProfile => {
   const result = vehicleProfileSchema.safeParse(profile);
 
   if (!result.success) {
-    const details = result.error.issues
-      .map((issue) => {
-        const path = issue.path.length > 0 ? issue.path.join('.') : 'profile';
-        const message = hasJapaneseText(issue.message) ? issue.message : '入力値を確認してください';
-        return `${path}: ${message}`;
-      })
-      .join(' / ');
+    // 表示は UI 側で翻訳する。ログ検索用にエラー箇所のフィールドパスだけを技術情報として渡す。
+    const fields = result.error.issues
+      .map((issue) => (issue.path.length > 0 ? issue.path.join('.') : 'profile'))
+      .join(', ');
 
-    throw new Error(`車両プロフィールの入力内容に誤りがあります。${details}`);
+    throw new AppError('vehicle.profileInvalid', { fields }, { cause: result.error });
   }
 
   return result.data;
@@ -40,7 +36,7 @@ const validateVehicleProfile = (profile: unknown): VehicleProfile => {
 const prepareVehicleData = <T extends Partial<Vehicle>>(vehicleData: T): T => {
   const definitionErrors = adjustmentDefinitionErrors(vehicleData.setupConfig?.adjustmentDefinitions);
   if (definitionErrors.length > 0) {
-    throw new Error(`セッティング項目の入力内容に誤りがあります。${definitionErrors.join(' / ')}`);
+    throw new AppError('vehicle.definitionInvalid', { details: definitionErrors.join(' / ') });
   }
 
   return {
