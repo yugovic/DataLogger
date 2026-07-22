@@ -29,7 +29,6 @@ import logger from '../../utils/logger';
 export const TelemetryAnalysis: React.FC = () => {
   const { t } = useTranslation();
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
 
   const { phase, result, error, busy, importFile, reset } = useTelemetryImport();
   const [pendingFileName, setPendingFileName] = useState<string | undefined>(undefined);
@@ -176,8 +175,6 @@ export const TelemetryAnalysis: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
 
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">

@@ -23,7 +23,6 @@ export const SetupHistory: React.FC = () => {
   const [setups, setSetups] = useState<CarSetup[]>([]);
   const [loading, setLoading] = useState(true);
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
   
   // フィルター状態
   const [filterMonth, setFilterMonth] = useState<dayjs.Dayjs | null>(null);
@@ -278,8 +277,6 @@ export const SetupHistory: React.FC = () => {
       <Header 
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
 
       {/* メインコンテンツ */}

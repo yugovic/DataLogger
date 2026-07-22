@@ -53,7 +53,6 @@ export const TelemetryDebrief: React.FC = () => {
   const traceId = params.get('trace');
 
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
   const [trace, setTrace] = useState<TelemetryTrace | null>(null);
   const [reference, setReference] = useState<ComparableTraceCandidate | null>(null);
   const [setup, setSetup] = useState<CarSetup | null>(null);
@@ -161,8 +160,6 @@ export const TelemetryDebrief: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <button

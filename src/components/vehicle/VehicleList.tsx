@@ -26,7 +26,6 @@ export const VehicleList: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
   const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [tireSetVehicle, setTireSetVehicle] = useState<Vehicle | null>(null);
@@ -250,8 +249,6 @@ export const VehicleList: React.FC = () => {
       <Header 
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
       
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">

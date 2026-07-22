@@ -73,7 +73,6 @@ export const BuildJournal: React.FC = () => {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [sessions, setSessions] = useState<JournalSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -245,8 +244,6 @@ export const BuildJournal: React.FC = () => {
         <Header
           settingsModal={settingsModal}
           setSettingsModal={setSettingsModal}
-          currentSettingView={currentSettingView}
-          setCurrentSettingView={setCurrentSettingView}
         />
         <main className="mx-auto max-w-4xl px-4 py-10">
           <Empty description={<span className="text-slate-500 dark:text-slate-400">{t('vehicle.journal.errors.notFound')}</span>}>
@@ -268,8 +265,6 @@ export const BuildJournal: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
 
       <main className="mx-auto max-w-[1600px] space-y-4 px-3 py-4 sm:px-5 lg:px-6">

@@ -24,7 +24,6 @@ export const SharedBrowse: React.FC = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
 
   // ゲート用: 自分が共有しているか
   const [sharingActive, setSharingActive] = useState<boolean | null>(null);
@@ -123,8 +122,6 @@ export const SharedBrowse: React.FC = () => {
         <Header
           settingsModal={settingsModal}
           setSettingsModal={setSettingsModal}
-          currentSettingView={currentSettingView}
-          setCurrentSettingView={setCurrentSettingView}
         />
         <div className="flex items-center justify-center h-96">
           <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
@@ -140,8 +137,6 @@ export const SharedBrowse: React.FC = () => {
         <Header
           settingsModal={settingsModal}
           setSettingsModal={setSettingsModal}
-          currentSettingView={currentSettingView}
-          setCurrentSettingView={setCurrentSettingView}
         />
         <main className="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8 sm:p-12 text-center">
@@ -174,8 +169,6 @@ export const SharedBrowse: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6">

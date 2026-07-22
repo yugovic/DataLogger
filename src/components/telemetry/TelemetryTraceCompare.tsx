@@ -37,7 +37,6 @@ export const TelemetryTraceCompare: React.FC = () => {
   const bTraceId = params.get('bTrace');
 
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
   const [traceA, setTraceA] = useState<TelemetryTrace | null>(null);
   const [traceB, setTraceB] = useState<TelemetryTrace | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,8 +155,6 @@ export const TelemetryTraceCompare: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <button

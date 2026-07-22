@@ -37,7 +37,6 @@ export const SharedSetupDetail: React.FC = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
 
   const [setup, setSetup] = useState<CarSetup | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,8 +91,6 @@ export const SharedSetupDetail: React.FC = () => {
         <Header
           settingsModal={settingsModal}
           setSettingsModal={setSettingsModal}
-          currentSettingView={currentSettingView}
-          setCurrentSettingView={setCurrentSettingView}
         />
         <div className="flex items-center justify-center h-96">
           <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
@@ -108,8 +105,6 @@ export const SharedSetupDetail: React.FC = () => {
         <Header
           settingsModal={settingsModal}
           setSettingsModal={setSettingsModal}
-          currentSettingView={currentSettingView}
-          setCurrentSettingView={setCurrentSettingView}
         />
         <main className="max-w-4xl mx-auto py-6 px-4">
           <button
@@ -132,8 +127,6 @@ export const SharedSetupDetail: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
       <main className="max-w-3xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <button

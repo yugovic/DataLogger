@@ -22,7 +22,6 @@ export const TelemetryFileCompare: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
 
   const importA = useTelemetryImport();
   const importB = useTelemetryImport();
@@ -63,8 +62,6 @@ export const TelemetryFileCompare: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <button

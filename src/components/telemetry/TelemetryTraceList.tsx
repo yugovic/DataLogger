@@ -92,7 +92,6 @@ export const TelemetryTraceList: React.FC = () => {
   const selectedBucketKey = searchParams.get('bucket');
 
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
   const [traces, setTraces] = useState<TelemetryTrace[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterCircuit, setFilterCircuit] = useState<string | null>(null);
@@ -309,8 +308,6 @@ export const TelemetryTraceList: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
 
       <main className="max-w-[1800px] mx-auto py-4 px-3 sm:px-4 lg:px-5">
