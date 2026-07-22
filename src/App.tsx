@@ -7,6 +7,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LocaleProvider } from './contexts/LocaleContext';
+import { UnitsProvider } from './contexts/UnitsContext';
 import { Login } from './components/auth/Login';
 import { SignUp } from './components/auth/SignUp';
 import { PrivateRoute } from './components/auth/PrivateRoute';
@@ -224,11 +225,13 @@ const App: React.FC = () => {
     <ThemeProvider>
       <AuthProvider>
         <LocaleProvider>
-          <ErrorBoundary>
-            <Suspense fallback={<RouteFallback />}>
-              <RouterProvider router={router} />
-            </Suspense>
-          </ErrorBoundary>
+          <UnitsProvider>
+            <ErrorBoundary>
+              <Suspense fallback={<RouteFallback />}>
+                <RouterProvider router={router} />
+              </Suspense>
+            </ErrorBoundary>
+          </UnitsProvider>
         </LocaleProvider>
       </AuthProvider>
     </ThemeProvider>

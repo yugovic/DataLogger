@@ -4,7 +4,15 @@
 // null は決して 0 や偽値に変換しない（事業要件: 偽データ混入ゼロ）。
 
 import { CarSetup } from '../types/setup';
-import { UNITS } from './units';
+import {
+  UNITS,
+  UnitPreferences,
+  PressureUnit,
+  pressureToDisplay,
+  temperatureToDisplay,
+  pressureUnitLabel,
+  temperatureUnitLabel,
+} from './units';
 import { legacyWeatherLabel } from './weather';
 import { weatherTranslationKey } from './weather';
 import type { TFunction } from 'i18next';
@@ -78,21 +86,25 @@ export function compareBestLaps(
   return null;
 }
 
-/** 温間後（after）空気圧の範囲表示。例「215-218」。全 null なら「—」 */
-export function pressureRange(setup: CarSetup, axle: 'front' | 'rear'): string {
+/**
+ * 温間後（after）空気圧の範囲表示。例「215-218」。全 null なら「—」
+ * 正規値（kPa）はここで unit に変換してから丸める（表示境界での変換）。
+ */
+export function pressureRange(setup: CarSetup, axle: 'front' | 'rear', unit: PressureUnit = 'kPa'): string {
   const keys = axle === 'front' ? (['fl', 'fr'] as const) : (['rl', 'rr'] as const);
   const values = keys
-    .map((k) => setup.tireSettings[k].after)
-    .filter((v): v is number => v != null);
+    .map((k) => pressureToDisplay(setup.tireSettings[k].after, unit))
+    .filter((v): v is number => v != null)
+    .map((v) => Math.round(v * 10) / 10);
   if (values.length === 0) return '—';
   const min = Math.min(...values);
   const max = Math.max(...values);
   return min === max ? String(min) : `${min}-${max}`;
 }
 
-/** カード用サマリー: 前後の温間後空気圧範囲（例「F 215-218 / R 210-213」） */
-export function pressureSummary(setup: CarSetup): string {
-  return `F ${pressureRange(setup, 'front')} / R ${pressureRange(setup, 'rear')}`;
+/** カード用サマリー: 前後の温間後空気圧範囲（例「F 215-218 / R 210-213 kPa」） */
+export function pressureSummary(setup: CarSetup, unit: PressureUnit = 'kPa'): string {
+  return `F ${pressureRange(setup, 'front', unit)} / R ${pressureRange(setup, 'rear', unit)} ${unit}`;
 }
 
 // ─── 比較ビュー用の項目定義 ────────────────────────────────
@@ -106,6 +118,8 @@ export interface CompareRow {
   get: (s: CarSetup) => number | string | boolean | null | undefined;
   /** true の場合、数値差分（+5 等）を表示する */
   numeric?: boolean;
+  /** 単位設定（UnitsContext）に応じて表示単位を変換する対象かどうか。get() は常に正規単位（kPa/℃）を返すこと */
+  unitKind?: 'pressure' | 'temperature';
 }
 
 export interface CompareSection {
@@ -157,8 +171,8 @@ export function buildCompareSections(setups: CarSetup[] = []): CompareSection[] 
       titleKey: 'compare.sections.weather',
       rows: [
         { labelKey: 'compare.fields.weather', get: (s) => legacyWeatherLabel(s.weather.condition) },
-        { labelKey: 'compare.fields.airTemp', unit: UNITS.temperature, numeric: true, get: (s) => s.weather.airTemp },
-        { labelKey: 'compare.fields.trackTemp', unit: UNITS.temperature, numeric: true, get: (s) => s.weather.trackTemp },
+        { labelKey: 'compare.fields.airTemp', unit: UNITS.temperature, unitKind: 'temperature', numeric: true, get: (s) => s.weather.airTemp },
+        { labelKey: 'compare.fields.trackTemp', unit: UNITS.temperature, unitKind: 'temperature', numeric: true, get: (s) => s.weather.trackTemp },
         { labelKey: 'compare.fields.humidity', unit: UNITS.humidity, numeric: true, get: (s) => s.weather.humidity },
         { labelKey: 'compare.fields.pressure', unit: UNITS.atmosphericPressure, numeric: true, get: (s) => s.weather.pressure },
       ],
@@ -166,19 +180,19 @@ export function buildCompareSections(setups: CarSetup[] = []): CompareSection[] 
     {
       titleKey: 'compare.sections.tirePressureBefore',
       rows: [
-        { labelKey: 'compare.fields.flBefore', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fl.before },
-        { labelKey: 'compare.fields.frBefore', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fr.before },
-        { labelKey: 'compare.fields.rlBefore', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rl.before },
-        { labelKey: 'compare.fields.rrBefore', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rr.before },
+        { labelKey: 'compare.fields.flBefore', unit: UNITS.pressure, unitKind: 'pressure', numeric: true, get: (s) => s.tireSettings.fl.before },
+        { labelKey: 'compare.fields.frBefore', unit: UNITS.pressure, unitKind: 'pressure', numeric: true, get: (s) => s.tireSettings.fr.before },
+        { labelKey: 'compare.fields.rlBefore', unit: UNITS.pressure, unitKind: 'pressure', numeric: true, get: (s) => s.tireSettings.rl.before },
+        { labelKey: 'compare.fields.rrBefore', unit: UNITS.pressure, unitKind: 'pressure', numeric: true, get: (s) => s.tireSettings.rr.before },
       ],
     },
     {
       titleKey: 'compare.sections.tirePressureAfter',
       rows: [
-        { labelKey: 'compare.fields.flAfter', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fl.after },
-        { labelKey: 'compare.fields.frAfter', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.fr.after },
-        { labelKey: 'compare.fields.rlAfter', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rl.after },
-        { labelKey: 'compare.fields.rrAfter', unit: UNITS.pressure, numeric: true, get: (s) => s.tireSettings.rr.after },
+        { labelKey: 'compare.fields.flAfter', unit: UNITS.pressure, unitKind: 'pressure', numeric: true, get: (s) => s.tireSettings.fl.after },
+        { labelKey: 'compare.fields.frAfter', unit: UNITS.pressure, unitKind: 'pressure', numeric: true, get: (s) => s.tireSettings.fr.after },
+        { labelKey: 'compare.fields.rlAfter', unit: UNITS.pressure, unitKind: 'pressure', numeric: true, get: (s) => s.tireSettings.rl.after },
+        { labelKey: 'compare.fields.rrAfter', unit: UNITS.pressure, unitKind: 'pressure', numeric: true, get: (s) => s.tireSettings.rr.after },
       ],
     },
     {
@@ -284,17 +298,42 @@ export interface CompareCellResult {
   kind: DiffKind;
   /** numeric 行で両者値ありのときの b-a 差分（表示用） */
   delta: number | null;
+  /** 表示に使った単位（unitKind 変換後の単位。未変換なら row.unit） */
+  unit?: string;
 }
 
-/** 1行ぶんの比較結果を計算する */
-export function compareRow(row: CompareRow, a: CarSetup, b: CarSetup): CompareCellResult {
-  const aVal = row.get(a);
-  const bVal = row.get(b);
+/**
+ * 1行ぶんの比較結果を計算する。
+ * row.unitKind が設定されている行は、get() の正規値（kPa/℃）を units の表示単位に変換してから表示・差分計算する。
+ * units 省略時は正規単位（kPa/℃）のまま表示する（後方互換）。
+ */
+export function compareRow(
+  row: CompareRow,
+  a: CarSetup,
+  b: CarSetup,
+  units?: UnitPreferences,
+): CompareCellResult {
+  let aVal = row.get(a);
+  let bVal = row.get(b);
+  let unit = row.unit;
+
+  if (row.unitKind === 'pressure' && units) {
+    aVal = typeof aVal === 'number' ? pressureToDisplay(aVal, units.pressure) : aVal;
+    bVal = typeof bVal === 'number' ? pressureToDisplay(bVal, units.pressure) : bVal;
+    unit = pressureUnitLabel(units.pressure);
+  } else if (row.unitKind === 'temperature' && units) {
+    aVal = typeof aVal === 'number' ? temperatureToDisplay(aVal, units.temperature) : aVal;
+    bVal = typeof bVal === 'number' ? temperatureToDisplay(bVal, units.temperature) : bVal;
+    unit = temperatureUnitLabel(units.temperature);
+  }
+  if (typeof aVal === 'number') aVal = Math.round(aVal * 10) / 10;
+  if (typeof bVal === 'number') bVal = Math.round(bVal * 10) / 10;
+
   const aEmpty = aVal === null || aVal === undefined || aVal === '';
   const bEmpty = bVal === null || bVal === undefined || bVal === '';
 
-  const aDisplay = displayValue(aVal, !aEmpty ? row.unit : undefined);
-  const bDisplay = displayValue(bVal, !bEmpty ? row.unit : undefined);
+  const aDisplay = displayValue(aVal, !aEmpty ? unit : undefined);
+  const bDisplay = displayValue(bVal, !bEmpty ? unit : undefined);
 
   let kind: DiffKind;
   if (aEmpty && bEmpty) kind = 'both-null';
@@ -304,8 +343,8 @@ export function compareRow(row: CompareRow, a: CarSetup, b: CarSetup): CompareCe
 
   let delta: number | null = null;
   if (row.numeric && typeof aVal === 'number' && typeof bVal === 'number') {
-    delta = bVal - aVal;
+    delta = Math.round((bVal - aVal) * 10) / 10;
   }
 
-  return { aDisplay, bDisplay, kind, delta };
+  return { aDisplay, bDisplay, kind, delta, unit };
 }

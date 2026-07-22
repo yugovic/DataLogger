@@ -32,6 +32,8 @@ import { normalizeWeather } from '../lib/weather';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useLocale } from '../contexts/LocaleContext';
+import { useUnits } from '../contexts/UnitsContext';
+import { pressureToDisplay, pressureUnitLabel } from '../lib/units';
 import { formatDate, formatNumber } from '../i18n/formatters';
 
 // ─── Helper functions ───────────────────────────────────────
@@ -117,8 +119,8 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { darkMode } = useTheme();
+  const { units } = useUnits();
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
   const [setups, setSetups] = useState<CarSetup[]>([]);
   const [loading, setLoading] = useState(true);
   const [includePublicLinkInGrowthShare, setIncludePublicLinkInGrowthShare] = useState(false);
@@ -472,10 +474,14 @@ export const Dashboard: React.FC = () => {
     if (!hasTireData) return null;
 
     const beforeData = keys.map(k =>
-      tirePressureAvg[k].count > 0 ? +(tirePressureAvg[k].before / tirePressureAvg[k].count).toFixed(1) : 0
+      tirePressureAvg[k].count > 0
+        ? +(pressureToDisplay(tirePressureAvg[k].before / tirePressureAvg[k].count, units.pressure) ?? 0).toFixed(1)
+        : 0
     );
     const afterData = keys.map(k =>
-      tirePressureAvg[k].count > 0 ? +(tirePressureAvg[k].after / tirePressureAvg[k].count).toFixed(1) : 0
+      tirePressureAvg[k].count > 0
+        ? +(pressureToDisplay(tirePressureAvg[k].after / tirePressureAvg[k].count, units.pressure) ?? 0).toFixed(1)
+        : 0
     );
 
     return {
@@ -498,7 +504,7 @@ export const Dashboard: React.FC = () => {
         axisLabel: {
           color: darkMode ? '#9ca3af' : '#6b7280',
           fontSize: 10,
-          formatter: '{value} kPa',
+          formatter: `{value} ${pressureUnitLabel(units.pressure)}`,
         },
         splitLine: { lineStyle: { color: darkMode ? '#1f2937' : '#f3f4f6' } },
       },
@@ -518,7 +524,7 @@ export const Dashboard: React.FC = () => {
         },
       ],
     };
-  }, [stats, darkMode, t]);
+  }, [stats, darkMode, t, units.pressure]);
 
   // Chart refs
   const lapTrendRef = useChart(lapTrendOption, darkMode);
@@ -540,8 +546,6 @@ export const Dashboard: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
 
       <main className="mx-auto max-w-[1800px] px-3 py-4 sm:px-5 lg:px-6">

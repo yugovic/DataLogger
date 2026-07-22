@@ -26,6 +26,7 @@ import logger from '../../utils/logger';
 import { SpecCard } from '../vehicle/SpecCard';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../contexts/LocaleContext';
+import { useUnits } from '../../contexts/UnitsContext';
 import { formatDateTime } from '../../i18n/formatters';
 
 // 差分種別ごとのセル背景クラス（ダークモード対応）
@@ -56,8 +57,8 @@ export const SetupCompare: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { locale } = useLocale();
+  const { units } = useUnits();
   const [settingsModal, setSettingsModal] = useState(false);
-  const [currentSettingView, setCurrentSettingView] = useState('account');
 
   const params = new URLSearchParams(location.search);
   const idA = params.get('a');
@@ -126,8 +127,6 @@ export const SetupCompare: React.FC = () => {
         <Header
           settingsModal={settingsModal}
           setSettingsModal={setSettingsModal}
-          currentSettingView={currentSettingView}
-          setCurrentSettingView={setCurrentSettingView}
         />
         <div className="flex items-center justify-center h-96">
           <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
@@ -142,8 +141,6 @@ export const SetupCompare: React.FC = () => {
         <Header
           settingsModal={settingsModal}
           setSettingsModal={setSettingsModal}
-          currentSettingView={currentSettingView}
-          setCurrentSettingView={setCurrentSettingView}
         />
         <main className="max-w-4xl mx-auto py-6 px-4">
           <button
@@ -176,8 +173,6 @@ export const SetupCompare: React.FC = () => {
       <Header
         settingsModal={settingsModal}
         setSettingsModal={setSettingsModal}
-        currentSettingView={currentSettingView}
-        setCurrentSettingView={setCurrentSettingView}
       />
       <main className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <button
@@ -270,7 +265,7 @@ export const SetupCompare: React.FC = () => {
                 {section.title}
               </div>
               {section.rows.map((row: CompareRow) => {
-                const result = compareRow(row, setupA, setupB);
+                const result = compareRow(row, setupA, setupB, units);
                 return (
                   <div
                     key={row.label}
@@ -291,7 +286,7 @@ export const SetupCompare: React.FC = () => {
                           }`}
                         >
                           {formatDelta(result.delta)}
-                          {row.unit ? ` ${row.unit}` : ''}
+                          {result.unit ? ` ${result.unit}` : ''}
                         </span>
                       )}
                     </div>

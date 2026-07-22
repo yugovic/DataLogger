@@ -12,6 +12,7 @@ import { deleteSetup } from '../../services/setupService';
 import { normalizeWeather } from '../../lib/weather';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../contexts/LocaleContext';
+import { useUnits } from '../../contexts/UnitsContext';
 import { formatDateTime } from '../../i18n/formatters';
 
 interface SetupCardProps {
@@ -47,6 +48,7 @@ export const SetupCard: React.FC<SetupCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const { locale } = useLocale();
+  const { units } = useUnits();
 
   const getSessionTypeLabel = (type: string) => {
     switch (type) {
@@ -236,7 +238,7 @@ export const SetupCard: React.FC<SetupCardProps> = ({
         {/* 主要数値サマリー: 温間後空気圧範囲（kPa） */}
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/60 px-3 py-1.5 rounded-md">
           <DashboardOutlined className="mr-2" />
-          <span>{t('history.card.hotPressure', { value: pressureSummary(setup) })}</span>
+          <span>{t('history.card.hotPressure', { value: pressureSummary(setup, units.pressure) })}</span>
         </div>
 
         {recordedAdjustments.length > 0 && (
