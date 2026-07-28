@@ -49,3 +49,7 @@ firebase-debug.log
 # Playwright
 /test-results/
 /playwright-report/
+
+# ピット実用性オーディットの実測成果物（スクリーンショット・計測JSON）
+audit/shots/
+audit/measurements.json

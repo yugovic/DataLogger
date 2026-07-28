@@ -59,7 +59,7 @@ const FeedbackSlider: React.FC<{
             <button
               type="button"
               className={`px-2 text-sm font-bold underline ${PIT.accent}`}
-              style={{ minHeight: 44 }}
+              style={{ minHeight: PIT_MIN_TARGET }}
               onClick={() => onChange(null)}
             >
               {t('setupTabs.driving.clear')}
@@ -144,7 +144,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
       <Collapse
         bordered={false}
         expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} />}
-        className="bg-gray-50 dark:bg-gray-800"
+        className="bg-gray-50 dark:bg-gray-800 vl-pit-collapse"
       >
         <Panel header={t('setupTabs.driving.braking')} key="1" className="text-sm">
           <div className="space-y-3 px-4">
@@ -171,7 +171,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
 
       {/* コメント・メモ */}
       <div className="border-t dark:border-gray-700 pt-4">
-        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('setupTabs.driving.commentsMemo')}</h4>
+        <h4 className={`text-sm font-semibold mb-2 ${PIT.text}`}>{t('setupTabs.driving.commentsMemo')}</h4>
         <TextArea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -184,12 +184,12 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
 
       <div className="border-t dark:border-gray-700 pt-4">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('setupTabs.driving.knowledgeMemo')}</h4>
-          <span className="text-xs text-gray-500 dark:text-gray-400">{t('setupTabs.driving.intentionResultLearning')}</span>
+          <h4 className={`text-sm font-semibold ${PIT.text}`}>{t('setupTabs.driving.knowledgeMemo')}</h4>
+          <span className={`text-sm ${PIT.sub}`}>{t('setupTabs.driving.intentionResultLearning')}</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t('setupTabs.driving.intention')}</div>
+            <div className={`text-sm font-semibold mb-1 ${PIT.sub}`}>{t('setupTabs.driving.intention')}</div>
             <TextArea
               value={knowledge.intention ?? ''}
               onChange={(e) => handleKnowledgeChange('intention', e.target.value)}
@@ -200,7 +200,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
             />
           </div>
           <div>
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t('setupTabs.driving.result')}</div>
+            <div className={`text-sm font-semibold mb-1 ${PIT.sub}`}>{t('setupTabs.driving.result')}</div>
             <TextArea
               value={knowledge.result ?? ''}
               onChange={(e) => handleKnowledgeChange('result', e.target.value)}
@@ -211,7 +211,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
             />
           </div>
           <div>
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t('setupTabs.driving.learning')}</div>
+            <div className={`text-sm font-semibold mb-1 ${PIT.sub}`}>{t('setupTabs.driving.learning')}</div>
             <TextArea
               value={knowledge.learning ?? ''}
               onChange={(e) => handleKnowledgeChange('learning', e.target.value)}

@@ -30,6 +30,24 @@ export interface StoredDraft {
 const keyFor = (userId: string): string => `${KEY_PREFIX}${userId}`;
 
 /**
+ * JSON 化で失われる型を復元する。
+ * SetupDraft.sessionDate は Date だが、JSON.stringify では ISO 文字列になる。
+ * そのまま返すと画面側の日付処理（formatDate 等）が壊れるため、ここで戻す。
+ */
+function reviveDraft(draft: SetupDraft): SetupDraft {
+  const raw = draft as unknown as { sessionDate?: unknown };
+  if (typeof raw.sessionDate === 'string') {
+    const d = new Date(raw.sessionDate);
+    return { ...draft, sessionDate: Number.isNaN(d.getTime()) ? new Date() : d };
+  }
+  if (!(draft.sessionDate instanceof Date)) {
+    // 想定外の型。日付が壊れた下書きで画面を壊さない
+    return { ...draft, sessionDate: new Date() };
+  }
+  return draft;
+}
+
+/**
  * 使う分だけの localStorage 互換インターフェース。
  * 差し替え可能にしてあるのは、テストを jsdom 無しの純ロジックのまま保つため
  * （このリポジトリのテストは environment: 'node'）。
@@ -95,7 +113,7 @@ export function loadDraft(
     if (parsed?.version !== SCHEMA_VERSION) return null;
     if (parsed?.userId !== userId) return null;
     if (!parsed?.draft || typeof parsed.draft !== 'object') return null;
-    return parsed;
+    return { ...parsed, draft: reviveDraft(parsed.draft) };
   } catch {
     return null;
   }

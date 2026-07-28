@@ -67,6 +67,29 @@ describe('draftStorage', () => {
     expect(loadDraft(UID, store)).toBeNull();
   });
 
+  it('sessionDate を Date として復元する（JSON化で文字列になるのを戻す）', () => {
+    const when = new Date('2026-07-20T01:02:03.000Z');
+    const draft = { ...createEmptyDraft(), sessionDate: when };
+    saveDraft(UID, draft, null, NOW, store);
+
+    const loaded = loadDraft(UID, store);
+    expect(loaded!.draft.sessionDate).toBeInstanceOf(Date);
+    expect(loaded!.draft.sessionDate.getTime()).toBe(when.getTime());
+  });
+
+  it('sessionDate が壊れていても Date を返す（画面を壊さない）', () => {
+    store.setItem(
+      `velocity-logger:draft:${UID}`,
+      JSON.stringify({
+        version: 1, savedAt: NOW.toISOString(), userId: UID, setupId: null,
+        draft: { ...createEmptyDraft(), sessionDate: 'ぜんぜん日付じゃない' },
+      }),
+    );
+    const loaded = loadDraft(UID, store);
+    expect(loaded!.draft.sessionDate).toBeInstanceOf(Date);
+    expect(Number.isNaN(loaded!.draft.sessionDate.getTime())).toBe(false);
+  });
+
   it('編集中の setupId を保持する', () => {
     saveDraft(UID, createEmptyDraft(), 'setup-abc', NOW, store);
     expect(loadDraft(UID, store)!.setupId).toBe('setup-abc');

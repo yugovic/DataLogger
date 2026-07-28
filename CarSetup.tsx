@@ -1153,25 +1153,25 @@ return (
 <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 {/* 未同期バッジ: 端末には保存できたがサーバー未達。状態を隠さず出す */}
 {pendingSync && (
-  <div className="mb-4 flex items-center gap-2 rounded-lg border-2 border-orange-800 bg-orange-50 px-4 py-3 dark:border-orange-300 dark:bg-orange-900/30">
-    <i className="fas fa-cloud-arrow-up text-orange-800 dark:text-orange-300"></i>
-    <span className="text-base font-bold text-orange-800 dark:text-orange-200">
+  <div className="mb-4 flex items-center gap-2 rounded-lg border-2 border-orange-800 bg-orange-50 px-4 py-3 dark:border-orange-200 dark:bg-gray-700">
+    <i className="fas fa-cloud-arrow-up text-orange-900 dark:text-orange-200"></i>
+    <span className="text-base font-bold text-orange-900 dark:text-orange-200">
       {t('setup.messages.pendingSyncBadge')}
     </span>
   </div>
 )}
 {/* 端末キャッシュが使えない環境: 圏外保存が消える可能性を隠さない */}
 {!isPersistenceEnabled && (
-  <div className="mb-4 flex items-center gap-2 rounded-lg border-2 border-orange-800 bg-orange-50 px-4 py-3 dark:border-orange-300 dark:bg-orange-900/30">
-    <i className="fas fa-triangle-exclamation text-orange-800 dark:text-orange-300"></i>
-    <span className="text-base font-bold text-orange-800 dark:text-orange-200">
+  <div className="mb-4 flex items-center gap-2 rounded-lg border-2 border-orange-800 bg-orange-50 px-4 py-3 dark:border-orange-200 dark:bg-gray-700">
+    <i className="fas fa-triangle-exclamation text-orange-900 dark:text-orange-200"></i>
+    <span className="text-base font-bold text-orange-900 dark:text-orange-200">
       {t('setup.messages.noOfflineCache')}
     </span>
   </div>
 )}
 {/* 下書きの復元確認: 黙って書き戻さず、必ず選ばせる */}
 {restorable && (
-  <div className="mb-4 rounded-lg border-2 border-blue-800 bg-blue-50 p-4 dark:border-blue-300 dark:bg-blue-900/30">
+  <div className="mb-4 rounded-lg border-2 border-blue-800 bg-blue-50 p-4 dark:border-blue-200 dark:bg-gray-700">
     <p className="text-base font-bold text-gray-900 dark:text-gray-50">
       {t('setup.messages.restoreDraftTitle', {
         at: formatDateTime(new Date(restorable.savedAt), locale),
@@ -1195,7 +1195,7 @@ return (
           if (currentUser) clearDraft(currentUser.uid);
           setRestorable(null);
         }}
-        className="flex-1 rounded-lg border-2 border-gray-500 bg-white text-base font-bold text-gray-900 dark:border-gray-400 dark:bg-gray-700 dark:text-gray-50"
+        className="flex-1 rounded-lg border-2 border-gray-700 bg-white text-base font-bold text-gray-900 dark:border-gray-200 dark:bg-gray-700 dark:text-gray-50"
         style={{ minHeight: 60 }}
       >
         {t('setup.messages.restoreDraftDiscard')}
@@ -1358,7 +1358,7 @@ return (
   style={{ minHeight: 60 }}
   onClick={() => setEnvExpanded((v) => !v)}
 >
-<i className="fas fa-temperature-high text-blue-800 dark:text-blue-200 mr-2"></i>
+<i className="fas fa-temperature-high text-blue-900 dark:text-blue-200 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.environment')}</h3>
 <span className={`ml-auto text-xs font-medium ${envFilledCount === envTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {envFilledCount === envTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: envFilledCount, total: envTotal })}
@@ -1367,13 +1367,13 @@ return (
 </div>
 {/* 自動取得した値であることを明示する。ピット実測と取り違えさせない */}
 {autoFilledFields.size > 0 && (
-  <p className="mb-2 text-sm font-semibold text-blue-800 dark:text-blue-300">
+  <p className="mb-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
     <i className="fas fa-cloud-sun mr-1"></i>
     {t('setup.messages.autoFilledNote')}
   </p>
 )}
 {!envExpanded ? (
-  <div className="flex flex-wrap gap-2" onClick={() => setEnvExpanded(true)}>
+  <div className="flex flex-wrap items-center gap-2" style={{ minHeight: 60 }} onClick={() => setEnvExpanded(true)}>
     {([
       ['setup.weather', weatherCondition ? t(`common.weather.${weatherCondition}`) : ''],
       ['setup.airTemperature', airTemp !== '' ? `${airTemp}°C` : ''],
@@ -1455,7 +1455,7 @@ inputMode="decimal"
   style={{ minHeight: 60 }}
   onClick={() => setTireExpanded((v) => !v)}
 >
-<i className="fas fa-tire text-blue-800 dark:text-blue-200 mr-2"></i>
+<i className="fas fa-tire text-blue-900 dark:text-blue-200 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.form.tireInfo')}</h3>
 <span className={`ml-auto text-xs font-medium ${tireFilledCount === tireTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {tireFilledCount === tireTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: tireFilledCount, total: tireTotal })}
@@ -1463,7 +1463,7 @@ inputMode="decimal"
 <i className={`fas fa-chevron-${tireExpanded ? 'up' : 'down'} text-gray-400 text-xs ml-2`}></i>
 </div>
 {!tireExpanded ? (
-  <div className="flex flex-wrap items-center gap-2" onClick={() => setTireExpanded(true)}>
+  <div className="flex flex-wrap items-center gap-2" style={{ minHeight: 60 }} onClick={() => setTireExpanded(true)}>
     {([
       ['setup.form.manufacturer', tireBrand],
       ['setup.form.productName', tireProductName],
@@ -1681,7 +1681,7 @@ placeholder={t('setup.form.rearSizePlaceholder')}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex items-center justify-between mb-4">
 <div className="flex items-center cursor-pointer select-none" style={{ minHeight: 60 }} onClick={() => setLapExpanded((v) => !v)}>
-<i className="fas fa-stopwatch text-blue-800 dark:text-blue-200 mr-2"></i>
+<i className="fas fa-stopwatch text-blue-900 dark:text-blue-200 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.lap.title')}</h3>
 <span className={`ml-3 text-xs font-medium ${lapFilledCount === lapTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {lapFilledCount === lapTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: lapFilledCount, total: lapTotal })}
@@ -1716,7 +1716,7 @@ placeholder={t('setup.form.rearSizePlaceholder')}
 </div>
 </div>
 {!lapExpanded ? (
-  <div className="flex flex-wrap gap-2" onClick={() => setLapExpanded(true)}>
+  <div className="flex flex-wrap items-center gap-2" style={{ minHeight: 60 }} onClick={() => setLapExpanded(true)}>
     <span className={bestLap !== ''
       ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50 cursor-pointer'
       : 'rounded-md border-2 border-dashed border-gray-700 dark:border-gray-200 px-2.5 py-1 text-sm text-gray-700 dark:text-gray-200 cursor-pointer'}

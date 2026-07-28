@@ -45,6 +45,8 @@ describe('不合格と判定済みの色を前景に使っていないこと', (
   // PIT_CONTRAST_PAIRS 側で別途検証しているのでここでは見ない。
   const BANNED_FOREGROUND = [
     'gray-400', 'gray-500', 'gray-600', 'orange-300', 'blue-300', 'blue-500', 'green-600',
+    // 白の上では通るが、実画面の地色 gray-50 の上では 7:1 を割る
+    'green-800', 'orange-800', 'blue-800',
   ];
 
   /** クラス文字列から text-/border- のユーティリティだけを取り出す（dark: 等の修飾子は落とす） */

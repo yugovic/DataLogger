@@ -51,8 +51,11 @@ export interface QuickEntryModalProps {
   carriedOverPressures?: Record<WheelKey, number | null> | null;
 }
 
+// このフローは走行直後の「温間」を記録する。冷間(before)が埋まっていても
+// 温間が空なら聞かなければならない（before で満たしたと見なすと、
+// 基本記録タスクが未完了のまま終わる）。
 const isTirePressureFilled = (tp: TirePressures): boolean =>
-  (['fl', 'fr', 'rl', 'rr'] as WheelKey[]).every((w) => tp[w].after !== '' || tp[w].before !== '');
+  (['fl', 'fr', 'rl', 'rr'] as WheelKey[]).every((w) => tp[w].after !== '');
 
 /** 総合バランスの5択。数値は DrivingFeedback.overallBalance と同じ 0〜4 */
 const FEELING_OPTIONS: { value: number; labelKey: string }[] = [
@@ -237,8 +240,8 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
         <div className={`text-center text-sm font-bold ${PIT.sub}`}>
           {t('quickEntry.stepCount', { current: index + 1, total })}
         </div>
-        <div className="mt-1 h-[6px] rounded bg-gray-700 dark:bg-gray-200">
-          <div className="h-full rounded bg-blue-800 dark:bg-blue-200 transition-[width]" style={{ width: `${progressPct}%` }} />
+        <div className="mt-1 h-[8px] rounded border border-gray-700 bg-white dark:border-gray-200 dark:bg-gray-900">
+          <div className="h-full rounded-l bg-blue-800 dark:bg-blue-200 transition-[width]" style={{ width: `${progressPct}%` }} />
         </div>
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto">{body}</div>

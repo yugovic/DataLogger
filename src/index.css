@@ -36,6 +36,11 @@
     min-width: 60px !important;
     min-height: 60px !important;
   }
+  /* 折りたたみパネルの見出しも指で開く主要動線 */
+  .vl-pit-collapse .ant-collapse-header {
+    min-height: 60px !important;
+    align-items: center !important;
+  }
 }
 
 /* 入力欄の境界: 既定の gray-300 相当(1.4:1)では枠が見えず、

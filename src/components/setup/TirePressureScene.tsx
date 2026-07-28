@@ -10,7 +10,7 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PitKeypad } from './PitKeypad';
-import { PIT, PIT_MIN_TARGET } from '../../lib/pitTheme';
+import { PIT } from '../../lib/pitTheme';
 import { calcPressureAdvice, getWheelTarget } from '../../lib/pressureAdvice';
 import { appendDigit, backspace, pressureDigitsToValue } from '../../lib/pitKeypadInput';
 import {
@@ -91,9 +91,21 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
       },
     }));
 
-    /** 打ち込み中の値。未確定なら数字列を、確定済みなら保存値を表示する */
-    const pendingValue = digits === '' ? currentVals[active] : pressureDigitsToValue(digits);
-    const displayText = digits !== '' ? digits : currentVals[active] == null ? '—' : String(currentVals[active]);
+    const carriedForActive = carriedOver?.[active] ?? null;
+
+    /**
+     * いま確定しようとしている値。
+     * 打鍵中はその数字列、既に実測値があればそれ、どちらも無ければ前回値を「提案」として出す。
+     * 提案は表示に「前回値」と明示し、確定ボタンにも前回値と書く。押さない限り保存されない
+     * （黙って引き継いで実測値のふりをさせない）。
+     */
+    const isSuggestion = digits === '' && currentVals[active] == null && carriedForActive != null;
+    const pendingValue = digits !== ''
+      ? pressureDigitsToValue(digits)
+      : currentVals[active] ?? carriedForActive;
+    const displayText = digits !== ''
+      ? digits
+      : pendingValue == null ? '—' : String(pendingValue);
     const activeTarget = targetOf(active);
     const advice = calcPressureAdvice(pendingValue, activeTarget);
     const canCommit = pendingValue != null;
@@ -111,14 +123,6 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
         onDone();
       }
     };
-
-    /** 前回値をこの輪の初期値として入れる（引き継ぎ。実測でないことは画面に出す） */
-    const applyCarriedOver = () => {
-      const v = carriedOver?.[active];
-      if (v != null) setDigits(String(v));
-    };
-
-    const carriedForActive = carriedOver?.[active] ?? null;
 
     return (
       <div className="flex flex-1 flex-col">
@@ -145,6 +149,11 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
             </span>
             <span className={`text-xl font-bold ${PIT.sub}`}>kPa</span>
           </div>
+          {isSuggestion && (
+            <div className={`mt-1 text-center text-base font-bold ${PIT.accent}`}>
+              {t('quickEntry.tire.carriedOverBadge')}
+            </div>
+          )}
           <div className={`mt-1 text-center text-base font-semibold ${PIT.sub}`}>
             {activeTarget != null
               ? t('quickEntry.tire.target', { lo: activeTarget - 5, hi: activeTarget + 5 })
@@ -160,16 +169,6 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
               </>
             )}
           </div>
-          {carriedForActive != null && digits === '' && currentVals[active] == null && (
-            <button
-              type="button"
-              onClick={applyCarriedOver}
-              className={`mx-auto mt-2 block rounded-lg border-2 border-blue-800 px-4 text-base font-bold ${PIT.accent} dark:border-blue-200`}
-              style={{ minHeight: PIT_MIN_TARGET }}
-            >
-              {t('quickEntry.tire.useCarriedOver', { value: carriedForActive })}
-            </button>
-          )}
         </div>
 
         {/* ── 4輪図（触れる・親指到達域）: 入力済みの確認と、直したい輪への移動 ── */}
@@ -215,7 +214,11 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
             onBackspace={() => setDigits((prev) => backspace(prev))}
             onCommit={commit}
             commitEnabled={canCommit}
-            commitLabel={t('quickEntry.tire.commitWheel', { wheel: WHEEL_LABEL[active] })}
+            commitLabel={
+              isSuggestion
+                ? t('quickEntry.tire.commitCarriedOver', { wheel: WHEEL_LABEL[active], value: pendingValue })
+                : t('quickEntry.tire.commitWheel', { wheel: WHEEL_LABEL[active] })
+            }
             onCancel={onCancel}
             cancelLabel={t('quickEntry.cancel')}
           />

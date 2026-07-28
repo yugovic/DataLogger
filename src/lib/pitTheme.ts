@@ -19,29 +19,32 @@ export const PIT_RGB = {
   'gray-900': [17, 24, 39],
   'blue-200': [191, 219, 254],
   'blue-800': [30, 64, 175],
+  'blue-900': [30, 58, 138],
   'green-300': [134, 239, 172],
-  'green-800': [22, 101, 52],
+  'green-900': [20, 83, 45],
   'orange-200': [254, 215, 170],
-  'orange-800': [154, 52, 18],
+  'orange-900': [124, 45, 18],
 } as const satisfies Record<string, readonly [number, number, number]>;
 
 export type PitColorName = keyof typeof PIT_RGB;
 
 /**
  * 使ってよい前景色と、その前景色が置かれる背景色の対応。
- * ライト面の背景は白、ダーク面の背景は gray-700 に統一している。
- * テストはこの表の全ペアが 7:1 以上であることを検証する。
+ *
+ * 重要: ライト面の背景は **白ではなく gray-50**（画面の実際の地色）で検証する。
+ * 白で検算すると通るのに実画面では落ちる、という取りこぼしを防ぐため
+ * （実測で green-800/gray-50 が 6.82:1 だったのを見落としていた）。
  */
 export const PIT_CONTRAST_PAIRS: readonly (readonly [PitColorName, PitColorName])[] = [
-  // ライト面（背景: 白）
-  ['gray-900', 'white'],   // 本文
-  ['gray-700', 'white'],   // 補助文字・罫線
-  ['blue-800', 'white'],   // 強調・主要アクションの背景（白文字側は下段で検証）
-  ['green-800', 'white'],  // 目標範囲内
-  ['orange-800', 'white'], // 目標範囲外・警告
-  ['white', 'blue-800'],   // 主要アクション上の白文字
+  // ライト面（地色: gray-50。カード上は白なのでどちらでも通る必要がある）
+  ['gray-900', 'gray-50'], ['gray-900', 'white'],   // 本文
+  ['gray-700', 'gray-50'], ['gray-700', 'white'],   // 補助文字・罫線
+  ['blue-900', 'gray-50'], ['blue-900', 'white'],   // 強調
+  ['green-900', 'gray-50'], ['green-900', 'white'], // 目標範囲内
+  ['orange-900', 'gray-50'], ['orange-900', 'white'], // 目標範囲外・警告
+  ['white', 'blue-800'],   // 主要アクション（青背景）の上の白文字
   ['white', 'gray-700'],   // 押せない状態の白文字
-  // ダーク面（背景: gray-700）
+  // ダーク面（地色: gray-700）
   ['gray-50', 'gray-700'],
   ['gray-200', 'gray-700'],
   ['blue-200', 'gray-700'],
@@ -76,6 +79,9 @@ export function contrastRatio(
  * 使ってはいけない色（検算値）:
  * - gray-500 / 白 = 4.83:1
  * - gray-400 / 白 = 2.54:1
+ * - green-800 / gray-50 = 6.82:1（白なら 7.13:1 で通るが、実画面の地色では落ちる）
+ * - orange-800 / gray-50 = 6.94:1
+ * - blue-800 / gray-50 = 6.36:1（背景として白文字を載せる用途のみ可）
  * - orange-300 / gray-700 = 6.11:1
  * - blue-300 / gray-700 = 5.72:1
  */
@@ -87,11 +93,11 @@ export const PIT = {
   /** 罫線・境界 */
   border: 'border-gray-700 dark:border-gray-200',
   /** 目標範囲内 */
-  ok: 'text-green-800 dark:text-green-300',
+  ok: 'text-green-900 dark:text-green-300',
   /** 目標範囲外・注意 */
-  warn: 'text-orange-800 dark:text-orange-200',
+  warn: 'text-orange-900 dark:text-orange-200',
   /** 強調（リンク・引き継ぎ提示など） */
-  accent: 'text-blue-800 dark:text-blue-200',
+  accent: 'text-blue-900 dark:text-blue-200',
   /** 主要アクションの背景（文字は白） */
   primaryBg: 'bg-blue-800',
   primaryActive: 'active:bg-blue-900',
