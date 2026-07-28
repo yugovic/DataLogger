@@ -47,6 +47,7 @@ import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
 import { QuickEntryModal } from './src/components/setup/QuickEntryModal';
 import { carryOverPressures } from './src/lib/quickEntryFlow';
 import { saveDraft, loadDraft, clearDraft, isDraftWorthRestoring } from './src/lib/draftStorage';
+import { isPersistenceEnabled } from './src/lib/firebase';
 import { fetchWeatherAt, getCurrentPosition, nearestTrack, findTrackByName, trackCenter } from './src/lib/autoWeather';
 import { SessionHighlightModal } from './src/components/setup/SessionHighlightModal';
 import { computeSessionHighlight } from './src/lib/sessionHighlights';
@@ -1153,6 +1154,15 @@ return (
     <i className="fas fa-cloud-arrow-up text-orange-800 dark:text-orange-300"></i>
     <span className="text-base font-bold text-orange-800 dark:text-orange-200">
       {t('setup.messages.pendingSyncBadge')}
+    </span>
+  </div>
+)}
+{/* 端末キャッシュが使えない環境: 圏外保存が消える可能性を隠さない */}
+{!isPersistenceEnabled && (
+  <div className="mb-4 flex items-center gap-2 rounded-lg border-2 border-orange-800 bg-orange-50 px-4 py-3 dark:border-orange-300 dark:bg-orange-900/30">
+    <i className="fas fa-triangle-exclamation text-orange-800 dark:text-orange-300"></i>
+    <span className="text-base font-bold text-orange-800 dark:text-orange-200">
+      {t('setup.messages.noOfflineCache')}
     </span>
   </div>
 )}

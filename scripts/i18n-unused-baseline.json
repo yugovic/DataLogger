@@ -83,6 +83,7 @@
   "setup.messages.loginRequired",
   "setup.messages.manualEditDetached",
   "setup.messages.noModelHistory",
+  "setup.messages.noOfflineCache",
   "setup.messages.noRecentSession",
   "setup.messages.pendingSyncBadge",
   "setup.messages.restoreDraftAccept",
