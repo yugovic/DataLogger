@@ -31,6 +31,27 @@
   .ant-tabs-tab {
     min-height: 60px !important;
   }
+  /* タブの「>>」overflow ボタンも同じ最低線にする */
+  .ant-tabs-nav-more {
+    min-width: 60px !important;
+    min-height: 60px !important;
+  }
+}
+
+/* 入力欄の境界: 既定の gray-300 相当(1.4:1)では枠が見えず、
+   どこを押せるのか分からない。対白 7:1 以上の枠にする。 */
+.ant-input,
+.ant-input-number,
+.ant-select-selector,
+.ant-picker {
+  border-color: rgb(55 65 81) !important;   /* gray-700 / 白 = 10.3:1 */
+  border-width: 2px !important;
+}
+.dark .ant-input,
+.dark .ant-input-number,
+.dark .ant-select-selector,
+.dark .ant-picker {
+  border-color: rgb(229 231 235) !important; /* gray-200 / gray-700 = 8.3:1 */
 }
 
 /* Ant Design ダークモード対応 */
@@ -41,8 +62,8 @@
 .dark .ant-checkbox-inner,
 .dark .ant-radio-inner {
   background-color: rgb(55 65 81) !important;
-  border-color: rgb(75 85 99) !important;
-  color: rgb(229 231 235) !important;
+  border-color: rgb(229 231 235) !important; /* gray-200 / gray-700 = 8.3:1 */
+  color: rgb(249 250 251) !important;
 }
 
 .dark .ant-input:hover,
@@ -63,7 +84,7 @@
 }
 
 .dark .ant-input::placeholder {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-select-dropdown,
@@ -99,35 +120,47 @@
   background: rgb(59 130 246) !important;
 }
 
-/* Tabsのダークモード対応 */
+/* Tabs: 直射日光下で読めるよう、対背景 7:1 以上の色に固定する。
+   gray-400(2.4:1) や blue-500(3.7:1) は使わない。 */
+.ant-tabs-tab {
+  color: rgb(55 65 81) !important;        /* gray-700 / 白 = 10.3:1 */
+}
+.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: rgb(30 64 175) !important;       /* blue-800 / 白 = 8.7:1 */
+}
+.ant-tabs-ink-bar {
+  background: rgb(30 64 175) !important;
+  height: 4px !important;
+}
+
 .dark .ant-tabs-tab {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;     /* gray-200 / gray-700 = 8.3:1 */
 }
 
 .dark .ant-tabs-tab:hover {
-  color: rgb(229 231 235) !important;
+  color: rgb(249 250 251) !important;
 }
 
 .dark .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
-  color: rgb(59 130 246) !important;
+  color: rgb(191 219 254) !important;     /* blue-200 / gray-700 = 7.3:1 */
 }
 
 .dark .ant-tabs-ink-bar {
-  background: rgb(59 130 246) !important;
+  background: rgb(191 219 254) !important;
 }
 
 /* AutoCompleteのダークモード対応 */
 .dark .ant-select-selection-placeholder {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 /* Select内のアイコンとテキストのダークモード対応 */
 .dark .ant-select-arrow {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-select-clear {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
   background-color: transparent !important;
 }
 
@@ -160,11 +193,11 @@
 
 /* DatePicker内のアイコンの色修正 */
 .dark .ant-picker-suffix {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-picker-clear {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
   background-color: transparent !important;
 }
 
@@ -173,7 +206,7 @@
 }
 
 .dark .ant-picker-separator {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-input-group-addon {
@@ -198,7 +231,7 @@
 }
 
 .dark .ant-modal-close {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-modal-close:hover {

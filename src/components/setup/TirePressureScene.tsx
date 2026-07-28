@@ -9,14 +9,14 @@
 // 未測定の輪は null のまま（0埋め・デモ値は禁止 — データ品質方針）。
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PitKeypad, PIT_COLORS } from './PitKeypad';
+import { PitKeypad } from './PitKeypad';
+import { PIT, PIT_MIN_TARGET } from '../../lib/pitTheme';
 import { calcPressureAdvice, getWheelTarget } from '../../lib/pressureAdvice';
 import { appendDigit, backspace, pressureDigitsToValue } from '../../lib/pitKeypadInput';
 import {
   WHEEL_ORDER,
   nextEmptyWheel,
   firstEmptyWheel,
-  initialTireMode,
   type WheelKey,
 } from '../../lib/quickEntryFlow';
 
@@ -26,9 +26,7 @@ export interface TirePressureSceneHandle {
 }
 
 interface TirePressureSceneProps {
-  cold: Record<WheelKey, string>;
   hot: Record<WheelKey, string>;
-  onChangeCold: (wheel: WheelKey, raw: string) => void;
   onChangeHot: (wheel: WheelKey, raw: string) => void;
   targetPressures: { front: string; rear: string };
   /** 全輪の入力が終わったときに呼ぶ（次の質問へ進む） */
@@ -54,29 +52,24 @@ const WHEEL_POS: Record<WheelKey, string> = {
 };
 
 export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressureSceneProps>(
-  ({ cold, hot, onChangeCold, onChangeHot, targetPressures, onDone, onCancel, carriedOver }, ref) => {
+  ({ hot, onChangeHot, targetPressures, onDone, onCancel, carriedOver }, ref) => {
     const { t } = useTranslation('setup');
 
-    const coldNum = useMemo(
-      () => ({ fl: toNum(cold.fl), fr: toNum(cold.fr), rl: toNum(cold.rl), rr: toNum(cold.rr) }),
-      [cold],
-    );
     const hotNum = useMemo(
       () => ({ fl: toNum(hot.fl), fr: toNum(hot.fr), rl: toNum(hot.rl), rr: toNum(hot.rr) }),
       [hot],
     );
 
-    // 走行直後のピットで記録するのは温間。冷間が未入力のときだけ冷間から聞く。
-    const [mode] = useState<'cold' | 'hot'>(() => initialTireMode(coldNum));
-    const [active, setActive] = useState<WheelKey>(() => {
-      const vals = mode === 'cold' ? coldNum : hotNum;
-      return firstEmptyWheel(vals) ?? 'fl';
-    });
+    // この連続入力フローは「走行直後のピットで記録する」ためのものなので、常に温間を記録する。
+    // 冷間が空だからと冷間モードにすると、ドライバーが計り取った温間の値を
+    // 冷間として保存してしまう（実測値の取り違え＝データ品質の欠陥）。
+    // 冷間は走行前に基本設定カードから入れる別の作業として残す。
+    const [active, setActive] = useState<WheelKey>(() => firstEmptyWheel(hotNum) ?? 'fl');
     /** テンキーで打っている途中の数字列。輪を変えるたびに空に戻す */
     const [digits, setDigits] = useState('');
 
-    const currentVals = mode === 'cold' ? coldNum : hotNum;
-    const setValue = mode === 'cold' ? onChangeCold : onChangeHot;
+    const currentVals = hotNum;
+    const setValue = onChangeHot;
 
     const front = targetPressures.front !== '' ? parseFloat(targetPressures.front) : null;
     const rear = targetPressures.rear !== '' ? parseFloat(targetPressures.rear) : null;
@@ -129,36 +122,37 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
 
     return (
       <div className="flex flex-1 flex-col">
-        {/* ── 表示帯（触らない）: いま何を入れているかと、その値 ── */}
-        <div className="px-4 pt-2">
-          <div className={`text-center text-lg font-bold ${PIT_COLORS.text}`}>
+        {/* ── 表示帯（触らない）。ここを伸縮させることで、下の4輪図とテンキーを
+            常に親指の到達域（390x844 で y>=281）へ押し下げる ── */}
+        <div className="flex flex-1 flex-col justify-center px-4 pt-2" style={{ minHeight: 232 }}>
+          <div className={`text-center text-lg font-bold ${PIT.text}`}>
             {t('quickEntry.tire.askWheel', {
               wheel: WHEEL_LABEL[active],
-              mode: mode === 'cold' ? t('quickEntry.tire.cold') : t('quickEntry.tire.hot'),
+              mode: t('quickEntry.tire.hot'),
             })}
           </div>
           <div className="mt-1 flex items-baseline justify-center gap-2">
             <span
               className={`text-6xl font-black tabular-nums ${
                 pendingValue == null
-                  ? PIT_COLORS.sub
+                  ? PIT.sub
                   : advice.status === 'green'
-                    ? PIT_COLORS.ok
-                    : PIT_COLORS.warn
+                    ? PIT.ok
+                    : PIT.warn
               }`}
             >
               {displayText}
             </span>
-            <span className={`text-xl font-bold ${PIT_COLORS.sub}`}>kPa</span>
+            <span className={`text-xl font-bold ${PIT.sub}`}>kPa</span>
           </div>
-          <div className={`mt-1 text-center text-base font-semibold ${PIT_COLORS.sub}`}>
+          <div className={`mt-1 text-center text-base font-semibold ${PIT.sub}`}>
             {activeTarget != null
               ? t('quickEntry.tire.target', { lo: activeTarget - 5, hi: activeTarget + 5 })
               : t('quickEntry.tire.noTarget')}
             {pendingValue != null && activeTarget != null && (
               <>
                 {' · '}
-                <b className={advice.status === 'green' ? PIT_COLORS.ok : PIT_COLORS.warn}>
+                <b className={advice.status === 'green' ? PIT.ok : PIT.warn}>
                   {advice.status === 'green'
                     ? t('quickEntry.tire.inRange')
                     : t('quickEntry.tire.outOfRange')}
@@ -170,8 +164,8 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
             <button
               type="button"
               onClick={applyCarriedOver}
-              className="mx-auto mt-2 block rounded-lg border-2 border-blue-800 px-4 text-base font-bold text-blue-800 dark:border-blue-300 dark:text-blue-300"
-              style={{ minHeight: 60 }}
+              className={`mx-auto mt-2 block rounded-lg border-2 border-blue-800 px-4 text-base font-bold ${PIT.accent} dark:border-blue-200`}
+              style={{ minHeight: PIT_MIN_TARGET }}
             >
               {t('quickEntry.tire.useCarriedOver', { value: carriedForActive })}
             </button>
@@ -179,8 +173,8 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
         </div>
 
         {/* ── 4輪図（触れる・親指到達域）: 入力済みの確認と、直したい輪への移動 ── */}
-        <div className="relative mx-auto my-2 w-[248px]" style={{ height: 188 }}>
-          <div className="absolute left-1/2 top-2 h-[172px] w-[92px] -translate-x-1/2 rounded-[40px_40px_32px_32px] border-2 border-gray-500 dark:border-gray-400" />
+        <div className="relative mx-auto my-2 w-[248px] shrink-0" style={{ height: 188 }}>
+          <div className={`absolute left-1/2 top-2 h-[172px] w-[92px] -translate-x-1/2 rounded-[40px_40px_32px_32px] border-2 ${PIT.border}`} />
           {WHEEL_ORDER.map((w) => {
             const v = currentVals[w];
             const wAdvice = calcPressureAdvice(v, targetOf(w));
@@ -190,21 +184,21 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
                 type="button"
                 key={w}
                 onClick={() => goToWheel(w)}
-                className={`absolute flex flex-col items-center justify-center rounded-xl border-2 bg-white dark:bg-gray-700 ${WHEEL_POS[w]} ${
+                className={`absolute flex flex-col items-center justify-center rounded-xl border-2 ${PIT.surface} ${WHEEL_POS[w]} ${
                   isActive
-                    ? 'border-blue-800 ring-4 ring-blue-300 dark:border-blue-300'
-                    : 'border-gray-500 dark:border-gray-400'
+                    ? 'border-blue-800 ring-4 ring-blue-800 dark:border-blue-200 dark:ring-blue-200'
+                    : PIT.border
                 }`}
                 style={{ width: 76, height: 76 }}
               >
-                <span className={`text-sm font-black ${PIT_COLORS.sub}`}>{WHEEL_LABEL[w]}</span>
+                <span className={`text-sm font-black ${PIT.sub}`}>{WHEEL_LABEL[w]}</span>
                 <span
                   className={`text-2xl font-black tabular-nums ${
                     v == null
-                      ? PIT_COLORS.sub
+                      ? PIT.sub
                       : wAdvice.status === 'green'
-                        ? PIT_COLORS.ok
-                        : PIT_COLORS.warn
+                        ? PIT.ok
+                        : PIT.warn
                   }`}
                 >
                   {v == null ? '—' : v}
@@ -215,7 +209,7 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
         </div>
 
         {/* ── テンキー（親指到達域）── */}
-        <div className="mt-auto">
+        <div className="shrink-0">
           <PitKeypad
             onDigit={(d) => setDigits((prev) => appendDigit(prev, d, 3))}
             onBackspace={() => setDigits((prev) => backspace(prev))}

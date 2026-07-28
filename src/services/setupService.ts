@@ -20,6 +20,7 @@ import { CarSetup, SetupVisibility } from '../types/setup';
 import { carSetupSchema } from '../schemas/setupSchema';
 import logger from '../utils/logger';
 import { commitWithoutBlocking, type CommitResult, type WriteOutcome } from '../lib/offlineCommit';
+import { isPersistenceEnabled } from '../lib/firebase';
 import { AppError } from '../i18n/errorMessages';
 import { trackEvent } from '../lib/analytics';
 import { recomputeSharingActive } from './profileService';
@@ -63,7 +64,18 @@ const resolveVehicleProfileSnapshot = async <
     };
   }
 
-  const vehicle = await getVehicle(setup.vehicleId);
+  // 圏外では getDoc がキャッシュに無いと unavailable で失敗する。
+  // 車両プロファイルのスナップショットは記録本体に対する付随情報なので、
+  // ここで失敗しても保存そのものを止めない（止めると圏外で1件も記録できない）。
+  // 取れなかった場合はスナップショットを付けずに書き込み、次回の更新で埋める。
+  let vehicle: Awaited<ReturnType<typeof getVehicle>> = null;
+  try {
+    vehicle = await getVehicle(setup.vehicleId);
+  } catch (error) {
+    logger.warn('車両プロファイルを取得できなかったため、スナップショットなしで保存します:', error);
+    return setup;
+  }
+
   if (!vehicle) {
     throw new AppError('setup.vehicleNotFound');
   }
@@ -113,6 +125,7 @@ export const saveSetup = async (
     // 待つとUIが無言で固まる（ピットでは致命的）。ローカル反映は即時に行われ、
     // 電波復帰後に Firestore の mutation queue が自動同期する。
     const result = await commitWithoutBlocking(setDoc(docRef, setupData), {
+      durableCache: isPersistenceEnabled,
       onLateResult: (late) => onLateWrite?.(docRef.id, late),
     });
     if (result.outcome === 'failed') throw result.error;
@@ -235,6 +248,7 @@ export const updateSetup = async (
 
     // saveSetup と同じ理由でサーバーACKを待ち切らない
     const result = await commitWithoutBlocking(updateDoc(docRef, updateData as any), {
+      durableCache: isPersistenceEnabled,
       onLateResult: (late) => onLateWrite?.(setupId, late),
     });
     if (result.outcome === 'failed') throw result.error;

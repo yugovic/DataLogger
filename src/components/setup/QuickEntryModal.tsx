@@ -14,7 +14,8 @@
 // スキップした項目は null（空文字）のまま保存する。0変換・デモ初期値は禁止。
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PitKeypad, PIT_COLORS } from './PitKeypad';
+import { PitKeypad } from './PitKeypad';
+import { PIT, PIT_MIN_TARGET } from '../../lib/pitTheme';
 import { TirePressureScene, type TirePressureSceneHandle } from './TirePressureScene';
 import {
   buildQuickEntrySteps,
@@ -98,18 +99,18 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
 
   const stepHeader = (title: string, hint?: string) => (
     <div className="px-4 pt-2">
-      <div className={`text-center text-lg font-bold ${PIT_COLORS.text}`}>{title}</div>
-      {hint && <div className={`mt-1 text-center text-base font-semibold ${PIT_COLORS.sub}`}>{hint}</div>}
+      <div className={`text-center text-lg font-bold ${PIT.text}`}>{title}</div>
+      {hint && <div className={`mt-1 text-center text-base font-semibold ${PIT.sub}`}>{hint}</div>}
     </div>
   );
 
   /** 大きな数値表示（触らない領域） */
   const bigValue = (text: string, unit: string) => (
     <div className="mt-3 flex items-baseline justify-center gap-2">
-      <span className={`text-6xl font-black tabular-nums ${text === '' ? PIT_COLORS.sub : PIT_COLORS.text}`}>
+      <span className={`text-6xl font-black tabular-nums ${text === '' ? PIT.sub : PIT.text}`}>
         {text === '' ? '—' : text}
       </span>
-      <span className={`text-xl font-bold ${PIT_COLORS.sub}`}>{unit}</span>
+      <span className={`text-xl font-bold ${PIT.sub}`}>{unit}</span>
     </div>
   );
 
@@ -146,11 +147,9 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
       body = (
         <TirePressureScene
           ref={sceneRef}
-          cold={{ fl: tirePressures.fl.before, fr: tirePressures.fr.before, rl: tirePressures.rl.before, rr: tirePressures.rr.before }}
           hot={{ fl: tirePressures.fl.after, fr: tirePressures.fr.after, rl: tirePressures.rl.after, rr: tirePressures.rr.after }}
           targetPressures={targetPressures}
           carriedOver={carriedOverPressures}
-          onChangeCold={(wheel, raw) => setTirePressures((prev) => ({ ...prev, [wheel]: { ...prev[wheel], before: raw } }))}
           onChangeHot={(wheel, raw) => setTirePressures((prev) => ({ ...prev, [wheel]: { ...prev[wheel], after: raw } }))}
           onDone={goNext}
           onCancel={onClose}
@@ -167,7 +166,7 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
         <div className="flex flex-1 flex-col">
           {stepHeader(t('quickEntry.fields.bestLap'), t('quickEntry.lapHint'))}
           <div className="mt-3 text-center">
-            <span className={`text-6xl font-black tabular-nums ${lapDigits === '' ? PIT_COLORS.sub : PIT_COLORS.text}`}>
+            <span className={`text-6xl font-black tabular-nums ${lapDigits === '' ? PIT.sub : PIT.text}`}>
               {lapDigits === '' ? '—' : formatLapDigits(lapDigits)}
             </span>
           </div>
@@ -204,10 +203,10 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
                 }}
                 className={`flex items-center justify-center rounded-xl border-2 text-lg font-bold ${
                   feeling === o.value
-                    ? 'border-blue-800 bg-blue-800 text-white'
-                    : `border-gray-500 bg-white ${PIT_COLORS.text} dark:border-gray-400 dark:bg-gray-700`
+                    ? `border-blue-800 ${PIT.primaryBg} text-white`
+                    : `${PIT.border} ${PIT.surface} ${PIT.text}`
                 }`}
-                style={{ minHeight: 64 }}
+                style={{ minHeight: PIT_MIN_TARGET + 4 }}
               >
                 {t(o.labelKey)}
               </button>
@@ -215,8 +214,8 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
             <button
               type="button"
               onClick={onClose}
-              className={`flex items-center justify-center rounded-xl border-2 border-gray-500 bg-white text-base font-bold ${PIT_COLORS.text} dark:border-gray-400 dark:bg-gray-700`}
-              style={{ minHeight: 64 }}
+              className={`flex items-center justify-center rounded-xl border-2 ${PIT.border} ${PIT.surface} text-base font-bold ${PIT.text}`}
+              style={{ minHeight: PIT_MIN_TARGET + 4 }}
             >
               {t('quickEntry.cancel')}
             </button>
@@ -235,11 +234,11 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
     <div className="fixed inset-0 z-[1100] flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* 進捗は読むだけ。触る操作は下側に集約している */}
       <div className="px-4 pt-2">
-        <div className={`text-center text-sm font-bold ${PIT_COLORS.sub}`}>
+        <div className={`text-center text-sm font-bold ${PIT.sub}`}>
           {t('quickEntry.stepCount', { current: index + 1, total })}
         </div>
-        <div className="mt-1 h-[6px] rounded bg-gray-300 dark:bg-gray-600">
-          <div className="h-full rounded bg-blue-800 transition-[width]" style={{ width: `${progressPct}%` }} />
+        <div className="mt-1 h-[6px] rounded bg-gray-700 dark:bg-gray-200">
+          <div className="h-full rounded bg-blue-800 dark:bg-blue-200 transition-[width]" style={{ width: `${progressPct}%` }} />
         </div>
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto">{body}</div>

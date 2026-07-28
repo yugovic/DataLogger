@@ -144,7 +144,7 @@ export const StepNumber: React.FC<StepNumberProps> = ({
         }}
       />
       {unit && (
-        <span className="text-xs text-gray-400 select-none ml-1" style={{ minWidth: 24 }}>
+        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 select-none ml-1" style={{ minWidth: 28 }}>
           {unit}
         </span>
       )}

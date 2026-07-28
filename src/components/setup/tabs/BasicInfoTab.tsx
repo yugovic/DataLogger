@@ -196,7 +196,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             step={1}
             largeStep={5}
             size="small"
-            inputWidth={56}
+            inputWidth={72}
             defaultValue={targetNum ?? 200}
           />
         </div>
@@ -218,7 +218,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             step={1}
             largeStep={5}
             size="small"
-            inputWidth={56}
+            inputWidth={72}
             defaultValue={targetNum ?? 200}
           />
         </div>
@@ -315,7 +315,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     step={1}
                     largeStep={5}
                     size="small"
-                    inputWidth={56}
+                    inputWidth={72}
                     placeholder={t('setupTabs.basicInfo.placeholderExample200')}
                     defaultValue={200}
                   />
@@ -333,7 +333,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     step={1}
                     largeStep={5}
                     size="small"
-                    inputWidth={56}
+                    inputWidth={72}
                     placeholder={t('setupTabs.basicInfo.placeholderExample190')}
                     defaultValue={200}
                   />
@@ -408,7 +408,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   max={damperConstraints.frontMax ?? 40}
                   step={1}
                   size="small"
-                  inputWidth={56}
+                  inputWidth={72}
                   disabled={disabled}
                 />
               </div>
@@ -421,7 +421,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   max={damperConstraints.frontMax ?? 40}
                   step={1}
                   size="small"
-                  inputWidth={56}
+                  inputWidth={72}
                   disabled={disabled}
                 />
               </div>
@@ -439,7 +439,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   max={damperConstraints.rearMax ?? 40}
                   step={1}
                   size="small"
-                  inputWidth={56}
+                  inputWidth={72}
                   disabled={disabled}
                 />
               </div>
@@ -452,7 +452,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   max={damperConstraints.rearMax ?? 40}
                   step={1}
                   size="small"
-                  inputWidth={56}
+                  inputWidth={72}
                   disabled={disabled}
                 />
               </div>

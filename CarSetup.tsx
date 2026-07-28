@@ -720,31 +720,33 @@ const handleSave = async () => {
     const notifyLate = (_id: string, late: { outcome: string }) => {
       if (late.outcome === 'synced') {
         setPendingSync(false);
+        if (currentUser) clearDraft(currentUser.uid);
         message.success(t('setup.messages.syncedLater'));
       } else {
         message.warning(t('setup.messages.syncFailedRetry'), 8);
       }
     };
 
+    // 帰結ごとに、事実と違うことを言わない:
+    //  synced = 送れた / queued = 端末に貯めた（復帰後に自動送信）
+    //  unsafe = どこにも貯まっていない（永続化が使えない環境）。成功と言ってはいけない
+    let saveOutcome: 'synced' | 'queued' | 'unsafe';
     if (!isNew) {
-      // 編集モードから保存する場合は更新
-      const outcome = await updateSetup(setupId!, setupData, notifyLate);
-      setPendingSync(outcome === 'queued');
-      message.success(
-        outcome === 'queued' ? t('setup.messages.savedOffline') : t('setup.messages.setupUpdated'),
-        outcome === 'queued' ? 6 : 3,
-      );
-      logger.log('Updated setup with ID:', setupId, 'outcome:', outcome);
+      saveOutcome = await updateSetup(setupId!, setupData, notifyLate) as typeof saveOutcome;
+      logger.log('Updated setup with ID:', setupId, 'outcome:', saveOutcome);
     } else {
-      // 新規作成（セットアップ本体はここで1回だけ作成する）
       const saved = await saveSetup(setupData, notifyLate);
       savedSetupId = saved.id;
-      setPendingSync(saved.outcome === 'queued');
-      message.success(
-        saved.outcome === 'queued' ? t('setup.messages.savedOffline') : t('setup.messages.setupSaved'),
-        saved.outcome === 'queued' ? 6 : 3,
-      );
-      logger.log('Saved setup with ID:', saved.id, 'outcome:', saved.outcome);
+      saveOutcome = saved.outcome as typeof saveOutcome;
+      logger.log('Saved setup with ID:', saved.id, 'outcome:', saveOutcome);
+    }
+    setPendingSync(saveOutcome !== 'synced');
+    if (saveOutcome === 'unsafe') {
+      message.warning(t('setup.messages.savedUnsafe'), 10);
+    } else if (saveOutcome === 'queued') {
+      message.success(t('setup.messages.savedOffline'), 6);
+    } else {
+      message.success(isNew ? t('setup.messages.setupSaved') : t('setup.messages.setupUpdated'), 3);
     }
 
     // ベストラップ更新チェック＋ハイライト計算（同一サーキットの過去データと比較）
@@ -855,8 +857,9 @@ const handleSave = async () => {
     // これを navigate より前に同期実行することで、保存後の replace 遷移も
     // 離脱ガードにブロックされない（hasUnsavedChanges() が false を返す）。
     resetBaseline(savedDraft);
-    // 保存経路に載せた下書きは破棄する（二重登録の種を残さない）
-    if (currentUser) clearDraft(currentUser.uid);
+    // 下書きを消してよいのは、サーバーか端末の永続キャッシュに確実に入ったときだけ。
+    // unsafe（どこにも貯まっていない）で消すと、アプリを閉じた瞬間に入力が消える。
+    if (currentUser && saveOutcome !== 'unsafe') clearDraft(currentUser.uid);
 
     // 新規保存が成功した後だけ、保存済みレコードの URL へ replace 遷移する。
     // 順序: (1)本体保存 → (2)ベストラップ比較・ハイライト → (3)テレメトリ保存 →
@@ -1206,7 +1209,7 @@ return (
 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
   {/* 日時 */}
   <div className="col-span-2 sm:col-span-1">
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup.dateTime')}</p>
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">{t('setup.dateTime')}</p>
     {isViewMode ? (
       <span className="block text-sm text-gray-800 dark:text-gray-200 font-medium py-1">
         {formatDateTime(sessionDate, locale)}
@@ -1222,7 +1225,7 @@ return (
   </div>
   {/* サーキット */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">
       {t('setup.circuit')} <span className="text-red-500">*</span>
     </p>
     <AutoComplete
@@ -1241,7 +1244,7 @@ return (
   </div>
   {/* 車両: 登録車両を選ぶ。未登録の場合だけ車種名を直接入力する。 */}
   <div className="col-span-2 sm:col-span-1 xl:col-span-2">
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">
       {t('setup.vehicle')} <span className="text-red-500">*</span>
     </p>
     <Select
@@ -1273,7 +1276,7 @@ return (
   </div>
   {/* ドライバー名 */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup.driver')}</p>
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">{t('setup.driver')}</p>
     <AutoComplete
       value={driver}
       onChange={setDriver}
@@ -1285,7 +1288,7 @@ return (
   </div>
   {/* セッション種別 */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup.sessionType')}</p>
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">{t('setup.sessionType')}</p>
     <Select
       value={sessionType}
       onChange={setSessionType}
@@ -1355,7 +1358,7 @@ return (
   style={{ minHeight: 60 }}
   onClick={() => setEnvExpanded((v) => !v)}
 >
-<i className="fas fa-temperature-high text-blue-500 dark:text-blue-400 mr-2"></i>
+<i className="fas fa-temperature-high text-blue-800 dark:text-blue-200 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.environment')}</h3>
 <span className={`ml-auto text-xs font-medium ${envFilledCount === envTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {envFilledCount === envTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: envFilledCount, total: envTotal })}
@@ -1381,7 +1384,7 @@ return (
       <span
         key={labelKey}
         className={value
-          ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'
+          ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50'
           : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'}
       >
         {value ? `${t(labelKey)} ${value}` : t(labelKey)}
@@ -1452,7 +1455,7 @@ inputMode="decimal"
   style={{ minHeight: 60 }}
   onClick={() => setTireExpanded((v) => !v)}
 >
-<i className="fas fa-tire text-blue-500 dark:text-blue-400 mr-2"></i>
+<i className="fas fa-tire text-blue-800 dark:text-blue-200 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.form.tireInfo')}</h3>
 <span className={`ml-auto text-xs font-medium ${tireFilledCount === tireTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {tireFilledCount === tireTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: tireFilledCount, total: tireTotal })}
@@ -1469,7 +1472,7 @@ inputMode="decimal"
       <span
         key={labelKey}
         className={value
-          ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'
+          ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50'
           : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'}
       >
         {value || t(labelKey)}
@@ -1505,7 +1508,7 @@ inputMode="decimal"
       })}
     </span>
     <span className={distance !== '' || fuel !== ''
-      ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'
+      ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50'
       : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'}
     >
       {distance !== '' ? `${distance}km` : t('setup.form.distanceKm')} / {fuel !== '' ? `${fuel}L` : t('setup.form.fuelL')}
@@ -1678,7 +1681,7 @@ placeholder={t('setup.form.rearSizePlaceholder')}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex items-center justify-between mb-4">
 <div className="flex items-center cursor-pointer select-none" style={{ minHeight: 60 }} onClick={() => setLapExpanded((v) => !v)}>
-<i className="fas fa-stopwatch text-blue-500 dark:text-blue-400 mr-2"></i>
+<i className="fas fa-stopwatch text-blue-800 dark:text-blue-200 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.lap.title')}</h3>
 <span className={`ml-3 text-xs font-medium ${lapFilledCount === lapTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {lapFilledCount === lapTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: lapFilledCount, total: lapTotal })}
@@ -1715,14 +1718,14 @@ placeholder={t('setup.form.rearSizePlaceholder')}
 {!lapExpanded ? (
   <div className="flex flex-wrap gap-2" onClick={() => setLapExpanded(true)}>
     <span className={bestLap !== ''
-      ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200 cursor-pointer'
-      : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-400 dark:text-gray-500 cursor-pointer'}
+      ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50 cursor-pointer'
+      : 'rounded-md border-2 border-dashed border-gray-700 dark:border-gray-200 px-2.5 py-1 text-sm text-gray-700 dark:text-gray-200 cursor-pointer'}
     >
       {bestLap !== '' ? `${t('setup.lap.bestLap')} ${bestLap}` : t('setup.lap.bestLap')}
     </span>
     <span className={totalLaps !== ''
-      ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200 cursor-pointer'
-      : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-400 dark:text-gray-500 cursor-pointer'}
+      ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50 cursor-pointer'
+      : 'rounded-md border-2 border-dashed border-gray-700 dark:border-gray-200 px-2.5 py-1 text-sm text-gray-700 dark:text-gray-200 cursor-pointer'}
     >
       {totalLaps !== '' ? `${t('setup.lap.totalLaps')} ${totalLaps}` : t('setup.lap.totalLaps')}
     </span>

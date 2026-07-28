@@ -53,6 +53,29 @@ describe('commitWithoutBlocking', () => {
     );
   });
 
+  it('永続キャッシュが無い環境では queued ではなく unsafe を返す', async () => {
+    const r = await commitWithoutBlocking(neverResolves(), { timeoutMs: 30, durableCache: false });
+    // どこにも貯まっていないので「保存できた」と言ってはいけない
+    expect(r.outcome).toBe('unsafe');
+  });
+
+  it('永続キャッシュがあれば queued を返す', async () => {
+    const r = await commitWithoutBlocking(neverResolves(), { timeoutMs: 30, durableCache: true });
+    expect(r.outcome).toBe('queued');
+  });
+
+  it('unsafe のあとに同期が通っても onLateResult で通知する', async () => {
+    let resolveWrite: () => void = () => {};
+    const write = new Promise<void>((res) => { resolveWrite = res; });
+    const onLateResult = vi.fn();
+
+    const r = await commitWithoutBlocking(write, { timeoutMs: 20, durableCache: false, onLateResult });
+    expect(r.outcome).toBe('unsafe');
+
+    resolveWrite();
+    await vi.waitFor(() => expect(onLateResult).toHaveBeenCalledWith({ outcome: 'synced' }));
+  });
+
   it('未処理の rejection を発生させない', async () => {
     const onUnhandled = vi.fn();
     process.on('unhandledRejection', onUnhandled);

@@ -15,8 +15,15 @@
  * UI はそのまま表示する。
  */
 
-/** 書き込みの帰結。queued = 端末には入ったがサーバー未達 */
-export type WriteOutcome = 'synced' | 'queued' | 'failed';
+/**
+ * 書き込みの帰結。
+ * - synced   : サーバーまで届いた
+ * - queued   : 端末の永続キャッシュに入った。電波復帰後に自動同期される
+ * - unsafe   : サーバーにも永続キャッシュにも入っていない（永続化が使えない環境）。
+ *              アプリを閉じると失われるので、下書きを消してはならない
+ * - failed   : 明確な失敗（権限エラー等）
+ */
+export type WriteOutcome = 'synced' | 'queued' | 'unsafe' | 'failed';
 
 export interface CommitResult {
   outcome: WriteOutcome;
@@ -40,6 +47,11 @@ export async function commitWithoutBlocking(
     timeoutMs?: number;
     /** 猶予を過ぎたあとに決着したときの通知 */
     onLateResult?: (result: CommitResult) => void;
+    /**
+     * 端末側の永続キャッシュが有効か。false のとき、期限切れは 'queued' ではなく
+     * 'unsafe' として返す（貯まっていないものを「保存できた」と言わないため）。
+     */
+    durableCache?: boolean;
   } = {},
 ): Promise<CommitResult> {
   const timeoutMs = options.timeoutMs ?? 1200;
@@ -56,13 +68,14 @@ export async function commitWithoutBlocking(
     },
   );
 
+  const pendingOutcome: WriteOutcome = options.durableCache === false ? 'unsafe' : 'queued';
   const timeout = new Promise<CommitResult>((resolve) => {
-    setTimeout(() => resolve({ outcome: 'queued' }), timeoutMs);
+    setTimeout(() => resolve({ outcome: pendingOutcome }), timeoutMs);
   });
 
   const first = await Promise.race([tracked, timeout]);
 
-  if (first.outcome === 'queued' && !settled) {
+  if ((first.outcome === 'queued' || first.outcome === 'unsafe') && !settled) {
     // 遅れて決着したら呼び出し元へ知らせる。ここで catch しておかないと
     // 未処理の rejection になる
     void tracked.then((late) => options.onLateResult?.(late));

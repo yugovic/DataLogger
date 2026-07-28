@@ -1,6 +1,7 @@
 // ドライビングタブコンポーネント
 import React from 'react';
 import { Input, Collapse } from 'antd';
+import { PIT, PIT_MIN_TARGET } from '../../../lib/pitTheme';
 import { CaretRightOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { KnowledgeNote, DrivingFeedback } from '../../../types/setup';
@@ -48,16 +49,16 @@ const FeedbackSlider: React.FC<{
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{label}</span>
+        <span className={`text-sm font-semibold ${PIT.text}`}>{label}</span>
         {value === null ? (
-          <span className="text-sm text-gray-700 dark:text-gray-200">
+          <span className={`text-sm ${PIT.sub}`}>
             {t('setupTabs.driving.notEvaluated')}
           </span>
         ) : (
           !disabled && (
             <button
               type="button"
-              className="px-2 text-sm font-bold text-blue-800 underline dark:text-blue-300"
+              className={`px-2 text-sm font-bold underline ${PIT.accent}`}
               style={{ minHeight: 44 }}
               onClick={() => onChange(null)}
             >
@@ -66,7 +67,7 @@ const FeedbackSlider: React.FC<{
           )
         )}
       </div>
-      <div className="flex gap-1" role="group" aria-label={label}>
+      <div className="flex flex-wrap gap-1" role="group" aria-label={label}>
         {steps.map((s) => {
           const selected = value === s;
           return (
@@ -78,10 +79,10 @@ const FeedbackSlider: React.FC<{
               onClick={() => onChange(selected ? null : s)}
               className={`flex flex-1 items-center justify-center rounded-lg border-2 px-1 text-xs font-bold leading-tight ${
                 selected
-                  ? 'border-blue-800 bg-blue-800 text-white'
-                  : 'border-gray-500 bg-white text-gray-900 dark:border-gray-400 dark:bg-gray-700 dark:text-gray-50'
-              } ${disabled ? 'opacity-50' : ''}`}
-              style={{ minHeight: 60 }}
+                  ? `border-blue-800 ${PIT.primaryBg} text-white`
+                  : `${PIT.border} ${PIT.surface} ${PIT.text}`
+              } ${disabled ? 'opacity-60' : ''}`}
+              style={{ minHeight: PIT_MIN_TARGET, minWidth: PIT_MIN_TARGET }}
             >
               {marks[s]}
             </button>
@@ -115,7 +116,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* 低速コーナー */}
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('setupTabs.driving.lowSpeedCorner')}</h4>
+          <h4 className={`text-sm font-semibold mb-3 ${PIT.text}`}>{t('setupTabs.driving.lowSpeedCorner')}</h4>
           <div className="space-y-3">
             <FeedbackSlider label={t('setupTabs.driving.entry')} value={feedback.lowSpeedEntry} onChange={(v) => onFeedbackChange('lowSpeedEntry', v)} marks={balanceMarks} disabled={disabled} />
             <FeedbackSlider label={t('setupTabs.driving.middle')} value={feedback.lowSpeedMiddle} onChange={(v) => onFeedbackChange('lowSpeedMiddle', v)} marks={balanceMarks} disabled={disabled} />
@@ -125,7 +126,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
 
         {/* 高速コーナー */}
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('setupTabs.driving.highSpeedCorner')}</h4>
+          <h4 className={`text-sm font-semibold mb-3 ${PIT.text}`}>{t('setupTabs.driving.highSpeedCorner')}</h4>
           <div className="space-y-3">
             <FeedbackSlider label={t('setupTabs.driving.entry')} value={feedback.highSpeedEntry} onChange={(v) => onFeedbackChange('highSpeedEntry', v)} marks={balanceMarks} disabled={disabled} />
             <FeedbackSlider label={t('setupTabs.driving.middle')} value={feedback.highSpeedMiddle} onChange={(v) => onFeedbackChange('highSpeedMiddle', v)} marks={balanceMarks} disabled={disabled} />
@@ -135,7 +136,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
       </div>
 
       {/* 凡例 */}
-      <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+      <div className={`text-sm text-center ${PIT.sub}`}>
         {t('setupTabs.driving.balanceLegend')}
       </div>
 
