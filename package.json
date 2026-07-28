@@ -14,6 +14,9 @@
     "test:mobile": "playwright test tests/mobile-responsive.spec.ts",
     "i18n:pseudo-locale": "playwright test tests/pseudo-locale.spec.ts",
     "test:watch": "vitest",
+    "demo:emulators": "firebase emulators:start --only auth,firestore --project carsetup-884ed",
+    "demo:seed": "node scripts/seed-demo-data.mjs",
+    "demo:dev": "VITE_USE_EMULATOR=1 vite --port 5180 --strictPort",
     "i18n:check-hardcoded": "node scripts/check-hardcoded-japanese.mjs",
     "i18n:check-keys": "vitest run src/i18n/i18n.test.ts src/i18n/i18nIntegrity.test.ts",
     "i18n:check": "npm run i18n:check-hardcoded && npm run i18n:check-keys"
