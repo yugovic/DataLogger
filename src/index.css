@@ -6,12 +6,30 @@
    （pointer:coarse のみ適用し、マウス環境の高密度レイアウトは維持する。
    横幅が足りない場合は StepNumber の flex-wrap で折り返すため重ならない） */
 @media (pointer: coarse) {
+  /* ピット（グローブ着用）で確実に押せる寸法。WCAG の 44px ではまだ小さく、
+     実機計測でも押し損ねが出たため 60px を最低線とする。 */
   .vl-step-btn.ant-btn {
-    min-width: 44px !important;
-    min-height: 44px !important;
+    min-width: 60px !important;
+    min-height: 60px !important;
   }
-  .vl-step-input .ant-input-number-input {
-    min-height: 40px;
+  .vl-step-input .ant-input-number-input,
+  .vl-step-input .ant-input-number {
+    min-height: 60px;
+  }
+  /* 数値・テキスト入力とセレクトも同じ最低線に揃える */
+  .ant-input-number-input,
+  .ant-input,
+  .ant-select-selector,
+  .ant-picker {
+    min-height: 60px !important;
+  }
+  .ant-select-single .ant-select-selector .ant-select-selection-item,
+  .ant-select-single .ant-select-selector .ant-select-selection-placeholder {
+    line-height: 56px !important;
+  }
+  /* タブは指で切り替える主要動線 */
+  .ant-tabs-tab {
+    min-height: 60px !important;
   }
 }
 

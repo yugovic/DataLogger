@@ -45,6 +45,9 @@ import {
 } from './src/lib/setupAdjustments';
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
 import { QuickEntryModal } from './src/components/setup/QuickEntryModal';
+import { carryOverPressures } from './src/lib/quickEntryFlow';
+import { saveDraft, loadDraft, clearDraft, isDraftWorthRestoring } from './src/lib/draftStorage';
+import { fetchWeatherAt, getCurrentPosition, nearestTrack, findTrackByName, trackCenter } from './src/lib/autoWeather';
 import { SessionHighlightModal } from './src/components/setup/SessionHighlightModal';
 import { computeSessionHighlight } from './src/lib/sessionHighlights';
 import type { SessionHighlight } from './src/lib/sessionHighlights';
@@ -140,6 +143,8 @@ useEffect(() => {
     .catch(e => logger.error('Failed to fetch vehicles:', e));
 }, [currentUser]);
 const [isSaving, setIsSaving] = useState(false);
+// 端末には保存できたがサーバーへ未送出（圏外）。バッジで正直に出す
+const [pendingSync, setPendingSync] = useState(false);
 // 連打・保存中の再送信を同期的にブロックするガード（isSaving の setState 反映前でも効く）
 const savingRef = useRef(false);
 const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
@@ -332,8 +337,95 @@ const tireTotal = tireFields.length + 1;
 const lapFields = [bestLap, totalLaps];
 const lapFilledCount = lapFields.filter((v) => v !== '').length;
 const lapTotal = lapFields.length;
+
+// ── 下書きの端末保存と復元 ────────────────────────────────────────
+// ピットは電波が悪く、保存が通らないまま画面を閉じることがある。
+// Firestore のオフラインキューは「保存ボタンを押した後」しか守らないので、
+// 押す前の入力を localStorage に逃がす。復元は必ずユーザーに聞いてから行う
+// （黙って古い値を書き戻さない＝偽データを作らない）。
+const [restorable, setRestorable] = useState<ReturnType<typeof loadDraft>>(null);
+const draftRestoreCheckedRef = useRef(false);
+
+useEffect(() => {
+  if (!currentUser || isViewMode || draftRestoreCheckedRef.current) return;
+  draftRestoreCheckedRef.current = true;
+  const stored = loadDraft(currentUser.uid);
+  if (isDraftWorthRestoring(stored)) setRestorable(stored);
+}, [currentUser, isViewMode]);
+
+// 入力のたびに書き戻す。頻度が高いので少し待ってからまとめて書く
+useEffect(() => {
+  if (!currentUser || isViewMode) return;
+  const timer = window.setTimeout(() => {
+    saveDraft(currentUser.uid, draft, setupId ?? null, new Date());
+  }, 800);
+  return () => window.clearTimeout(timer);
+}, [draft, currentUser, isViewMode, setupId]);
+
+// ── 前回同一条件の温間空気圧（引き継ぎ候補）──────────────────────────
+// 同じサーキット・同じタイヤセットの直近セッションの温間圧を、初期値の候補として渡す。
+// そのまま保存させず、QuickEntry 側で「前回と同じ値を使う」と明示させてから入れる。
+const carriedOverPressures = useMemo(() => {
+  const sameCondition = tireUsageSetups.find(
+    (s) => s.id !== setupId && s.circuit === circuit,
+  );
+  if (!sameCondition) return null;
+  const hot = sameCondition.tireSettings;
+  return carryOverPressures(
+    {
+      circuit: sameCondition.circuit,
+      tireSetId: sameCondition.tireInfo?.tireSetId ?? null,
+      hot: {
+        fl: hot?.fl?.after ?? null,
+        fr: hot?.fr?.after ?? null,
+        rl: hot?.rl?.after ?? null,
+        rr: hot?.rr?.after ?? null,
+      },
+    },
+    { circuit, tireSetId: tireSetId || null },
+  );
+}, [tireUsageSetups, setupId, circuit, tireSetId]);
+
+// ── 環境データの自動取得 ────────────────────────────────────────────
+// 気温・湿度・気圧・天候はドライバーが体感で入れる値ではなく観測値なので、聞かずに取る。
+// 現在地（サーキットに居る前提）が取れればそれを、駄目ならサーキット名から座標を引く。
+// 新規記録で、かつ未入力のときだけ入れる。既にある値は上書きしない（手入力を尊重する）。
+const autoWeatherTriedRef = useRef(false);
+useEffect(() => {
+  if (isViewMode || setupId) return;
+  if (autoWeatherTriedRef.current) return;
+  // 何も未入力でなければ取りに行かない
+  if (airTemp !== '' && humidity !== '' && pressure !== '' && weatherCondition !== '') return;
+  autoWeatherTriedRef.current = true;
+
+  let cancelled = false;
+  (async () => {
+    const here = await getCurrentPosition();
+    // 現在地がサーキット圏内ならそこ、駄目なら選択中のサーキット名から引く
+    const track = (here && nearestTrack(here)) ?? findTrackByName(circuit);
+    const coords = here ?? (track ? trackCenter(track) : null);
+    if (!coords) return;
+
+    const w = await fetchWeatherAt(coords);
+    if (cancelled) return;
+
+    // 取れた項目だけを、未入力の欄にだけ入れる。取れなかったものは null のまま
+    if (w.airTemp != null && airTemp === '') setAirTemp(String(Math.round(w.airTemp * 10) / 10));
+    if (w.humidity != null && humidity === '') setHumidity(String(Math.round(w.humidity)));
+    if (w.pressure != null && pressure === '') setPressure(String(Math.round(w.pressure)));
+    if (w.weather != null && weatherCondition === '') setWeatherCondition(w.weather);
+    // サーキット未入力なら現在地から埋める（打鍵を1つ減らす）
+    if (track && circuit === '') setCircuit(track.name);
+  })();
+
+  return () => { cancelled = true; };
+  // 起動時に一度だけ試す。以後は autoWeatherTriedRef で抑止する
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isViewMode, setupId]);
+// 起動ボタンの活性判定は「基本記録タスク」の未入力だけを見る。
+// 路面温度・湿度・気圧・天候・総周回数が空でも、記録としては成立するので急かさない。
 const quickEntryHasWork =
-  envFilledCount < envTotal || !tirePressureAllMeasured || lapFilledCount < lapTotal;
+  airTemp === '' || !tirePressureAllMeasured || bestLap === '' || drivingFeedback.overallBalance == null;
 
 // draft フィールド用のセッター（value に関数を渡すと functional update）。
 // これらを通すことで、全項目が単一の canonical state に集約される。
@@ -608,17 +700,37 @@ const handleSave = async () => {
     // 新規保存か更新かを判定（新規保存成功後は saved ID の URL へ遷移し、以後は更新経路になる）
     let savedSetupId = setupId;
     const isNew = computeIsNewSave({ setupId, isViewMode });
+    // 保存の帰結。'queued' は端末には入ったがサーバー未達（圏外）で、
+    // ドライバーには「保存できた/まだ送れていない」を区別して伝える。
+    // 後から同期が通ったら onLateWrite で伝え、未同期バッジを解除する。
+    const notifyLate = (_id: string, late: { outcome: string }) => {
+      if (late.outcome === 'synced') {
+        setPendingSync(false);
+        message.success(t('setup.messages.syncedLater'));
+      } else {
+        message.warning(t('setup.messages.syncFailedRetry'), 8);
+      }
+    };
+
     if (!isNew) {
       // 編集モードから保存する場合は更新
-      await updateSetup(setupId!, setupData);
-      message.success(t('setup.messages.setupUpdated'));
-      logger.log('Updated setup with ID:', setupId);
+      const outcome = await updateSetup(setupId!, setupData, notifyLate);
+      setPendingSync(outcome === 'queued');
+      message.success(
+        outcome === 'queued' ? t('setup.messages.savedOffline') : t('setup.messages.setupUpdated'),
+        outcome === 'queued' ? 6 : 3,
+      );
+      logger.log('Updated setup with ID:', setupId, 'outcome:', outcome);
     } else {
       // 新規作成（セットアップ本体はここで1回だけ作成する）
-      const newSetupId = await saveSetup(setupData);
-      savedSetupId = newSetupId;
-      message.success(t('setup.messages.setupSaved'));
-      logger.log('Saved setup with ID:', newSetupId);
+      const saved = await saveSetup(setupData, notifyLate);
+      savedSetupId = saved.id;
+      setPendingSync(saved.outcome === 'queued');
+      message.success(
+        saved.outcome === 'queued' ? t('setup.messages.savedOffline') : t('setup.messages.setupSaved'),
+        saved.outcome === 'queued' ? 6 : 3,
+      );
+      logger.log('Saved setup with ID:', saved.id, 'outcome:', saved.outcome);
     }
 
     // ベストラップ更新チェック＋ハイライト計算（同一サーキットの過去データと比較）
@@ -729,6 +841,8 @@ const handleSave = async () => {
     // これを navigate より前に同期実行することで、保存後の replace 遷移も
     // 離脱ガードにブロックされない（hasUnsavedChanges() が false を返す）。
     resetBaseline(savedDraft);
+    // 保存経路に載せた下書きは破棄する（二重登録の種を残さない）
+    if (currentUser) clearDraft(currentUser.uid);
 
     // 新規保存が成功した後だけ、保存済みレコードの URL へ replace 遷移する。
     // 順序: (1)本体保存 → (2)ベストラップ比較・ハイライト → (3)テレメトリ保存 →
@@ -1020,6 +1134,49 @@ return (
 />
 {/* メインコンテンツ */}
 <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+{/* 未同期バッジ: 端末には保存できたがサーバー未達。状態を隠さず出す */}
+{pendingSync && (
+  <div className="mb-4 flex items-center gap-2 rounded-lg border-2 border-orange-800 bg-orange-50 px-4 py-3 dark:border-orange-300 dark:bg-orange-900/30">
+    <i className="fas fa-cloud-arrow-up text-orange-800 dark:text-orange-300"></i>
+    <span className="text-base font-bold text-orange-800 dark:text-orange-200">
+      {t('setup.messages.pendingSyncBadge')}
+    </span>
+  </div>
+)}
+{/* 下書きの復元確認: 黙って書き戻さず、必ず選ばせる */}
+{restorable && (
+  <div className="mb-4 rounded-lg border-2 border-blue-800 bg-blue-50 p-4 dark:border-blue-300 dark:bg-blue-900/30">
+    <p className="text-base font-bold text-gray-900 dark:text-gray-50">
+      {t('setup.messages.restoreDraftTitle', {
+        at: formatDateTime(new Date(restorable.savedAt), locale),
+      })}
+    </p>
+    <div className="mt-3 flex gap-2">
+      <button
+        type="button"
+        onClick={() => {
+          replaceDraft(restorable.draft);
+          setRestorable(null);
+        }}
+        className="flex-1 rounded-lg bg-blue-800 text-base font-bold text-white"
+        style={{ minHeight: 60 }}
+      >
+        {t('setup.messages.restoreDraftAccept')}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          if (currentUser) clearDraft(currentUser.uid);
+          setRestorable(null);
+        }}
+        className="flex-1 rounded-lg border-2 border-gray-500 bg-white text-base font-bold text-gray-900 dark:border-gray-400 dark:bg-gray-700 dark:text-gray-50"
+        style={{ minHeight: 60 }}
+      >
+        {t('setup.messages.restoreDraftDiscard')}
+      </button>
+    </div>
+  </div>
+)}
 {/* セッション情報バー */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 mb-6">
 {/* フィールドグリッド */}
@@ -1172,11 +1329,12 @@ return (
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div
   className="flex flex-wrap items-center gap-2 mb-4 cursor-pointer select-none"
+  style={{ minHeight: 60 }}
   onClick={() => setEnvExpanded((v) => !v)}
 >
 <i className="fas fa-temperature-high text-blue-500 dark:text-blue-400 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.environment')}</h3>
-<span className={`ml-auto text-xs font-medium ${envFilledCount === envTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+<span className={`ml-auto text-xs font-medium ${envFilledCount === envTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {envFilledCount === envTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: envFilledCount, total: envTotal })}
 </span>
 <i className={`fas fa-chevron-${envExpanded ? 'up' : 'down'} text-gray-400 text-xs`}></i>
@@ -1194,7 +1352,7 @@ return (
         key={labelKey}
         className={value
           ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'
-          : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-400 dark:text-gray-500'}
+          : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'}
       >
         {value ? `${t(labelKey)} ${value}` : t(labelKey)}
       </span>
@@ -1261,11 +1419,12 @@ inputMode="decimal"
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div
   className="flex items-center mb-4 cursor-pointer select-none"
+  style={{ minHeight: 60 }}
   onClick={() => setTireExpanded((v) => !v)}
 >
 <i className="fas fa-tire text-blue-500 dark:text-blue-400 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.form.tireInfo')}</h3>
-<span className={`ml-auto text-xs font-medium ${tireFilledCount === tireTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+<span className={`ml-auto text-xs font-medium ${tireFilledCount === tireTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {tireFilledCount === tireTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: tireFilledCount, total: tireTotal })}
 </span>
 <i className={`fas fa-chevron-${tireExpanded ? 'up' : 'down'} text-gray-400 text-xs ml-2`}></i>
@@ -1281,7 +1440,7 @@ inputMode="decimal"
         key={labelKey}
         className={value
           ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'
-          : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-400 dark:text-gray-500'}
+          : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'}
       >
         {value || t(labelKey)}
       </span>
@@ -1317,7 +1476,7 @@ inputMode="decimal"
     </span>
     <span className={distance !== '' || fuel !== ''
       ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'
-      : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-400 dark:text-gray-500'}
+      : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'}
     >
       {distance !== '' ? `${distance}km` : t('setup.form.distanceKm')} / {fuel !== '' ? `${fuel}L` : t('setup.form.fuelL')}
     </span>
@@ -1488,10 +1647,10 @@ placeholder={t('setup.form.rearSizePlaceholder')}
 {/* ラップタイム */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex items-center justify-between mb-4">
-<div className="flex items-center cursor-pointer select-none" onClick={() => setLapExpanded((v) => !v)}>
+<div className="flex items-center cursor-pointer select-none" style={{ minHeight: 60 }} onClick={() => setLapExpanded((v) => !v)}>
 <i className="fas fa-stopwatch text-blue-500 dark:text-blue-400 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.lap.title')}</h3>
-<span className={`ml-3 text-xs font-medium ${lapFilledCount === lapTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+<span className={`ml-3 text-xs font-medium ${lapFilledCount === lapTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {lapFilledCount === lapTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: lapFilledCount, total: lapTotal })}
 </span>
 <i className={`fas fa-chevron-${lapExpanded ? 'up' : 'down'} text-gray-400 text-xs ml-2`}></i>
@@ -1617,7 +1776,8 @@ placeholder={t('setup.form.rearSizePlaceholder')}
     <button
       type="button"
       onClick={() => setShowQuickEntry(true)}
-      className="w-full max-w-md rounded-lg bg-blue-500 py-3 text-sm font-semibold text-white hover:bg-blue-600"
+      className="w-full max-w-md rounded-lg bg-blue-800 text-lg font-bold text-white hover:bg-blue-900"
+      style={{ minHeight: 64 }}
     >
       ▶ {t('setup.quickEntry.startButton')}
     </button>
@@ -1626,23 +1786,16 @@ placeholder={t('setup.form.rearSizePlaceholder')}
 <QuickEntryModal
   open={showQuickEntry}
   onClose={() => setShowQuickEntry(false)}
-  weather={weatherCondition}
-  setWeather={(v) => setWeatherCondition(v as WeatherType | '')}
   airTemp={airTemp}
   setAirTemp={setAirTemp}
-  trackTemp={trackTemp}
-  setTrackTemp={setTrackTemp}
-  humidity={humidity}
-  setHumidity={setHumidity}
-  pressure={pressure}
-  setPressure={setPressure}
   tirePressures={tirePressures}
   setTirePressures={setTirePressures}
   targetPressures={targetPressures}
   bestLap={bestLap}
   setBestLap={setBestLap}
-  totalLaps={totalLaps}
-  setTotalLaps={setTotalLaps}
+  feeling={drivingFeedback.overallBalance ?? null}
+  setFeeling={(v) => onFeedbackChange('overallBalance', v)}
+  carriedOverPressures={carriedOverPressures}
 />
 {/* 設定タブセクション */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6">
@@ -1758,7 +1911,8 @@ placeholder={t('setup.form.rearSizePlaceholder')}
     <button
       onClick={openDuplicatePreview}
       disabled={isLoadingPrevious}
-      className={`bg-blue-500 text-white px-4 py-3 rounded-full hover:bg-blue-600 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 ${isLoadingPrevious ? 'opacity-50 cursor-not-allowed' : ''}`}
+      style={{ minHeight: 60 }}
+      className={`bg-blue-800 text-white px-5 rounded-full hover:bg-blue-900 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 text-base font-bold ${isLoadingPrevious ? 'opacity-50 cursor-not-allowed' : ''}`}
       title={t('setup.actions.duplicateTooltip')}
     >
       {isLoadingPrevious ? (
@@ -1771,7 +1925,8 @@ placeholder={t('setup.form.rearSizePlaceholder')}
     <button
       onClick={handleSave}
       disabled={isSaving}
-      className={`bg-gray-800 text-white px-4 py-3 rounded-full hover:bg-gray-700 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+      style={{ minHeight: 60 }}
+      className={`bg-gray-900 text-white px-5 rounded-full hover:bg-gray-800 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 text-base font-bold ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
       title={t('setup.actions.save')}
     >
       {isSaving ? (
@@ -1987,7 +2142,7 @@ placeholder={t('setup.form.rearSizePlaceholder')}
                 ) : (
                   <i className="fas fa-minus-circle text-gray-300 dark:text-gray-600 text-xs"></i>
                 )}
-                <span className={item.filled ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'}>
+                <span className={item.filled ? 'text-gray-800 dark:text-gray-200' : 'text-gray-700 dark:text-gray-200'}>
                   {t(item.labelKey)}
                   {!item.filled && <span className="ml-1 text-xs">{t('setup.preview.sourceNotEntered')}</span>}
                 </span>

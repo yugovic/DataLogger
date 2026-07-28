@@ -141,6 +141,7 @@ export const emptyTelemetryRefs = (): SetupTelemetryRefs => ({
 
 /** 全項目未評価（null）の drivingFeedback。デモ初期値は入れない */
 export const emptyDrivingFeedback = (): DrivingFeedback => ({
+  overallBalance: null,
   lowSpeedEntry: null,
   lowSpeedMiddle: null,
   lowSpeedExit: null,

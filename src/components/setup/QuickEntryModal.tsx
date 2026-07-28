@@ -1,15 +1,30 @@
-// 連続入力フロー: 未入力の項目だけを 環境→タイヤ→ラップ の順で
-// 1問1画面のフルスクリーンモーダルで流す（第1弾: 環境データ・タイヤ情報・ラップタイムの3カード）。
+// 連続入力フロー: 基本記録タスク（4輪空気圧・気温・ベストラップ・フィーリング1つ）だけを
+// 1問1画面で流す。路面温度・湿度・気圧・天候・総周回数は既定フローから外し、
+// 必要な人だけがカードを開いて入力する（聞く項目を減らすこと自体が最大の改善）。
 //
-// スキップした項目は null（空文字）のまま保存する。0変換・デモ初期値は禁止（データ品質方針）。
-// 既存の setter（useSetupDraft の setField 経由）にそのまま書き込み、保存経路は無改修。
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+// 気温・天候・湿度・気圧は autoWeather が観測値を入れるため、通常は気温も聞かない。
+// 取得に失敗したときだけ気温を聞く。
+//
+// 画面設計は「グローブ・直射日光・片手親指」から逆算:
+// - 触るものはすべて画面下側（親指到達域）に置く。上部は読むだけ
+// - すべての操作ターゲットは 60px 以上
+// - 文字色は対背景 7:1 以上のみ（gray-400/500 は使わない）
+// - 数値入力は OS キーボードでなく大型テンキー（出現待ちと記号切替を無くす）
+//
+// スキップした項目は null（空文字）のまま保存する。0変換・デモ初期値は禁止。
+import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input, type InputRef } from 'antd';
-import { StepNumber } from '../common/StepNumber';
+import { PitKeypad, PIT_COLORS } from './PitKeypad';
 import { TirePressureScene, type TirePressureSceneHandle } from './TirePressureScene';
-import { buildQuickEntrySteps, type QuickEntryFieldId, type QuickEntryFieldState, type WheelKey } from '../../lib/quickEntryFlow';
-import { WEATHER_CODES } from '../../lib/weather';
+import {
+  buildQuickEntrySteps,
+  type QuickEntryFieldId,
+  type QuickEntryFieldState,
+  type WheelKey,
+} from '../../lib/quickEntryFlow';
+import {
+  appendDigit, backspace, formatLapDigits, isValidLapDigits, lapStringToDigits,
+} from '../../lib/pitKeypadInput';
 
 interface TirePressures {
   fl: { before: string; after: string; diff: string };
@@ -21,232 +36,213 @@ interface TirePressures {
 export interface QuickEntryModalProps {
   open: boolean;
   onClose: () => void;
-  weather: string;
-  setWeather: (v: string) => void;
   airTemp: string;
   setAirTemp: (v: string) => void;
-  trackTemp: string;
-  setTrackTemp: (v: string) => void;
-  humidity: string;
-  setHumidity: (v: string) => void;
-  pressure: string;
-  setPressure: (v: string) => void;
   tirePressures: TirePressures;
   setTirePressures: React.Dispatch<React.SetStateAction<TirePressures>>;
   targetPressures: { front: string; rear: string };
   bestLap: string;
   setBestLap: (v: string) => void;
-  totalLaps: string;
-  setTotalLaps: (v: string) => void;
+  /** 総合バランス（0=強アンダー〜4=強オーバー）。未評価は null */
+  feeling: number | null;
+  setFeeling: (v: number | null) => void;
+  /** 前回同一条件の温間空気圧（引き継ぎ候補） */
+  carriedOverPressures?: Record<WheelKey, number | null> | null;
 }
 
 const isTirePressureFilled = (tp: TirePressures): boolean =>
   (['fl', 'fr', 'rl', 'rr'] as WheelKey[]).every((w) => tp[w].after !== '' || tp[w].before !== '');
 
-/** QuickEntryModal の中身。open のたびに新規マウントし、質問リストと進捗を初期化する */
+/** 総合バランスの5択。数値は DrivingFeedback.overallBalance と同じ 0〜4 */
+const FEELING_OPTIONS: { value: number; labelKey: string }[] = [
+  { value: 0, labelKey: 'quickEntry.feeling.understeerStrong' },
+  { value: 1, labelKey: 'quickEntry.feeling.understeerMild' },
+  { value: 2, labelKey: 'quickEntry.feeling.neutral' },
+  { value: 3, labelKey: 'quickEntry.feeling.oversteerMild' },
+  { value: 4, labelKey: 'quickEntry.feeling.oversteerStrong' },
+];
+
 const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
   const { t } = useTranslation('setup');
   const {
-    onClose, weather, setWeather, airTemp, setAirTemp, trackTemp, setTrackTemp,
-    humidity, setHumidity, pressure, setPressure, tirePressures, setTirePressures,
-    targetPressures, bestLap, setBestLap, totalLaps, setTotalLaps,
+    onClose, airTemp, setAirTemp, tirePressures, setTirePressures,
+    targetPressures, bestLap, setBestLap, feeling, setFeeling, carriedOverPressures,
   } = props;
 
   const initialState: QuickEntryFieldState = useMemo(() => ({
-    weather, airTemp, trackTemp, humidity, pressure,
+    airTemp,
     tirePressureFilled: isTirePressureFilled(tirePressures),
-    bestLap, totalLaps,
+    bestLap,
+    feeling,
+    // 起動時の状態で質問リストを決める（入力中に増減させない）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   const [steps] = useState<QuickEntryFieldId[]>(() => buildQuickEntrySteps(initialState));
   const [index, setIndex] = useState(0);
   const sceneRef = useRef<TirePressureSceneHandle>(null);
-  const inputRef = useRef<InputRef>(null);
+
+  /** テンキーで打っている途中の数字列（気温・ラップで使う） */
+  const [tempDigits, setTempDigits] = useState('');
+  const [lapDigits, setLapDigits] = useState(() => lapStringToDigits(bestLap));
 
   const total = steps.length;
   const current = steps[index];
 
   const goNext = () => {
-    if (index >= total - 1) {
-      onClose();
-    } else {
-      setIndex((i) => i + 1);
-    }
+    if (index >= total - 1) onClose();
+    else setIndex((i) => i + 1);
   };
-
-  useEffect(() => {
-    if (total === 0) onClose();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const el = inputRef.current;
-    if (el && typeof el.focus === 'function') {
-      const timer = window.setTimeout(() => el.focus(), 150);
-      return () => window.clearTimeout(timer);
-    }
-    return undefined;
-  }, [index]);
 
   if (total === 0 || !current) return null;
 
-  const progressPct = ((index + (current === 'tirePressure' ? 0.5 : 0)) / total) * 100;
-
-  const renderChips = (fieldLabel: string, options: { value: string; label: string }[], value: string, onSelect: (v: string) => void) => (
-    <div className="flex flex-1 flex-col justify-center gap-3 px-5">
-      <span className="text-sm text-gray-500 dark:text-gray-400">{fieldLabel}</span>
-      <div className="flex flex-wrap gap-2">
-        {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => {
-              onSelect(o.value);
-              window.setTimeout(goNext, 200);
-            }}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              value === o.value
-                ? 'border-blue-400 bg-blue-50 font-semibold text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
-                : 'border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-      <span className="text-xs text-gray-400 dark:text-gray-500">{t('quickEntry.hintChips')}</span>
+  const stepHeader = (title: string, hint?: string) => (
+    <div className="px-4 pt-2">
+      <div className={`text-center text-lg font-bold ${PIT_COLORS.text}`}>{title}</div>
+      {hint && <div className={`mt-1 text-center text-base font-semibold ${PIT_COLORS.sub}`}>{hint}</div>}
     </div>
   );
 
-  const renderNum = (fieldLabel: string, unit: string, value: string, onChange: (v: string) => void) => {
-    const num = value === '' ? null : parseFloat(value);
-    return (
-      <div className="flex flex-1 flex-col justify-center gap-3 px-5">
-        <span className="text-sm text-gray-500 dark:text-gray-400">{fieldLabel} ({unit})</span>
-        <StepNumber
-          value={Number.isNaN(num as number) ? null : num}
-          onChange={(n) => onChange(n === null ? '' : String(n))}
-          min={-50}
-          max={2000}
-          step={1}
-          largeStep={5}
-          size="large"
-          inputWidth={110}
-          unit={unit}
-        />
-        <span className="text-xs text-gray-400 dark:text-gray-500">{t('quickEntry.hintQuickButtons')}</span>
-      </div>
-    );
-  };
-
-  const renderLapTime = () => (
-    <div className="flex flex-1 flex-col justify-center gap-3 px-5">
-      <span className="text-sm text-gray-500 dark:text-gray-400">{t('quickEntry.fields.bestLap')}</span>
-      <Input
-        ref={inputRef}
-        value={bestLap}
-        onChange={(e) => setBestLap(e.target.value)}
-        placeholder={t('lap.bestLapPlaceholder')}
-        className="text-2xl font-bold"
-        size="large"
-        onPressEnter={goNext}
-      />
+  /** 大きな数値表示（触らない領域） */
+  const bigValue = (text: string, unit: string) => (
+    <div className="mt-3 flex items-baseline justify-center gap-2">
+      <span className={`text-6xl font-black tabular-nums ${text === '' ? PIT_COLORS.sub : PIT_COLORS.text}`}>
+        {text === '' ? '—' : text}
+      </span>
+      <span className={`text-xl font-bold ${PIT_COLORS.sub}`}>{unit}</span>
     </div>
-  );
-
-  const renderTirePressure = () => (
-    <TirePressureScene
-      ref={sceneRef}
-      cold={{ fl: tirePressures.fl.before, fr: tirePressures.fr.before, rl: tirePressures.rl.before, rr: tirePressures.rr.before }}
-      hot={{ fl: tirePressures.fl.after, fr: tirePressures.fr.after, rl: tirePressures.rl.after, rr: tirePressures.rr.after }}
-      targetPressures={targetPressures}
-      onChangeCold={(wheel, raw) => setTirePressures((prev) => ({ ...prev, [wheel]: { ...prev[wheel], before: raw } }))}
-      onChangeHot={(wheel, raw) => setTirePressures((prev) => ({ ...prev, [wheel]: { ...prev[wheel], after: raw } }))}
-    />
   );
 
   let body: React.ReactNode;
+
   switch (current) {
-    case 'weather':
-      body = renderChips(
-        t('quickEntry.fields.weather'),
-        WEATHER_CODES.map((v) => ({ value: v, label: t(`common:weather.${v}`) })),
-        weather,
-        setWeather,
+    case 'airTemp': {
+      // 自動取得に失敗したときだけ現れる。手入力の負担を最小にするためテンキー2タップ想定。
+      const commit = () => {
+        if (tempDigits !== '') setAirTemp(tempDigits);
+        goNext();
+      };
+      body = (
+        <div className="flex flex-1 flex-col">
+          {stepHeader(t('quickEntry.fields.airTemp'), t('quickEntry.autoFailedHint'))}
+          {bigValue(tempDigits, '°C')}
+          <div className="mt-auto">
+            <PitKeypad
+              onDigit={(d) => setTempDigits((p) => appendDigit(p, d, 2))}
+              onBackspace={() => setTempDigits((p) => backspace(p))}
+              onCommit={commit}
+              commitEnabled={tempDigits !== ''}
+              commitLabel={t('quickEntry.next')}
+              onCancel={onClose}
+              cancelLabel={t('quickEntry.cancel')}
+            />
+          </div>
+        </div>
       );
       break;
-    case 'airTemp':
-      body = renderNum(t('quickEntry.fields.airTemp'), '°C', airTemp, setAirTemp);
-      break;
-    case 'trackTemp':
-      body = renderNum(t('quickEntry.fields.trackTemp'), '°C', trackTemp, setTrackTemp);
-      break;
-    case 'humidity':
-      body = renderNum(t('quickEntry.fields.humidity'), '%', humidity, setHumidity);
-      break;
-    case 'pressure':
-      body = renderNum(t('quickEntry.fields.pressure'), 'hPa', pressure, setPressure);
-      break;
+    }
+
     case 'tirePressure':
-      body = renderTirePressure();
+      body = (
+        <TirePressureScene
+          ref={sceneRef}
+          cold={{ fl: tirePressures.fl.before, fr: tirePressures.fr.before, rl: tirePressures.rl.before, rr: tirePressures.rr.before }}
+          hot={{ fl: tirePressures.fl.after, fr: tirePressures.fr.after, rl: tirePressures.rl.after, rr: tirePressures.rr.after }}
+          targetPressures={targetPressures}
+          carriedOver={carriedOverPressures}
+          onChangeCold={(wheel, raw) => setTirePressures((prev) => ({ ...prev, [wheel]: { ...prev[wheel], before: raw } }))}
+          onChangeHot={(wheel, raw) => setTirePressures((prev) => ({ ...prev, [wheel]: { ...prev[wheel], after: raw } }))}
+          onDone={goNext}
+          onCancel={onClose}
+        />
+      );
       break;
-    case 'bestLap':
-      body = renderLapTime();
+
+    case 'bestLap': {
+      const commit = () => {
+        if (isValidLapDigits(lapDigits)) setBestLap(formatLapDigits(lapDigits));
+        goNext();
+      };
+      body = (
+        <div className="flex flex-1 flex-col">
+          {stepHeader(t('quickEntry.fields.bestLap'), t('quickEntry.lapHint'))}
+          <div className="mt-3 text-center">
+            <span className={`text-6xl font-black tabular-nums ${lapDigits === '' ? PIT_COLORS.sub : PIT_COLORS.text}`}>
+              {lapDigits === '' ? '—' : formatLapDigits(lapDigits)}
+            </span>
+          </div>
+          <div className="mt-auto">
+            <PitKeypad
+              onDigit={(d) => setLapDigits((p) => appendDigit(p, d, 7))}
+              onBackspace={() => setLapDigits((p) => backspace(p))}
+              onCommit={commit}
+              commitEnabled={lapDigits === '' || isValidLapDigits(lapDigits)}
+              commitLabel={t('quickEntry.next')}
+              onCancel={onClose}
+              cancelLabel={t('quickEntry.cancel')}
+            />
+          </div>
+        </div>
+      );
       break;
-    case 'totalLaps':
-      body = renderNum(t('quickEntry.fields.totalLaps'), t('lap.totalLaps'), totalLaps, setTotalLaps);
+    }
+
+    case 'feeling':
+      // スライダーを廃した理由: ハンドルが 10x10px しかなく、グローブでは掴めない。
+      // 5択の大型ボタンにして1タップで確定する。
+      body = (
+        <div className="flex flex-1 flex-col">
+          {stepHeader(t('quickEntry.feeling.title'), t('quickEntry.feeling.hint'))}
+          <div className="mt-auto flex flex-col gap-2 px-3 pb-3">
+            {FEELING_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => {
+                  setFeeling(o.value);
+                  goNext();
+                }}
+                className={`flex items-center justify-center rounded-xl border-2 text-lg font-bold ${
+                  feeling === o.value
+                    ? 'border-blue-800 bg-blue-800 text-white'
+                    : `border-gray-500 bg-white ${PIT_COLORS.text} dark:border-gray-400 dark:bg-gray-700`
+                }`}
+                style={{ minHeight: 64 }}
+              >
+                {t(o.labelKey)}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={onClose}
+              className={`flex items-center justify-center rounded-xl border-2 border-gray-500 bg-white text-base font-bold ${PIT_COLORS.text} dark:border-gray-400 dark:bg-gray-700`}
+              style={{ minHeight: 64 }}
+            >
+              {t('quickEntry.cancel')}
+            </button>
+          </div>
+        </div>
+      );
       break;
+
     default:
       body = null;
   }
 
-  const isChipsStep = current === 'weather';
-  const nextLabel = current === 'tirePressure' ? t('quickEntry.tire.nextWheel') : t('quickEntry.next');
-
-  const handleNext = () => {
-    if (current === 'tirePressure') {
-      const done = sceneRef.current?.advance();
-      if (done) goNext();
-      return;
-    }
-    goNext();
-  };
-
-  const handleSkip = () => {
-    goNext();
-  };
+  const progressPct = ((index + 1) / total) * 100;
 
   return (
     <div className="fixed inset-0 z-[1100] flex flex-col bg-gray-50 dark:bg-gray-900">
-      <div className="flex items-center justify-between px-4 pt-3">
-        <span className="text-xs tracking-wide text-gray-400">{t('quickEntry.stepCount', { current: index + 1, total })}</span>
-        <button type="button" onClick={onClose} className="text-sm text-gray-500 dark:text-gray-400">
-          {t('common:close')}
-        </button>
+      {/* 進捗は読むだけ。触る操作は下側に集約している */}
+      <div className="px-4 pt-2">
+        <div className={`text-center text-sm font-bold ${PIT_COLORS.sub}`}>
+          {t('quickEntry.stepCount', { current: index + 1, total })}
+        </div>
+        <div className="mt-1 h-[6px] rounded bg-gray-300 dark:bg-gray-600">
+          <div className="h-full rounded bg-blue-800 transition-[width]" style={{ width: `${progressPct}%` }} />
+        </div>
       </div>
-      <div className="mx-4 mt-2 h-[3px] rounded bg-gray-200 dark:bg-gray-700">
-        <div className="h-full rounded bg-blue-500 transition-[width]" style={{ width: `${Math.max(10, progressPct)}%` }} />
-      </div>
-      <div className="flex flex-1 flex-col overflow-y-auto py-2">{body}</div>
-      <div className="flex gap-2 border-t border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-        {!isChipsStep && (
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="flex-1 rounded-lg border border-gray-300 bg-white py-3 text-sm text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-          >
-            {t('quickEntry.skip')}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={handleNext}
-          className={`${isChipsStep ? 'flex-1' : 'flex-[2]'} rounded-lg bg-blue-500 py-3 text-sm font-semibold text-white`}
-        >
-          {nextLabel} ›
-        </button>
-      </div>
+      <div className="flex flex-1 flex-col overflow-y-auto">{body}</div>
     </div>
   );
 };

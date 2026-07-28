@@ -94,6 +94,7 @@ const pressures = (
 });
 
 const EMPTY_FEEDBACK: DrivingFeedback = {
+  overallBalance: null,
   lowSpeedEntry: null,
   lowSpeedMiddle: null,
   lowSpeedExit: null,

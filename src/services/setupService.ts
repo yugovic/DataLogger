@@ -19,6 +19,7 @@ import { toPublicVehicleProfile } from '../lib/vehicleProfilePublic';
 import { CarSetup, SetupVisibility } from '../types/setup';
 import { carSetupSchema } from '../schemas/setupSchema';
 import logger from '../utils/logger';
+import { commitWithoutBlocking, type CommitResult, type WriteOutcome } from '../lib/offlineCommit';
 import { AppError } from '../i18n/errorMessages';
 import { trackEvent } from '../lib/analytics';
 import { recomputeSharingActive } from './profileService';
@@ -77,7 +78,17 @@ const resolveVehicleProfileSnapshot = async <
 };
 
 // セットアップデータの保存
-export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+/** 保存結果。outcome が 'queued' なら端末には入ったがサーバー未達（圏外） */
+export interface SaveSetupResult {
+  id: string;
+  outcome: WriteOutcome;
+}
+
+export const saveSetup = async (
+  setup: Omit<CarSetup, 'id' | 'createdAt' | 'updatedAt'>,
+  /** 猶予後に同期が決着したときの通知（未同期バッジの解除に使う） */
+  onLateWrite?: (setupId: string, result: CommitResult) => void,
+): Promise<SaveSetupResult> => {
   const setupWithSnapshot = await resolveVehicleProfileSnapshot(setup);
 
   // zodスキーマによる保存前バリデーション
@@ -98,11 +109,17 @@ export const saveSetup = async (setup: Omit<CarSetup, 'id' | 'createdAt' | 'upda
     });
 
     logger.log('Saving setup with userId:', setupWithSnapshot.userId);
-    await setDoc(docRef, setupData);
-    logger.log('Setup saved with ID:', docRef.id);
+    // サーバーACKを待ち切らない。圏外では setDoc の Promise が解決せず、
+    // 待つとUIが無言で固まる（ピットでは致命的）。ローカル反映は即時に行われ、
+    // 電波復帰後に Firestore の mutation queue が自動同期する。
+    const result = await commitWithoutBlocking(setDoc(docRef, setupData), {
+      onLateResult: (late) => onLateWrite?.(docRef.id, late),
+    });
+    if (result.outcome === 'failed') throw result.error;
+    logger.log('Setup saved with ID:', docRef.id, 'outcome:', result.outcome);
     // 保存成功時に計測イベントを発火（個人情報を渡さない）
     trackEvent('setup_saved', { circuit: setupWithSnapshot.circuit, car_model: setupWithSnapshot.carModel });
-    return docRef.id;
+    return { id: docRef.id, outcome: result.outcome };
   } catch (error: any) {
     logger.error('Failed to save setup:', error);
     throw error;
@@ -192,7 +209,11 @@ export const getSetupsByCarModel = async (userId: string, carModel: string): Pro
 };
 
 // セットアップデータの更新
-export const updateSetup = async (setupId: string, updates: Partial<CarSetup>): Promise<void> => {
+export const updateSetup = async (
+  setupId: string,
+  updates: Partial<CarSetup>,
+  onLateWrite?: (setupId: string, result: CommitResult) => void,
+): Promise<WriteOutcome> => {
   // 更新時も部分バリデーション（circuit/carModelが含まれる場合は必須チェック）
   if (updates.circuit !== undefined && !updates.circuit) {
     throw new AppError('setup.circuitRequired');
@@ -212,9 +233,14 @@ export const updateSetup = async (setupId: string, updates: Partial<CarSetup>): 
       } : {})
     });
 
-    await updateDoc(docRef, updateData as any);
+    // saveSetup と同じ理由でサーバーACKを待ち切らない
+    const result = await commitWithoutBlocking(updateDoc(docRef, updateData as any), {
+      onLateResult: (late) => onLateWrite?.(setupId, late),
+    });
+    if (result.outcome === 'failed') throw result.error;
     // 更新成功時に計測イベントを発火
     trackEvent('setup_updated', { circuit: updatesWithSnapshot.circuit, car_model: updatesWithSnapshot.carModel });
+    return result.outcome;
   } catch (error) {
     logger.error('Failed to update setup:', error);
     throw error;
