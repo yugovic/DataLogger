@@ -76,7 +76,7 @@
 | F-025 | アライメント（キャンバー/トー/キャスター） | `src/components/setup/tabs/AlignmentTab.tsx` | ✅ | 同上 | SPEC 2.3 |
 | F-026 | 車両固有調整タブ（ブレーキパッド/ローター/バランス、アエロ、ECU/ブースト） | `src/components/setup/tabs/VehicleAdjustmentsTab.tsx` | ✅ | 同上 | 車両登録時のsetupConfigに応じ表示 |
 | F-027 | 動的セットアップ項目（車両ごとにカスタム定義した調整項目） | `src/components/setup/tabs/DynamicSetupTab.tsx` + `lib/setupAdjustments.ts` | ✅ | セットアップドキュメント `adjustmentValues` | VehicleModal「カスタム調整項目」と対 |
-| F-028 | ドライバーフィードバック（評価・自由記述・ナレッジ） | `src/components/setup/tabs/DrivingTab.tsx` | ✅ | セットアップドキュメント | SPEC 2.4 |
+| F-028 | ドライバーフィードバック（13項目の5段階評価・自由記述・ナレッジ） | `src/components/setup/tabs/DrivingTab.tsx` | ✅ | セットアップドキュメント | SPEC 2.4。2026-07-29にSlider（ハンドル10x10px、グローブ操作不能）を60px以上の段ボタンへ置換。総合バランス `overallBalance` を追加しQuickEntryから1タップで入力可能に |
 | F-029 | ラップタイム簡易入力＋詳細入力モーダル | `CarSetup.tsx` + `src/components/setup/modals/LapTimeModal.tsx` | ✅ | セットアップドキュメント `lapTimeData` | - |
 | F-030 | ラップタイムCSV貼付インポート | `LapTimeModal.tsx`（`activeTab==='csv'`） | ✅ | ローカル解析→draft | - |
 | F-030b | ラップタイムOCR（カメラ読取） | `LapTimeModal.tsx:901-923` | 🚧（表5） | 未実装 | - |
@@ -89,7 +89,12 @@
 | F-037 | 未保存離脱ガード（ページ離脱時の確認） | `src/hooks/useUnsavedChangesGuard.ts` + `App.tsx` のコメント通りdata router必須 | ✅ | - | - |
 | F-038 | テレメトリ保存後の比較候補提示モーダル | `CarSetup.tsx:1881-1919` + `services/telemetryTraceService.ts: getComparableTraceCandidates` | ✅ | `/telemetry/compare` への遷移 | 比較コックピット段階A |
 | F-039 | コピーとして新規作成（`?copy=id`導線） | `CarSetup.tsx` copy useEffect + `lib/setupNavigation.ts` | ✅ | - | - |
-| F-040 | 連続入力フロー（環境データ・タイヤ情報・ラップタイムの3カードを休止状態ではサマリーチップ化し、未入力項目だけを1問1画面で流すQuickEntryModal。タイヤ空気圧は車両俯瞰図上のTirePressureSceneで輪ごとに入力） | `CarSetup.tsx`（サマリー/展開トグル） + `src/components/setup/QuickEntryModal.tsx` + `src/components/setup/TirePressureScene.tsx` + `src/lib/quickEntryFlow.ts` | ✅ | 既存の `useSetupDraft`（`setField`経由）にそのまま書き込み。保存経路は無改修。スキップ項目は`null`のまま | 第1弾（環境・タイヤ・ラップの3カードのみ）。2026-07-22実装 |
+| F-040 | 連続入力フロー（基本記録タスク=4輪空気圧・気温・ベストラップ・フィーリング1つ だけを1問1画面で流すQuickEntryModal。数値入力はOSキーボードでなく大型テンキー、タイヤは車両俯瞰図で輪ごと・自動送り） | `CarSetup.tsx`（サマリー/展開トグル） + `src/components/setup/QuickEntryModal.tsx` + `TirePressureScene.tsx` + `PitKeypad.tsx` + `src/lib/quickEntryFlow.ts` + `src/lib/pitKeypadInput.ts` | ✅ | 既存の `useSetupDraft`（`setField`経由）に書き込み。スキップ項目は`null`のまま | 2026-07-29改修。8ステップ→4ステップに削減（路面温度・湿度・気圧・天候・総周回数を既定フローから除外）。空気圧は常に温間(after)へ書く。実測47→26タップ |
+| F-062 | 環境データの自動取得（現在地→最寄りサーキット判定、座標から気温・湿度・気圧・天候を観測値で取得） | `src/lib/autoWeather.ts` + `CarSetup.tsx`（起動時に一度だけ実行） | ✅ | 取得値を draft の該当フィールドへ入れて通常経路で保存。取れなかった項目は `null` のまま | 2026-07-29実装。Open-Meteo（APIキー不要）。未入力欄にだけ入れ、手入力は上書きしない。自動取得した旨を環境カードに明示。**保存データへの出所記録は未設計**（docs/pit-layer3-variable-fields-options.md 論点3） |
+| F-063 | 前回値の引き継ぎ（同一サーキット・同一タイヤセットの直近温間圧を候補提示） | `src/lib/quickEntryFlow.ts`（`carryOverPressures`） + `TirePressureScene.tsx` | ✅ | 「前回と同じ値を使う」を押して初めて draft に入る（黙って引き継がない） | 2026-07-29実装。引き継ぎ利用時は26→18タップ |
+| F-064 | 通信断での保存完走（サーバーACKを待たずローカル受付で完了扱い、同期状態を正直に表示） | `src/lib/offlineCommit.ts` + `src/services/setupService.ts` + `CarSetup.tsx`（未同期バッジ） | ✅ | Firestore の永続キャッシュ（`persistentLocalCache`）に積み、復帰後に自動同期 | 2026-07-29実装。従来は `await setDoc` がオフラインで解決せず無限スピナーだった。帰結を synced/queued/unsafe で区別し、unsafe（永続化なし環境）では成功と言わない |
+| F-065 | 入力途中の下書き退避と復元（localStorage） | `src/lib/draftStorage.ts` + `CarSetup.tsx`（復元確認バナー） | ✅ | localStorage（ユーザーID別・スキーマ版付き）。保存成功時に破棄、unsafe 時は保持 | 2026-07-29実装。復元は必ずユーザーに確認してから行う（黙って書き戻さない） |
+| F-066 | ピット用配色の強制（直射日光下で対背景7:1以上） | `src/lib/pitTheme.ts` + `src/lib/pitTheme.test.ts` | ✅ | — | 2026-07-29実装。全色ペアのコントラスト比をテストで検証し、7:1未満の色が前景に混入したら落ちる |
 
 ### ヘッダー・共通UI
 
