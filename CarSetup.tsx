@@ -391,6 +391,9 @@ const carriedOverPressures = useMemo(() => {
 // 現在地（サーキットに居る前提）が取れればそれを、駄目ならサーキット名から座標を引く。
 // 新規記録で、かつ未入力のときだけ入れる。既にある値は上書きしない（手入力を尊重する）。
 const autoWeatherTriedRef = useRef(false);
+// 自動取得で埋めた項目。ドライバーが実測値と取り違えないよう画面に出す。
+// 保存データへの出所記録は未設計（docs/pit-layer3-variable-fields-options.md の論点3）
+const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 useEffect(() => {
   if (isViewMode || setupId) return;
   if (autoWeatherTriedRef.current) return;
@@ -410,10 +413,20 @@ useEffect(() => {
     if (cancelled) return;
 
     // 取れた項目だけを、未入力の欄にだけ入れる。取れなかったものは null のまま
-    if (w.airTemp != null && airTemp === '') setAirTemp(String(Math.round(w.airTemp * 10) / 10));
-    if (w.humidity != null && humidity === '') setHumidity(String(Math.round(w.humidity)));
-    if (w.pressure != null && pressure === '') setPressure(String(Math.round(w.pressure)));
-    if (w.weather != null && weatherCondition === '') setWeatherCondition(w.weather);
+    const filled = new Set<string>();
+    if (w.airTemp != null && airTemp === '') {
+      setAirTemp(String(Math.round(w.airTemp * 10) / 10)); filled.add('airTemp');
+    }
+    if (w.humidity != null && humidity === '') {
+      setHumidity(String(Math.round(w.humidity))); filled.add('humidity');
+    }
+    if (w.pressure != null && pressure === '') {
+      setPressure(String(Math.round(w.pressure))); filled.add('pressure');
+    }
+    if (w.weather != null && weatherCondition === '') {
+      setWeatherCondition(w.weather); filled.add('weather');
+    }
+    if (filled.size > 0) setAutoFilledFields(filled);
     // サーキット未入力なら現在地から埋める（打鍵を1つ減らす）
     if (track && circuit === '') setCircuit(track.name);
   })();
@@ -1337,8 +1350,15 @@ return (
 <span className={`ml-auto text-xs font-medium ${envFilledCount === envTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
   {envFilledCount === envTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: envFilledCount, total: envTotal })}
 </span>
-<i className={`fas fa-chevron-${envExpanded ? 'up' : 'down'} text-gray-400 text-xs`}></i>
+<i className={`fas fa-chevron-${envExpanded ? 'up' : 'down'} text-gray-700 dark:text-gray-200 text-xs`}></i>
 </div>
+{/* 自動取得した値であることを明示する。ピット実測と取り違えさせない */}
+{autoFilledFields.size > 0 && (
+  <p className="mb-2 text-sm font-semibold text-blue-800 dark:text-blue-300">
+    <i className="fas fa-cloud-sun mr-1"></i>
+    {t('setup.messages.autoFilledNote')}
+  </p>
+)}
 {!envExpanded ? (
   <div className="flex flex-wrap gap-2" onClick={() => setEnvExpanded(true)}>
     {([

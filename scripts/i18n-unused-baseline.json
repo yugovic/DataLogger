@@ -63,6 +63,7 @@
   "setup.lap.viewDebrief",
   "setup.manualVehicle",
   "setup.manualVehiclePlaceholder",
+  "setup.messages.autoFilledNote",
   "setup.messages.bestLapGap",
   "setup.messages.bestLapUpdated",
   "setup.messages.copied",
