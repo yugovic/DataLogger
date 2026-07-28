@@ -52,14 +52,12 @@
   "setup.form.usageLaps",
   "setup.humidity",
   "setup.lap.bestLap",
-  "setup.lap.bestLapPlaceholder",
   "setup.lap.compareSelfBest",
   "setup.lap.detailedInput",
   "setup.lap.importFromLogger",
   "setup.lap.loggerReadonlyNote",
   "setup.lap.reimportLogger",
   "setup.lap.title",
-  "setup.lap.totalLaps",
   "setup.lap.totalLapsPlaceholder",
   "setup.lap.viewDebrief",
   "setup.manualVehicle",
@@ -119,6 +117,9 @@
   "setup.preview.resetInitTitle",
   "setup.preview.selectAnotherSession",
   "setup.preview.sourceNotEntered",
+  "setup.quickEntry.allFilled",
+  "setup.quickEntry.filledCount",
+  "setup.quickEntry.startButton",
   "setup.saveFailed",
   "setup.selectVehicle",
   "setup.sessionType",
@@ -156,6 +157,5 @@
   "share.missingTitle",
   "share.noRecord",
   "share.noSpecCard",
-  "share.pageTitle",
-  "vehicle.specCard.categoryCount"
+  "share.pageTitle"
 ]
