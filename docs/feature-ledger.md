@@ -97,6 +97,8 @@
 | F-066 | ピット用配色の強制（直射日光下で対背景7:1以上） | `src/lib/pitTheme.ts` + `src/lib/pitTheme.test.ts` | ✅ | — | 2026-07-29実装。全色ペアのコントラスト比をテストで検証し、7:1未満の色が前景に混入したら落ちる |
 | F-067 | 外観モードの切替（ベーシック / 洗練） | `src/contexts/ThemeContext.tsx`（appearance） + `Header.tsx` 設定モーダル | ✅ | localStorage `appearance`。refined 選択時は dark も併せて有効化 | 2026-07-29実装。洗練は near-black＋骨色オフホワイトの計器盤風配色（docs/visual-reference-mezgr.md） |
 | F-068 | タイヤ空気圧の洗練モード入力（リングゲージ＋数値の左右で増減） | `src/components/setup/TirePressureSceneRefined.tsx` + `src/lib/pressureGauge.ts` | ✅ | ベーシックと同じ保存経路（QuickEntryModal が外観設定で実装を選ぶ） | 2026-07-29実装。数値の左右を押して増減、長押しで加速（1秒=5 / 2秒=18 / 3秒=32 kPa）。テンキーも併用可。リング自体はドラッグしない |
+| F-069 | 洗練モードの全画面適用（スキン層） | `src/index.css`（`:root.refined` ブロック） | ✅ | — | 2026-07-29実装。既存画面が使う dark: ユーティリティを洗練の配色へ再マップし、Dashboard/履歴/比較/スペックカードを複製せず全画面に効かせる。`audit/SkinSample.tsx` で配色を実測 |
+| F-070 | 既存画面のコントラスト補正（ベーシックモード） | `src/index.css` | ✅ | — | 2026-07-29実装。履歴・比較・ダッシュボードが 4.06〜6.7:1 しか出ていなかったのを 7:1 以上へ。`.dark .text-gray-400` 等の `!important` 付き旧上書きも修正 |
 
 ### ヘッダー・共通UI
 

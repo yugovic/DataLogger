@@ -103,20 +103,30 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
 
   if (total === 0 || !current) return null;
 
+  // 洗練モードは near-black ＋ 骨色。ベーシックは既存の PIT トークン
+  const refinedMode = appearance === 'refined';
+  const cText = refinedMode ? 'text-[#f6f5e8]' : PIT.text;
+  const cSub = refinedMode ? 'text-[#a8a79b]' : PIT.sub;
+  const cSurface = refinedMode ? 'bg-[#101218]' : PIT.surface;
+  const cBorder = refinedMode ? 'border-[#232733]' : PIT.border;
+  const cSelected = refinedMode
+    ? 'border-[#f6f5e8] bg-[#f6f5e8] text-[#0a0b10]'
+    : `border-blue-800 ${PIT.primaryBg} text-white`;
+
   const stepHeader = (title: string, hint?: string) => (
     <div className="px-4 pt-2">
-      <div className={`text-center text-lg font-bold ${PIT.text}`}>{title}</div>
-      {hint && <div className={`mt-1 text-center text-base font-semibold ${PIT.sub}`}>{hint}</div>}
+      <div className={`text-center text-lg font-bold ${cText}`}>{title}</div>
+      {hint && <div className={`mt-1 text-center text-base font-semibold ${cSub}`}>{hint}</div>}
     </div>
   );
 
   /** 大きな数値表示（触らない領域） */
   const bigValue = (text: string, unit: string) => (
     <div className="mt-3 flex items-baseline justify-center gap-2">
-      <span className={`text-6xl font-black tabular-nums ${text === '' ? PIT.sub : PIT.text}`}>
+      <span className={`text-6xl font-black tabular-nums ${text === '' ? cSub : cText}`}>
         {text === '' ? '—' : text}
       </span>
-      <span className={`text-xl font-bold ${PIT.sub}`}>{unit}</span>
+      <span className={`text-xl font-bold ${cSub}`}>{unit}</span>
     </div>
   );
 
@@ -190,7 +200,7 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
         <div className="flex flex-1 flex-col">
           {stepHeader(t('quickEntry.fields.bestLap'), t('quickEntry.lapHint'))}
           <div className="mt-3 text-center">
-            <span className={`text-6xl font-black tabular-nums ${lapDigits === '' ? PIT.sub : PIT.text}`}>
+            <span className={`text-6xl font-black tabular-nums ${lapDigits === '' ? cSub : cText}`}>
               {lapDigits === '' ? '—' : formatLapDigits(lapDigits)}
             </span>
           </div>
@@ -226,9 +236,7 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
                   goNext();
                 }}
                 className={`flex items-center justify-center rounded-xl border-2 text-lg font-bold ${
-                  feeling === o.value
-                    ? `border-blue-800 ${PIT.primaryBg} text-white`
-                    : `${PIT.border} ${PIT.surface} ${PIT.text}`
+                  feeling === o.value ? cSelected : `${cBorder} ${cSurface} ${cText}`
                 }`}
                 style={{ minHeight: PIT_MIN_TARGET + 4 }}
               >
@@ -238,7 +246,7 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
             <button
               type="button"
               onClick={onClose}
-              className={`flex items-center justify-center rounded-xl border-2 ${PIT.border} ${PIT.surface} text-base font-bold ${PIT.text}`}
+              className={`flex items-center justify-center rounded-xl border-2 ${cBorder} ${cSurface} text-base font-bold ${cText}`}
               style={{ minHeight: PIT_MIN_TARGET + 4 }}
             >
               {t('quickEntry.cancel')}

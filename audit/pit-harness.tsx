@@ -12,6 +12,7 @@ import '../src/i18n';
 import { QuickEntryModal } from '../src/components/setup/QuickEntryModal';
 import { ThemeProvider } from '../src/contexts/ThemeContext';
 import { DrivingTab } from '../src/components/setup/tabs/DrivingTab';
+import { SkinSample } from './SkinSample';
 import type { DrivingFeedback, KnowledgeNote } from '../src/types/setup';
 
 const emptyPressures = () => ({
@@ -30,51 +31,40 @@ const emptyFeedback = (): DrivingFeedback => ({
 
 const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'tire';
+// ThemeProvider がマウント時に localStorage を読んでクラスを付け直すので、
+// URL パラメータは「クラスを直接足す」のではなく localStorage 経由で渡す。
+// （直接 add すると Provider の toggle に打ち消されてダークが測れなかった）
 const dark = params.get('theme') === 'dark';
-if (dark) document.documentElement.classList.add('dark');
-// 洗練モードは ThemeProvider を通さずに直接指定する（計測用）
 const refined = params.get('appearance') === 'refined';
-if (refined) {
-  document.documentElement.classList.add('dark', 'refined');
-  localStorage.setItem('appearance', 'refined');
-} else {
-  localStorage.setItem('appearance', 'basic');
+localStorage.setItem('darkMode', JSON.stringify(dark));
+localStorage.setItem('appearance', refined ? 'refined' : 'basic');
+
+// シーンごとの初期状態。QuickEntryModal は「マウント時の状態」で質問リストを
+// 決めるので、useEffect で後から入れると測りたい画面に辿り着けない。
+// 必ず useState の初期値として渡すこと。
+function presetFor(sc: string) {
+  const tp = emptyPressures();
+  const allWheels = () => (['fl', 'fr', 'rl', 'rr'] as const).forEach((w) => { tp[w].after = '220'; });
+
+  if (sc === 'tire' || sc === 'carry') return { tp, lap: '1:58.423', feel: 2 };
+  if (sc === 'tire-filled') { tp.fl.after = '218'; tp.fr.after = '222'; return { tp, lap: '1:58.423', feel: 2 }; }
+  if (sc === 'lap') { allWheels(); return { tp, lap: '', feel: 2 }; }
+  if (sc === 'feeling') { allWheels(); return { tp, lap: '1:58.423', feel: null as number | null }; }
+  return { tp, lap: '', feel: null as number | null };
 }
 
 function Harness() {
-  const [tirePressures, setTirePressures] = useState(emptyPressures);
-  const [bestLap, setBestLap] = useState(scene === 'lap' ? '' : '1:58.423');
-  const [feeling, setFeeling] = useState<number | null>(null);
+  const preset = React.useMemo(() => presetFor(scene), []);
+  const [tirePressures, setTirePressures] = useState(preset.tp);
+  const [bestLap, setBestLap] = useState(preset.lap);
+  const [feeling, setFeeling] = useState<number | null>(preset.feel);
   const [feedback, setFeedback] = useState<DrivingFeedback>(emptyFeedback);
   const [knowledge, setKnowledge] = useState<KnowledgeNote>({ intention: '', result: '', learning: '' });
   const [notes, setNotes] = useState('');
 
-  // シーンごとに、そのステップが先頭に来るよう入力済み状態を仕込む
-  const preset = React.useMemo(() => {
-    if (scene === 'tire') return { tp: emptyPressures(), lap: '1:58.423', feel: 2 };
-    if (scene === 'tire-filled') {
-      const tp = emptyPressures();
-      tp.fl.after = '218'; tp.fr.after = '222';
-      return { tp, lap: '1:58.423', feel: 2 };
-    }
-    if (scene === 'lap') {
-      const tp = emptyPressures();
-      (['fl', 'fr', 'rl', 'rr'] as const).forEach((w) => { tp[w].after = '220'; });
-      return { tp, lap: '', feel: 2 };
-    }
-    if (scene === 'feeling') {
-      const tp = emptyPressures();
-      (['fl', 'fr', 'rl', 'rr'] as const).forEach((w) => { tp[w].after = '220'; });
-      return { tp, lap: '1:58.423', feel: null };
-    }
-    return { tp: emptyPressures(), lap: '', feel: null };
-  }, []);
-
-  React.useEffect(() => {
-    setTirePressures(preset.tp);
-    setBestLap(preset.lap);
-    setFeeling(preset.feel);
-  }, [preset]);
+  if (scene === 'skin') {
+    return <SkinSample />;
+  }
 
   if (scene === 'driving') {
     return (
