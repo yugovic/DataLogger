@@ -108,6 +108,7 @@ export const resources = {
       shortTrackTemperature: '路温',
       weather: '天候',
       pressure: '気圧',
+      humidity: '湿度',
       pressureHpa: '気圧 (hPa)',
       saveFailed: '保存に失敗しました',
       form: {
@@ -1245,6 +1246,7 @@ export const resources = {
       shortTrackTemperature: 'Track',
       weather: 'Weather',
       pressure: 'Atmospheric pressure',
+      humidity: 'Humidity',
       pressureHpa: 'Atmospheric pressure (hPa)',
       saveFailed: 'Could not save',
       form: {
