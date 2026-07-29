@@ -544,8 +544,11 @@ export const draftToSetupInput = (
     adjustmentValues: recordedAdjustmentValues.length > 0
       ? recordedAdjustmentValues.map((entry) => ({ ...entry }))
       : undefined,
+    // 空の評価に重ねてから渡す。項目を後から増やしたとき、古い draft には
+    // その項目が無く undefined のまま保存に回ってバリデーションで落ちる
+    // （midSpeed* を足したときに実際に起きた）。
     drivingFeedback: hasAnyDrivingFeedback(draft.drivingFeedback)
-      ? draft.drivingFeedback
+      ? { ...emptyDrivingFeedback(), ...draft.drivingFeedback }
       : undefined,
     lapTimeData: {
       bestLap: draft.bestLap || null,

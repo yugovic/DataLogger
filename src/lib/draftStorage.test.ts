@@ -90,6 +90,42 @@ describe('draftStorage', () => {
     expect(Number.isNaN(loaded!.draft.sessionDate.getTime())).toBe(false);
   });
 
+  it('項目を後から増やしても、古い下書きが欠落なく復元される', () => {
+    // midSpeed* を足したあと、それが無い古い下書きを復元すると
+    // undefined のまま保存へ回ってバリデーションで落ちた（実際に発生）
+    const old = createEmptyDraft();
+    const feedback = { ...old.drivingFeedback } as Record<string, unknown>;
+    delete feedback.midSpeedEntry;
+    delete feedback.midSpeedMiddle;
+    delete feedback.midSpeedExit;
+    store.setItem(
+      `velocity-logger:draft:${UID}`,
+      JSON.stringify({
+        version: 1, savedAt: NOW.toISOString(), userId: UID, setupId: null,
+        draft: { ...old, drivingFeedback: feedback, circuit: '鈴鹿' },
+      }),
+    );
+
+    const loaded = loadDraft(UID, store)!;
+    expect(loaded.draft.circuit).toBe('鈴鹿');
+    // 欠けていた項目が null で埋まっている（undefined でない）
+    expect(loaded.draft.drivingFeedback.midSpeedEntry).toBeNull();
+    expect(loaded.draft.drivingFeedback.midSpeedMiddle).toBeNull();
+    expect(loaded.draft.drivingFeedback.midSpeedExit).toBeNull();
+  });
+
+  it('トップレベルの項目が欠けていても既定値で埋まる', () => {
+    const partial = { circuit: '筑波', sessionDate: NOW.toISOString() };
+    store.setItem(
+      `velocity-logger:draft:${UID}`,
+      JSON.stringify({ version: 1, savedAt: NOW.toISOString(), userId: UID, setupId: null, draft: partial }),
+    );
+    const loaded = loadDraft(UID, store)!;
+    expect(loaded.draft.circuit).toBe('筑波');
+    expect(loaded.draft.tirePressures.fl.after).toBe('');
+    expect(loaded.draft.drivingFeedback.lowSpeedEntry).toBeNull();
+  });
+
   it('編集中の setupId を保持する', () => {
     saveDraft(UID, createEmptyDraft(), 'setup-abc', NOW, store);
     expect(loadDraft(UID, store)!.setupId).toBe('setup-abc');

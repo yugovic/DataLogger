@@ -10,7 +10,7 @@
  * - 保存済み（＝Firestore へ送出済み）の下書きは破棄する。二重登録の種にしない。
  */
 
-import type { SetupDraft } from './setupDraft';
+import { createEmptyDraft, type SetupDraft } from './setupDraft';
 
 /** 保存形式のバージョン。SetupDraft の形が変わったら上げて、古い下書きは捨てる */
 const SCHEMA_VERSION = 1;
@@ -30,21 +30,44 @@ export interface StoredDraft {
 const keyFor = (userId: string): string => `${KEY_PREFIX}${userId}`;
 
 /**
- * JSON 化で失われる型を復元する。
- * SetupDraft.sessionDate は Date だが、JSON.stringify では ISO 文字列になる。
- * そのまま返すと画面側の日付処理（formatDate 等）が壊れるため、ここで戻す。
+ * 保存した下書きを、いまの SetupDraft の形へ揃えて返す。
+ *
+ * ここで2つのことをする:
+ * 1. JSON 化で失われた型を戻す（sessionDate は ISO 文字列になっている）
+ * 2. **いまの空 draft に重ねて、後から増えた項目の欠落を埋める**
+ *    項目を増やしたあと古い下書きを復元すると、その項目が undefined のまま
+ *    保存へ回ってバリデーションで落ちる（midSpeed* を足したときに実際に起きた）
  */
 function reviveDraft(draft: SetupDraft): SetupDraft {
+  const base = createEmptyDraft();
   const raw = draft as unknown as { sessionDate?: unknown };
+
+  let sessionDate: Date;
   if (typeof raw.sessionDate === 'string') {
     const d = new Date(raw.sessionDate);
-    return { ...draft, sessionDate: Number.isNaN(d.getTime()) ? new Date() : d };
-  }
-  if (!(draft.sessionDate instanceof Date)) {
+    sessionDate = Number.isNaN(d.getTime()) ? new Date() : d;
+  } else if (draft.sessionDate instanceof Date) {
+    sessionDate = draft.sessionDate;
+  } else {
     // 想定外の型。日付が壊れた下書きで画面を壊さない
-    return { ...draft, sessionDate: new Date() };
+    sessionDate = new Date();
   }
-  return draft;
+
+  const wheels = ['fl', 'fr', 'rl', 'rr'] as const;
+  const tirePressures = { ...base.tirePressures };
+  for (const w of wheels) {
+    tirePressures[w] = { ...base.tirePressures[w], ...(draft.tirePressures?.[w] ?? {}) };
+  }
+
+  return {
+    ...base,
+    ...draft,
+    sessionDate,
+    tirePressures,
+    drivingFeedback: { ...base.drivingFeedback, ...(draft.drivingFeedback ?? {}) },
+    targetPressures: { ...base.targetPressures, ...(draft.targetPressures ?? {}) },
+    knowledge: { ...base.knowledge, ...(draft.knowledge ?? {}) },
+  };
 }
 
 /**
