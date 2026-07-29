@@ -53,3 +53,7 @@ firebase-debug.log
 # ピット実用性オーディットの実測成果物（スクリーンショット・計測JSON）
 audit/shots/
 audit/measurements.json
+
+# best-of-n（bestofn スキル）の作業領域
+.bon/
+.bon-work/
