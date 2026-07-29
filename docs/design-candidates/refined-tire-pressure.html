@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VELOCITY LOGGER — INSTRUMENT 案</title>
+<style>
+  :root{
+    --bg: #06070a;          /* near-black, 青紫寄り */
+    --bone: #f6f5e8;        /* 骨色オフホワイト（署名色） */
+    --muted: #a8a79b;       /* 減光ラベル 8.3:1 on bg */
+    --card: #101218;        /* カード地 */
+    --key: #14171f;         /* キー地 */
+    --line: #232733;        /* 極細ボーダー */
+    --line-soft: #2f3442;
+    --ok: #8fe0a4;          /* レンジ内（意味を持つ緑ティント） */
+    --ink: #0a0b10;         /* CTA上の暗色文字 */
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    background:#14151a;
+    display:flex; align-items:center; justify-content:center;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+                 "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+    color: var(--bone);
+  }
+  .phone{
+    width:390px; height:844px; flex:none;
+    background:var(--bg);
+    border:1px solid #262a35; border-radius:24px;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+
+  /* ===== 上部: 読むだけの領域 (y 0–280) ===== */
+  .readzone{
+    height:280px; flex:none;
+    padding:14px 16px 0;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .progress-row{
+    width:100%;
+    display:flex; align-items:center; justify-content:space-between;
+    height:18px;
+  }
+  .progress-label{
+    font-size:12px; letter-spacing:.08em; color:var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .progress-bars{ display:flex; gap:5px; }
+  .progress-bars i{
+    display:block; width:22px; height:3px; border-radius:2px;
+    background:var(--line);
+  }
+  .progress-bars i.on{ background:var(--bone); }
+
+  h1{
+    margin-top:6px;
+    font-size:17px; font-weight:600; letter-spacing:.02em;
+    color:var(--bone);
+  }
+  h1 .pos{ font-weight:800; letter-spacing:.05em; }
+
+  /* リングゲージ */
+  .gauge-wrap{ position:relative; margin-top:2px; width:204px; height:176px; }
+  .gauge-wrap{ overflow:visible; }
+  .gauge-wrap svg{ display:block; width:204px; height:176px; }
+  .gauge-center{
+    position:absolute; left:50%; top:102px; transform:translate(-50%,-50%);
+    text-align:center; pointer-events:none;
+  }
+  .big-value{
+    font-size:74px; font-weight:700; line-height:1;
+    letter-spacing:-0.02em;
+    color:var(--bone);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 24px rgba(246,245,232,.14);
+  }
+  .big-unit{
+    margin-top:2px;
+    font-size:13px; letter-spacing:.14em; color:var(--muted);
+  }
+
+  /* 数値の左右の増減領域。グローブ前提で 64x92 を確保する */
+  .vstep{
+    position:absolute; top:56px; height:92px; width:64px;
+    border:0; background:transparent; padding:0; margin:0;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; -webkit-tap-highlight-color:transparent;
+    touch-action:none;               /* 長押し中のスクロールを止める */
+    border-radius:14px;
+  }
+  .vstep-minus{ left:-26px; }
+  .vstep-plus { right:-26px; }
+  .vstep:active{ background:rgba(246,245,232,.10); }
+  .vstep:focus-visible{ outline:3px solid var(--bone); outline-offset:2px; }
+  .vstep-glyph{
+    font-size:26px; font-weight:700; line-height:1;
+    color:var(--muted);              /* #a8a79b / 地 = 7.7:1 */
+  }
+  .vstep:active .vstep-glyph{ color:var(--bone); }
+
+  .out-range{ color:#f0b37a; font-weight:700; }   /* 対 #06070a = 10.6:1 */
+  .muted-state{ color:var(--muted); font-weight:700; }
+  .target-line{
+    margin-top:-12px;
+    font-size:13px; color:var(--muted);
+    letter-spacing:.02em;
+    font-variant-numeric: tabular-nums;
+    display:flex; align-items:center; gap:6px;
+  }
+  .target-line .in-range{ color:var(--ok); font-weight:600; }
+  .target-line .dot-sep{ color:var(--muted); }
+
+  /* ===== 下部: 触る領域 (y≥281) ===== */
+  .touchzone{
+    flex:1;
+    padding:6px 16px 18px;
+    display:flex; flex-direction:column;
+  }
+
+  /* 4輪ノード（車体シルエット + タップターゲット） */
+  .wheels{
+    flex:none;
+    display:grid;
+    grid-template-columns: 1fr 84px 1fr;
+    grid-template-rows: 60px 60px;
+    gap:8px;
+  }
+  .car-silhouette{
+    grid-column:2; grid-row:1 / span 2;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .wheel{
+    border:1px solid var(--line);
+    background:var(--card);
+    border-radius:16px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px;
+    cursor:pointer;
+    min-height:60px; min-width:60px;
+  }
+  .wheel .w-label{
+    font-size:11px; font-weight:700; letter-spacing:.14em;
+    color:var(--muted);
+  }
+  .wheel .w-value{
+    font-size:20px; font-weight:700; line-height:1;
+    font-variant-numeric: tabular-nums;
+    color:var(--muted);
+  }
+  .wheel.filled .w-value{ color:var(--ok); }
+  .wheel.selected{
+    border-color:var(--bone);
+    box-shadow: 0 0 0 1px var(--bone), 0 0 18px rgba(143,224,164,.22);
+  }
+  .wheel.selected .w-label{ color:var(--bone); }
+  .wheel:active{ transform:scale(.97); }
+
+  @keyframes nodepulse{
+    0%,100%{ opacity:1; }
+    50%{ opacity:.45; }
+  }
+  .node-fl{ animation: nodepulse 1.6s ease-in-out infinite; }
+
+  /* テンキー */
+  .keypad{
+    flex:1;
+    margin-top:10px;
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap:8px;
+  }
+  .key{
+    border:1px solid var(--line);
+    background:var(--key);
+    border-radius:18px;
+    color:var(--bone);
+    font-size:27px; font-weight:600;
+    font-variant-numeric: tabular-nums;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    min-height:60px; min-width:60px;
+    user-select:none;
+  }
+  .key:active{ background:#1d212c; transform:scale(.97); }
+  .key.ghost{ visibility:hidden; }
+  .key.backspace{ font-size:24px; }
+
+  /* 最下段 */
+  .actions{
+    flex:none;
+    margin-top:10px;
+    display:flex; gap:10px;
+    height:64px;
+  }
+  .btn{
+    border-radius:32px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:600;
+    cursor:pointer;
+    min-height:60px; min-width:60px;
+    letter-spacing:.02em;
+  }
+  .btn-abort{
+    flex:1;
+    background:transparent;
+    border:1px solid var(--line-soft);
+    color:var(--bone);
+  }
+  .btn-abort:active{ background:#141721; }
+  .btn-confirm{
+    flex:2;
+    background:var(--bone);
+    border:none;
+    color:var(--ink);
+    font-weight:700;
+  }
+  .btn-confirm:active{ background:#e2e1d3; transform:scale(.99); }
+</style>
+</head>
+<body>
+  <div class="phone">
+
+    <!-- ===== 読む領域 (y 0–280) ===== -->
+    <div class="readzone">
+      <div class="progress-row">
+        <span class="progress-label">1 / 3</span>
+        <span class="progress-bars"><i class="on"></i><i></i><i></i></span>
+      </div>
+
+      <h1 id="heading"><span class="pos">FL</span> の温間(走行後)空気圧</h1>
+
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 200 172" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- トラック: 180–260 kPa を 270° に割り当て -->
+          <path d="M 39.19 160.81 A 86 86 0 1 1 160.81 160.81"
+                fill="none" stroke="#1a1d26" stroke-width="10" stroke-linecap="round"/>
+          <!-- 目盛 (180 / 200 / 220 / 240 / 260) -->
+          <g stroke="#3a3f4d" stroke-width="2" stroke-linecap="round">
+            <line x1="43.43" y1="156.57" x2="34.95" y2="165.05"/>
+            <line x1="26.09" y1="69.38"  x2="15.00" y2="64.79"/>
+            <line x1="100"   y1="20"     x2="100"   y2="8"/>
+            <line x1="173.91" y1="69.38" x2="185.00" y2="64.79"/>
+            <line x1="156.57" y1="156.57" x2="165.05" y2="165.05"/>
+          </g>
+          <!-- 目標レンジ帯 215–225 kPa -->
+          <path d="M 75.03 17.71 A 86 86 0 0 1 124.97 17.71"
+                fill="none" stroke="#8fe0a4" stroke-width="10" stroke-linecap="round"
+                opacity="0.95"/>
+          <!-- 現在値ニードル。中心(100,100)まわりに回転させて値を示す -->
+          <g id="needle" transform="rotate(0 100 100)">
+            <line x1="100" y1="38" x2="100" y2="6"
+                  stroke="#f6f5e8" stroke-width="4" stroke-linecap="round"/>
+            <line x1="100" y1="38" x2="100" y2="6"
+                  stroke="#f6f5e8" stroke-width="10" stroke-linecap="round" opacity="0.18"/>
+          </g>
+        </svg>
+        <div class="gauge-center">
+          <div class="big-value" id="bigValue">218</div>
+          <div class="big-unit">kPa</div>
+        </div>
+
+        <!-- 数値の左右を押して増減する。押しっぱなしで加速する。
+             別ボタンを置かずに済むぶん縦を節約でき、視線も数値から動かない -->
+        <button type="button" class="vstep vstep-minus" id="stepMinus" aria-label="1 kPa 減らす"
+                data-reach-exempt="テンキーが到達域内にあり入力は完結する。±は早く直すための補助手段">
+          <span class="vstep-glyph">−</span>
+        </button>
+        <button type="button" class="vstep vstep-plus" id="stepPlus" aria-label="1 kPa 増やす"
+                data-reach-exempt="テンキーが到達域内にあり入力は完結する。±は早く直すための補助手段">
+          <span class="vstep-glyph">+</span>
+        </button>
+      </div>
+
+      <div class="target-line">
+        <span>目標 215–225 kPa</span><span class="dot-sep">·</span><span class="in-range" id="statusState">レンジ内</span>
+      </div>
+    </div>
+
+    <!-- ===== 触る領域 (y≥281) ===== -->
+    <div class="touchzone">
+
+      <!-- 4輪ノード -->
+      <div class="wheels">
+        <button class="wheel selected filled" data-wheel="FL" style="grid-column:1;grid-row:1;" aria-pressed="true">
+          <span class="w-label">FL</span>
+          <span class="w-value" style="color:var(--ok);">218</span>
+        </button>
+
+        <div class="car-silhouette">
+          <svg width="72" height="122" viewBox="0 0 72 122" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- 車体（上面視） -->
+            <path d="M36 4 C50 4 56 13 57 26 L59 48 L59 92 C59 108 50 116 36 116 C22 116 13 108 13 92 L13 48 L15 26 C16 13 22 4 36 4 Z"
+                  fill="#0c0e14" stroke="#2f3442" stroke-width="1.5"/>
+            <!-- コックピット -->
+            <path d="M36 34 C44 34 47 40 47 48 L47 66 C47 74 43 78 36 78 C29 78 25 74 25 66 L25 48 C25 40 28 34 36 34 Z"
+                  fill="none" stroke="#232733" stroke-width="1.5"/>
+            <!-- 発光ノード: FL(選択中)/FR(入力済)=緑, RL/RR=消灯 -->
+            <circle class="node-fl" cx="13" cy="30" r="6" fill="#8fe0a4"/>
+            <circle class="node-fl" cx="13" cy="30" r="11" fill="#8fe0a4" opacity="0.18"/>
+            <circle cx="59" cy="30" r="5" fill="#8fe0a4"/>
+            <circle cx="59" cy="30" r="9" fill="#8fe0a4" opacity="0.14"/>
+            <circle cx="13" cy="94" r="5" fill="none" stroke="#3a3f4d" stroke-width="1.5"/>
+            <circle cx="59" cy="94" r="5" fill="none" stroke="#3a3f4d" stroke-width="1.5"/>
+          </svg>
+        </div>
+
+        <button class="wheel filled" data-wheel="FR" style="grid-column:3;grid-row:1;">
+          <span class="w-label">FR</span>
+          <span class="w-value">222</span>
+        </button>
+
+        <button class="wheel" data-wheel="RL" style="grid-column:1;grid-row:2;">
+          <span class="w-label">RL</span>
+          <span class="w-value">—</span>
+        </button>
+
+        <button class="wheel" data-wheel="RR" style="grid-column:3;grid-row:2;">
+          <span class="w-label">RR</span>
+          <span class="w-value">—</span>
+        </button>
+      </div>
+
+      <!-- テンキー -->
+      <div class="keypad">
+        <button class="key" data-digit="1">1</button>
+        <button class="key" data-digit="2">2</button>
+        <button class="key" data-digit="3">3</button>
+        <button class="key" data-digit="4">4</button>
+        <button class="key" data-digit="5">5</button>
+        <button class="key" data-digit="6">6</button>
+        <button class="key" data-digit="7">7</button>
+        <button class="key" data-digit="8">8</button>
+        <button class="key" data-digit="9">9</button>
+        <button class="key ghost" tabindex="-1" aria-hidden="true"></button>
+        <button class="key" data-digit="0">0</button>
+        <button class="key backspace" id="backspace" aria-label="1文字消す">⌫</button>
+      </div>
+
+      <!-- 最下段 -->
+      <div class="actions">
+        <button class="btn btn-abort">中断</button>
+        <button class="btn btn-confirm" id="confirmBtn">FL を確定</button>
+      </div>
+
+    </div>
+  </div>
+
+<!-- CONTRAST: 各文字色/背景の比率（WCAG相対輝度で算出、全て 7:1 以上）
+  #f6f5e8 (骨色本文/大数値/見出し/中断/キー数字) on #06070a (地)        = 18.4:1
+  #f6f5e8 (キー数字)                            on #14171f (キー地)     = 16.3:1
+  #f6f5e8 (選択中ホイールのラベル)               on #101218 (カード地)   = 15.8:1
+  #a8a79b (進捗 1/3・kPa・目標値・未入力 —)      on #06070a (地)        =  8.3:1
+  #a8a79b (ホイールラベル FL/FR/RL/RR・—)        on #101218 (カード地)   =  7.7:1
+  #8fe0a4 (レンジ内・入力済ホイール値 218/222)    on #06070a (地)        = 12.8:1
+  #8fe0a4 (同上)                                on #101218 (カード地)   = 11.9:1
+  #0a0b10 (「FL を確定」の文字)                  on #f6f5e8 (CTA地)     = 17.9:1
+  最小は 7.7:1 (#a8a79b on #101218) で 7:1 をクリア。
+  ※発光表現（緑ノード・ニードル）は非テキストのSVGグラフィック。テキストは全て上記の組み合わせのみ。
+-->
+
+<script>
+(function(){
+  'use strict';
+  // ── 表示範囲。リングは 180–260 kPa を 270° に割り当てている ──
+  var GAUGE_MIN = 180, GAUGE_MAX = 260;
+  // 保存してよい実在範囲。打ち間違いをそのまま残さない
+  var VAL_MIN = 50, VAL_MAX = 400;
+  var TARGET_LO = 215, TARGET_HI = 225, TARGET_MID = 220;
+
+  var state = {
+    order: ['FL','FR','RL','RR'],
+    selected: 'FL',
+    wheels: { FL: 218, FR: 222, RL: null, RR: null },
+    // テンキーで打っている途中の数字列。輪を変えるたびに捨てる
+    digits: ''
+  };
+
+  var needle     = document.getElementById('needle');
+  var bigValue   = document.getElementById('bigValue');
+  var heading    = document.getElementById('heading');
+  var statusState= document.getElementById('statusState');
+  var confirmBtn = document.getElementById('confirmBtn');
+  var wheels     = [].slice.call(document.querySelectorAll('.wheel'));
+
+  /** いま確定しようとしている値。打鍵中はその数字列を優先する */
+  function pending(){
+    if (state.digits !== '') {
+      var n = parseInt(state.digits, 10);
+      return isFinite(n) ? n : null;
+    }
+    return state.wheels[state.selected];
+  }
+
+  function clamp(v){ return Math.max(VAL_MIN, Math.min(VAL_MAX, v)); }
+
+  function render(){
+    var v = pending();
+    var sel = state.selected;
+
+    bigValue.textContent = (v === null) ? '—' : String(v);
+    heading.innerHTML = '<span class="pos">' + sel + '</span> の温間(走行後)空気圧';
+    confirmBtn.textContent = sel + ' を確定';
+
+    // ニードル: 表示範囲外は端で止める（針が一周しない）
+    if (v === null) {
+      needle.style.opacity = '0.25';
+      needle.setAttribute('transform', 'rotate(0 100 100)');
+    } else {
+      needle.style.opacity = '1';
+      var shown = Math.max(GAUGE_MIN, Math.min(GAUGE_MAX, v));
+      var deg = -135 + (shown - GAUGE_MIN) / (GAUGE_MAX - GAUGE_MIN) * 270;
+      needle.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 100 100)');
+    }
+
+    // レンジ判定
+    if (v === null) {
+      statusState.textContent = '未入力';
+      statusState.className = 'muted-state';
+    } else if (v >= TARGET_LO && v <= TARGET_HI) {
+      statusState.textContent = 'レンジ内';
+      statusState.className = 'in-range';
+    } else {
+      statusState.textContent = 'レンジ外';
+      statusState.className = 'out-range';
+    }
+
+    // 4輪タイル
+    wheels.forEach(function(w){
+      var key = w.getAttribute('data-wheel');
+      var wv = (key === sel) ? v : state.wheels[key];
+      w.querySelector('.w-value').textContent = (wv === null) ? '—' : String(wv);
+      w.classList.toggle('filled', wv !== null);
+      w.classList.toggle('selected', key === sel);
+    });
+
+    confirmBtn.disabled = (v === null);
+    confirmBtn.style.opacity = (v === null) ? '0.45' : '1';
+  }
+
+  /** 増減。未入力なら目標中央から始める（触るまでは値を作らない） */
+  function nudge(delta){
+    var v = pending();
+    if (v === null) {
+      state.digits = '';
+      state.wheels[state.selected] = TARGET_MID;
+    } else {
+      state.digits = '';
+      state.wheels[state.selected] = clamp(v + delta);
+    }
+    render();
+  }
+
+  // ── 長押しで加速する増減 ────────────────────────────────
+  // ネストした setTimeout で間隔を縮める方式は、刻みの更新を取りこぼすと
+  // 等速のまま気づけない（実測で3秒に+7しか進まなかった）。
+  // ここでは「押し始めからの経過時間」から “いくつ進んでいるべきか” を
+  // 逐次計算し、差分だけ適用する。取りこぼしが原理的に起きない。
+  // 速度は「実際にやる補正量」から決める。タイヤ空気圧の手直しは
+  // ふつう ±数 kPa、大きくても ±30 kPa 程度で、200 kPa 動かす場面は無い。
+  // 3秒押し続けて 30 kPa 前後に届く速さを上限とする
+  // （最初の実装は 2 秒で +174 kPa 動いてしまい、使い物にならなかった）。
+  var HOLD_DELAY = 380;   // これ以前は単発タップ扱い
+  var SLOW_MS    = 130;   // 押し始めの刻み（約 7.7 歩/秒）
+  var FAST_AT    = 1200;  // これ以降は速い刻みへ
+  var FAST_MS    = 70;    // 約 14 歩/秒
+
+  /** 押し始めから elapsed ms 時点で、初回の1歩を除いて何歩進んでいるべきか */
+  function stepsAt(elapsed){
+    if (elapsed < HOLD_DELAY) return 0;
+    if (elapsed < FAST_AT) return Math.floor((elapsed - HOLD_DELAY) / SLOW_MS);
+    var slow = Math.floor((FAST_AT - HOLD_DELAY) / SLOW_MS);
+    return slow + Math.floor((elapsed - FAST_AT) / FAST_MS);
+  }
+
+  function attachHold(el, dir){
+    var timer = null, t0 = 0, applied = 0;
+
+    function loop(){
+      var want = stepsAt(performance.now() - t0);
+      if (want > applied) { nudge(dir * (want - applied)); applied = want; }
+    }
+    function start(e){
+      if (timer) return;
+      e.preventDefault();
+      t0 = performance.now();
+      applied = 0;
+      nudge(dir);                        // 単発タップぶんを即座に反映
+      timer = window.setInterval(loop, 40);
+      if (el.setPointerCapture && e.pointerId !== undefined) {
+        try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+    }
+    function stop(){
+      if (timer) { window.clearInterval(timer); timer = null; }
+    }
+
+    el.addEventListener('pointerdown', start);
+    el.addEventListener('pointerup', stop);
+    el.addEventListener('pointercancel', stop);
+    el.addEventListener('pointerleave', stop);
+    window.addEventListener('blur', stop);
+    // キーボード（Enter/Space）でも1段ぶん動かせる
+    el.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nudge(dir); }
+    });
+  }
+  attachHold(document.getElementById('stepMinus'), -1);
+  attachHold(document.getElementById('stepPlus'),  +1);
+
+  // ── テンキー ────────────────────────────────────────
+  [].slice.call(document.querySelectorAll('.key[data-digit]')).forEach(function(k){
+    k.addEventListener('click', function(){
+      var d = k.getAttribute('data-digit');
+      if (state.digits === '' && d === '0') return;   // 先頭の0は詰めない
+      if (state.digits.length >= 3) return;
+      state.digits += d;
+      var n = parseInt(state.digits, 10);
+      if (state.digits.length === 3) {
+        // 3桁そろったら確定値として扱う。範囲外は打ち間違いなので受けない
+        if (n < VAL_MIN || n > VAL_MAX) { state.digits = state.digits.slice(0, -1); return; }
+        state.wheels[state.selected] = n;
+        state.digits = '';
+      }
+      render();
+    });
+  });
+  document.getElementById('backspace').addEventListener('click', function(){
+    if (state.digits !== '') state.digits = state.digits.slice(0, -1);
+    else state.wheels[state.selected] = null;          // 確定値を消す
+    render();
+  });
+
+  // ── 輪の切り替え（訂正の動線）────────────────────────
+  wheels.forEach(function(w){
+    w.addEventListener('click', function(){
+      state.selected = w.getAttribute('data-wheel');
+      state.digits = '';
+      render();
+    });
+  });
+
+  // ── 確定: 次の輪へ。未入力のままでは進めない ──────────
+  confirmBtn.addEventListener('click', function(){
+    if (pending() === null) return;
+    state.digits = '';
+    var i = state.order.indexOf(state.selected);
+    state.selected = state.order[(i + 1) % state.order.length];
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

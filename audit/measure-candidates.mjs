@@ -57,6 +57,9 @@ const MEASURE = ({ MIN_TARGET, MIN_CONTRAST, THUMB_Y }) => {
       return {
         label: (e.innerText || e.getAttribute('aria-label') || e.tagName).trim().slice(0, 22).replace(/\s+/g, ' '),
         w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top),
+        // 親指到達域の例外。属性で理由を宣言したものだけ除外する。
+        // 判定を黙って緩めず、除外したことと理由を必ず出力に残す。
+        reachExempt: e.getAttribute('data-reach-exempt'),
       };
     });
 
@@ -82,7 +85,8 @@ const MEASURE = ({ MIN_TARGET, MIN_CONTRAST, THUMB_Y }) => {
     scrollH: document.documentElement.scrollHeight,
     targetCount: targets.length,
     under60: targets.filter((t) => t.w < MIN_TARGET || t.h < MIN_TARGET),
-    outOfReach: targets.filter((t) => t.top < THUMB_Y),
+    outOfReach: targets.filter((t) => t.top < THUMB_Y && !t.reachExempt),
+    reachExempted: targets.filter((t) => t.top < THUMB_Y && t.reachExempt),
     minW: targets.length ? Math.min(...targets.map((t) => t.w)) : 0,
     minH: targets.length ? Math.min(...targets.map((t) => t.h)) : 0,
     textCount: texts.length,
@@ -91,8 +95,9 @@ const MEASURE = ({ MIN_TARGET, MIN_CONTRAST, THUMB_Y }) => {
   };
 };
 
-const files = readdirSync(DIR).filter((f) => /^c\d+\.html$/.test(f)).sort();
-if (!files.length) { console.log(`${DIR} に候補 (cN.html) がありません`); process.exit(1); }
+// best-of-n の候補 (cN.html) でも、採用後の単体HTMLでも測れるようにする
+const files = readdirSync(DIR).filter((f) => f.endsWith('.html')).sort();
+if (!files.length) { console.log(`${DIR} に .html がありません`); process.exit(1); }
 
 const browser = await chromium.launch();
 let anyFail = false;
@@ -132,6 +137,8 @@ for (const file of files) {
   );
   for (const t of r.under60) console.log(`     小さい: ${t.label} ${t.w}x${t.h}`);
   for (const t of r.outOfReach) console.log(`     届かない: ${t.label} top=${t.top}`);
+  // 例外は合格扱いだが、見えなくならないよう毎回出す
+  for (const t of r.reachExempted) console.log(`     到達域外(申告済み): ${t.label} top=${t.top} — ${t.reachExempt}`);
   for (const t of r.contrastUnder7) console.log(`     薄い: "${t.text}" ${t.fontSize} ${t.color} ${t.ratio}:1`);
   for (const u of failedRequests.slice(0, 3)) console.log(`     ${u}`);
 }
