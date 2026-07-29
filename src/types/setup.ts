@@ -146,6 +146,10 @@ export interface DrivingFeedback {
   lowSpeedEntry: Maybe<number>;
   lowSpeedMiddle: Maybe<number>;
   lowSpeedExit: Maybe<number>;
+  /** 中速コーナー。低速/高速だけでは「どこで出るか」を言い分けられないため設けた */
+  midSpeedEntry: Maybe<number>;
+  midSpeedMiddle: Maybe<number>;
+  midSpeedExit: Maybe<number>;
   highSpeedEntry: Maybe<number>;
   highSpeedMiddle: Maybe<number>;
   highSpeedExit: Maybe<number>;

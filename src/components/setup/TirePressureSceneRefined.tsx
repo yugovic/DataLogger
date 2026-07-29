@@ -19,7 +19,9 @@ import {
 import { WHEEL_ORDER, nextEmptyWheel, firstEmptyWheel, type WheelKey } from '../../lib/quickEntryFlow';
 
 interface Props {
+  cold: Record<WheelKey, string>;
   hot: Record<WheelKey, string>;
+  onChangeCold: (wheel: WheelKey, raw: string) => void;
   onChangeHot: (wheel: WheelKey, raw: string) => void;
   targetPressures: { front: string; rear: string };
   onDone: () => void;
@@ -94,16 +96,24 @@ const HoldStepButton: React.FC<{
 };
 
 export const TirePressureSceneRefined: React.FC<Props> = ({
-  hot, onChangeHot, targetPressures, onDone, onCancel, carriedOver,
+  cold, hot, onChangeCold, onChangeHot, targetPressures, onDone, onCancel, carriedOver,
 }) => {
   const { t } = useTranslation('setup');
 
+  const coldNum = useMemo(
+    () => ({ fl: toNum(cold.fl), fr: toNum(cold.fr), rl: toNum(cold.rl), rr: toNum(cold.rr) }),
+    [cold],
+  );
   const hotNum = useMemo(
     () => ({ fl: toNum(hot.fl), fr: toNum(hot.fr), rl: toNum(hot.rl), rr: toNum(hot.rr) }),
     [hot],
   );
+  // 既定は温間（走行直後の記録）。冷間も入れられるよう明示的に切り替える
+  const [mode, setMode] = useState<'cold' | 'hot'>('hot');
   const [active, setActive] = useState<WheelKey>(() => firstEmptyWheel(hotNum) ?? 'fl');
   const [digits, setDigits] = useState('');
+  const vals = mode === 'cold' ? coldNum : hotNum;
+  const setValue = mode === 'cold' ? onChangeCold : onChangeHot;
 
   const front = targetPressures.front !== '' ? parseFloat(targetPressures.front) : null;
   const rear = targetPressures.rear !== '' ? parseFloat(targetPressures.rear) : null;
@@ -112,10 +122,10 @@ export const TirePressureSceneRefined: React.FC<Props> = ({
 
   const carriedForActive = carriedOver?.[active] ?? null;
   /** 実測値も打鍵もないとき、前回値を提案として出す（押すまで保存しない） */
-  const isSuggestion = digits === '' && hotNum[active] == null && carriedForActive != null;
+  const isSuggestion = digits === '' && vals[active] == null && carriedForActive != null;
   const pending = digits !== ''
     ? pressureDigitsToValue(digits)
-    : hotNum[active] ?? carriedForActive;
+    : vals[active] ?? carriedForActive;
 
   const advice = calcPressureAdvice(pending, activeTarget);
   const inRange = pending != null && advice.status === 'green';
@@ -125,18 +135,18 @@ export const TirePressureSceneRefined: React.FC<Props> = ({
   /** 増減。未入力なら目標中央から始める（触るまで値を作らない） */
   const step = (delta: number) => {
     setDigits('');
-    const base = hotNum[active] ?? carriedForActive;
+    const base = vals[active] ?? carriedForActive;
     if (base == null) {
-      onChangeHot(active, String(activeTarget ?? 220));
+      setValue(active, String(activeTarget ?? 220));
     } else {
-      onChangeHot(active, String(clampValue(base + delta)));
+      setValue(active, String(clampValue(base + delta)));
     }
   };
 
   const commit = () => {
     if (pending == null) return;
-    onChangeHot(active, String(pending));
-    const next = nextEmptyWheel({ ...hotNum, [active]: pending }, active);
+    setValue(active, String(pending));
+    const next = nextEmptyWheel({ ...vals, [active]: pending }, active);
     setDigits('');
     if (next) setActive(next);
     else onDone();
@@ -147,7 +157,7 @@ export const TirePressureSceneRefined: React.FC<Props> = ({
     if (next.length === 3) {
       const v = pressureDigitsToValue(next);
       if (v == null) return; // 範囲外は打ち間違い。受けない
-      onChangeHot(active, String(v));
+      setValue(active, String(v));
       setDigits('');
     } else {
       setDigits(next);
@@ -232,9 +242,29 @@ export const TirePressureSceneRefined: React.FC<Props> = ({
       </div>
 
       {/* ── 触る領域: 4輪・テンキー・確定 ───────────────── */}
+      {/* 冷間/温間。取り違えると値の意味が変わるので 60px 以上で明示的に選ばせる */}
+      <div className="mb-2 grid shrink-0 grid-cols-2 gap-2">
+        {(['cold', 'hot'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => { setMode(m); setDigits(''); }}
+            aria-pressed={mode === m}
+            className={`flex items-center justify-center rounded-2xl border-2 text-base font-bold ${
+              mode === m
+                ? 'border-[#f6f5e8] bg-[#f6f5e8] text-[#0a0b10]'
+                : 'border-[#232733] bg-[#101218] text-[#f6f5e8]'
+            }`}
+            style={{ minHeight: 60 }}
+          >
+            {t(m === 'cold' ? 'quickEntry.tire.cold' : 'quickEntry.tire.hot')}
+          </button>
+        ))}
+      </div>
+
       <div className="grid shrink-0 grid-cols-4 gap-2">
         {WHEEL_ORDER.map((w) => {
-          const v = hotNum[w];
+          const v = vals[w];
           const a = calcPressureAdvice(v, targetOf(w));
           const on = active === w;
           return (

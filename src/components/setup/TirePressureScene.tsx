@@ -26,7 +26,9 @@ export interface TirePressureSceneHandle {
 }
 
 interface TirePressureSceneProps {
+  cold: Record<WheelKey, string>;
   hot: Record<WheelKey, string>;
+  onChangeCold: (wheel: WheelKey, raw: string) => void;
   onChangeHot: (wheel: WheelKey, raw: string) => void;
   targetPressures: { front: string; rear: string };
   /** 全輪の入力が終わったときに呼ぶ（次の質問へ進む） */
@@ -52,24 +54,29 @@ const WHEEL_POS: Record<WheelKey, string> = {
 };
 
 export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressureSceneProps>(
-  ({ hot, onChangeHot, targetPressures, onDone, onCancel, carriedOver }, ref) => {
+  ({ cold, hot, onChangeCold, onChangeHot, targetPressures, onDone, onCancel, carriedOver }, ref) => {
     const { t } = useTranslation('setup');
 
+    const coldNum = useMemo(
+      () => ({ fl: toNum(cold.fl), fr: toNum(cold.fr), rl: toNum(cold.rl), rr: toNum(cold.rr) }),
+      [cold],
+    );
     const hotNum = useMemo(
       () => ({ fl: toNum(hot.fl), fr: toNum(hot.fr), rl: toNum(hot.rl), rr: toNum(hot.rr) }),
       [hot],
     );
 
-    // この連続入力フローは「走行直後のピットで記録する」ためのものなので、常に温間を記録する。
-    // 冷間が空だからと冷間モードにすると、ドライバーが計り取った温間の値を
-    // 冷間として保存してしまう（実測値の取り違え＝データ品質の欠陥）。
-    // 冷間は走行前に基本設定カードから入れる別の作業として残す。
+    // 走行直後の記録なので既定は温間。ただし冷間も入れられなければ記録として
+    // 足りないので、取り違えが起きない大きさ（60px以上）の切替を置く。
+    // 既定を冷間側に倒すと、計り取った温間の値を冷間として保存してしまうため、
+    // 「空いている方に自動で合わせる」ことはしない。
+    const [mode, setMode] = useState<'cold' | 'hot'>('hot');
     const [active, setActive] = useState<WheelKey>(() => firstEmptyWheel(hotNum) ?? 'fl');
     /** テンキーで打っている途中の数字列。輪を変えるたびに空に戻す */
     const [digits, setDigits] = useState('');
 
-    const currentVals = hotNum;
-    const setValue = onChangeHot;
+    const currentVals = mode === 'cold' ? coldNum : hotNum;
+    const setValue = mode === 'cold' ? onChangeCold : onChangeHot;
 
     const front = targetPressures.front !== '' ? parseFloat(targetPressures.front) : null;
     const rear = targetPressures.rear !== '' ? parseFloat(targetPressures.rear) : null;
@@ -128,11 +135,11 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
       <div className="flex flex-1 flex-col">
         {/* ── 表示帯（触らない）。ここを伸縮させることで、下の4輪図とテンキーを
             常に親指の到達域（390x844 で y>=281）へ押し下げる ── */}
-        <div className="flex flex-1 flex-col justify-center px-4 pt-2" style={{ minHeight: 232 }}>
+        <div className="flex flex-1 flex-col justify-center px-4 pt-2" style={{ minHeight: 245 }}>
           <div className={`text-center text-lg font-bold ${PIT.text}`}>
             {t('quickEntry.tire.askWheel', {
               wheel: WHEEL_LABEL[active],
-              mode: t('quickEntry.tire.hot'),
+              mode: mode === 'cold' ? t('quickEntry.tire.cold') : t('quickEntry.tire.hot'),
             })}
           </div>
           <div className="mt-1 flex items-baseline justify-center gap-2">
@@ -169,6 +176,27 @@ export const TirePressureScene = forwardRef<TirePressureSceneHandle, TirePressur
               </>
             )}
           </div>
+        </div>
+
+        {/* 冷間/温間の切替。取り違えると実測値の意味が変わるので、
+            小さなタブではなく 60px 以上のボタン2つで明示的に選ばせる */}
+        <div className="mx-auto mb-2 grid w-full max-w-[320px] shrink-0 grid-cols-2 gap-2 px-3">
+          {(['cold', 'hot'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => { setMode(m); setDigits(''); }}
+              aria-pressed={mode === m}
+              className={`flex items-center justify-center rounded-xl border-2 text-base font-bold ${
+                mode === m
+                  ? 'border-blue-800 bg-blue-800 text-white'
+                  : `${PIT.border} ${PIT.surface} ${PIT.text}`
+              }`}
+              style={{ minHeight: 60 }}
+            >
+              {t(m === 'cold' ? 'quickEntry.tire.cold' : 'quickEntry.tire.hot')}
+            </button>
+          ))}
         </div>
 
         {/* ── 4輪図（触れる・親指到達域）: 入力済みの確認と、直したい輪への移動 ── */}

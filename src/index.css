@@ -16,16 +16,31 @@
   .vl-step-input .ant-input-number {
     min-height: 60px;
   }
-  /* 数値・テキスト入力とセレクトも同じ最低線に揃える */
+  /* 数値・テキスト入力とセレクトも同じ最低線に揃える。
+     注意: 内側（.ant-select-selector）だけを 60px にすると、外側の .ant-select は
+     32px のままなので下へ 28px はみ出し、次の項目のラベルに重なる（実機で発生）。
+     外側の箱にも同じ高さを与えること。検出は node audit/check-layout.mjs。 */
+  .ant-select,
+  .ant-select-selector,
+  .ant-input-number,
   .ant-input-number-input,
   .ant-input,
-  .ant-select-selector,
   .ant-picker {
     min-height: 60px !important;
   }
+  /* 高さを増やしたぶん、中身は縦中央に置く。
+     line-height で合わせる方式は、選択肢が2行になると破綻するので使わない */
+  .ant-select-single .ant-select-selector {
+    display: flex !important;
+    align-items: center !important;
+  }
   .ant-select-single .ant-select-selector .ant-select-selection-item,
   .ant-select-single .ant-select-selector .ant-select-selection-placeholder {
-    line-height: 56px !important;
+    line-height: 1.4 !important;
+  }
+  .ant-select-single .ant-select-selector .ant-select-selection-search {
+    display: flex !important;
+    align-items: center !important;
   }
   /* タブは指で切り替える主要動線 */
   .ant-tabs-tab {

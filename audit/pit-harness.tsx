@@ -13,6 +13,7 @@ import { QuickEntryModal } from '../src/components/setup/QuickEntryModal';
 import { ThemeProvider } from '../src/contexts/ThemeContext';
 import { DrivingTab } from '../src/components/setup/tabs/DrivingTab';
 import { SkinSample } from './SkinSample';
+import { SessionBarSample } from './SessionBarSample';
 import type { DrivingFeedback, KnowledgeNote } from '../src/types/setup';
 
 const emptyPressures = () => ({
@@ -57,13 +58,17 @@ function Harness() {
   const preset = React.useMemo(() => presetFor(scene), []);
   const [tirePressures, setTirePressures] = useState(preset.tp);
   const [bestLap, setBestLap] = useState(preset.lap);
-  const [feeling, setFeeling] = useState<number | null>(preset.feel);
+  const [feeling] = useState<number | null>(preset.feel);
   const [feedback, setFeedback] = useState<DrivingFeedback>(emptyFeedback);
   const [knowledge, setKnowledge] = useState<KnowledgeNote>({ intention: '', result: '', learning: '' });
   const [notes, setNotes] = useState('');
 
   if (scene === 'skin') {
     return <SkinSample />;
+  }
+
+  if (scene === 'session') {
+    return <SessionBarSample />;
   }
 
   if (scene === 'driving') {
@@ -92,8 +97,8 @@ function Harness() {
       targetPressures={{ front: '220', rear: '215' }}
       bestLap={bestLap}
       setBestLap={setBestLap}
-      feeling={feeling}
-      setFeeling={setFeeling}
+      drivingFeedback={feeling == null ? feedback : { ...feedback, overallBalance: feeling }}
+      onFeedbackChange={(k, v) => setFeedback((p) => ({ ...p, [k]: v }))}
       carriedOverPressures={scene === 'carry' ? { fl: 218, fr: 219, rl: 214, rr: 215 } : null}
     />
   );

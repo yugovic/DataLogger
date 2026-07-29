@@ -112,6 +112,9 @@ writeFileSync('audit/measurements.json', JSON.stringify(results, null, 2));
 let fails = 0;
 for (const [key, r] of Object.entries(results)) {
   const bad = [];
+  // 空の画面は「違反0件」になって素通りしてしまう。実際に描画されているかを先に見る
+  if (r.targetCount === 0) bad.push('操作要素が0件（描画されていない）');
+  if (r.textCount === 0) bad.push('文字が0件（描画されていない）');
   if (r.under44.length) bad.push(`44px未満 ${r.under44.length}件`);
   if (r.under60.length) bad.push(`60px未満 ${r.under60.length}件`);
   if (r.outOfThumbReach.length) bad.push(`到達域外 ${r.outOfThumbReach.length}件`);
