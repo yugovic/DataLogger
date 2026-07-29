@@ -95,6 +95,8 @@
 | F-064 | 通信断での保存完走（サーバーACKを待たずローカル受付で完了扱い、同期状態を正直に表示） | `src/lib/offlineCommit.ts` + `src/services/setupService.ts` + `CarSetup.tsx`（未同期バッジ） | ✅ | Firestore の永続キャッシュ（`persistentLocalCache`）に積み、復帰後に自動同期 | 2026-07-29実装。従来は `await setDoc` がオフラインで解決せず無限スピナーだった。帰結を synced/queued/unsafe で区別し、unsafe（永続化なし環境）では成功と言わない |
 | F-065 | 入力途中の下書き退避と復元（localStorage） | `src/lib/draftStorage.ts` + `CarSetup.tsx`（復元確認バナー） | ✅ | localStorage（ユーザーID別・スキーマ版付き）。保存成功時に破棄、unsafe 時は保持 | 2026-07-29実装。復元は必ずユーザーに確認してから行う（黙って書き戻さない） |
 | F-066 | ピット用配色の強制（直射日光下で対背景7:1以上） | `src/lib/pitTheme.ts` + `src/lib/pitTheme.test.ts` | ✅ | — | 2026-07-29実装。全色ペアのコントラスト比をテストで検証し、7:1未満の色が前景に混入したら落ちる |
+| F-067 | 外観モードの切替（ベーシック / 洗練） | `src/contexts/ThemeContext.tsx`（appearance） + `Header.tsx` 設定モーダル | ✅ | localStorage `appearance`。refined 選択時は dark も併せて有効化 | 2026-07-29実装。洗練は near-black＋骨色オフホワイトの計器盤風配色（docs/visual-reference-mezgr.md） |
+| F-068 | タイヤ空気圧の洗練モード入力（リングゲージ＋数値の左右で増減） | `src/components/setup/TirePressureSceneRefined.tsx` + `src/lib/pressureGauge.ts` | ✅ | ベーシックと同じ保存経路（QuickEntryModal が外観設定で実装を選ぶ） | 2026-07-29実装。数値の左右を押して増減、長押しで加速（1秒=5 / 2秒=18 / 3秒=32 kPa）。テンキーも併用可。リング自体はドラッグしない |
 
 ### ヘッダー・共通UI
 

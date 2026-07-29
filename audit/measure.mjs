@@ -44,6 +44,7 @@ const MEASURE = () => {
       return {
         label: (e.innerText || e.getAttribute('aria-label') || e.tagName).trim().slice(0, 20).replace(/\s+/g, ' '),
         w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top),
+        reachExempt: e.getAttribute('data-reach-exempt'),
       };
     })
     .filter((t) => t.w > 0 && t.h > 0);
@@ -71,7 +72,8 @@ const MEASURE = () => {
     targetCount: targets.length,
     under44: targets.filter((t) => t.w < 44 || t.h < 44),
     under60: targets.filter((t) => t.w < 60 || t.h < 60),
-    outOfThumbReach: scrollable ? [] : targets.filter((t) => t.top < 281),
+    outOfThumbReach: scrollable ? [] : targets.filter((t) => t.top < 281 && !t.reachExempt),
+    reachExempted: targets.filter((t) => t.top < 281 && t.reachExempt),
     minTargetH: Math.min(...targets.map((t) => t.h)),
     minTargetW: Math.min(...targets.map((t) => t.w)),
     textCount: texts.length,
@@ -83,13 +85,19 @@ const MEASURE = () => {
 const browser = await chromium.launch();
 const results = {};
 
-for (const theme of ['light', 'dark']) {
+// ベーシックは light/dark、洗練モードは単一（暗い地色が前提）
+const MODES = [
+  ['light', ''], ['dark', ''],
+  ['refined', '&appearance=refined'],
+];
+
+for (const [theme, extra] of MODES) {
   for (const [scene, title] of SCENES) {
     const ctx = await browser.newContext({
       viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
     });
     const page = await ctx.newPage();
-    await page.goto(`${BASE}?scene=${scene}&theme=${theme}`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE}?scene=${scene}&theme=${theme}${extra}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${OUT}/${theme}-${scene}.png` });
     results[`${theme}/${scene}`] = { title, ...(await page.evaluate(MEASURE)) };
@@ -115,6 +123,7 @@ for (const [key, r] of Object.entries(results)) {
     `最小コントラスト${r.minContrast} ${bad.join(' / ')}${reachNote}`,
   );
   for (const t of [...r.under60, ...r.outOfThumbReach]) console.log(`     - ${t.label} ${t.w}x${t.h} top=${t.top}`);
+  for (const t of (r.reachExempted || [])) console.log(`     到達域外(申告済み): ${t.label} top=${t.top} — ${t.reachExempt}`);
   for (const t of r.contrastUnder7) console.log(`     - "${t.text}" ${t.fontSize} ${t.ratio}:1`);
 }
 console.log(fails === 0 ? '\n全シーン合格' : `\n${fails} シーンが不合格`);

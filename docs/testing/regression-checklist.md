@@ -31,6 +31,7 @@
 | QuickEntryModal, TirePressureScene, PitKeypad, quickEntryFlow.ts, pitKeypadInput.ts（連続入力フロー） | B-1a |
 | offlineCommit.ts, draftStorage.ts, firebase.ts（永続化）, setupService.ts の書き込み経路 | **B-1b（必須）** |
 | autoWeather.ts, pitTheme.ts, ピット動線の配色・寸法 | B-1a / B-11 |
+| ThemeContext(appearance), TirePressureSceneRefined, pressureGauge.ts | **B-1c（必須）** |
 | setupDraft.ts / setupNavigation.ts / setupLoadPreview.ts / setupDraftDirty / useUnsavedChangesGuard | B-2 |
 | SetupHistory, specCardView.ts, スペックカードUI | B-3 |
 | VehicleList, BuildJournal, buildJournal.ts | B-4 |
@@ -95,6 +96,20 @@
 - [ ] OSソフトキーボードが一度も出てこない
 
 - [ ] `src/lib/quickEntryFlow.test.ts` / `src/lib/pitKeypadInput.test.ts` が通る
+
+## B-1c. 外観モード（ベーシック / 洗練）
+
+- [ ] 設定モーダルの「画面の見た目」でベーシック↔洗練を切り替えられ、再読み込み後も保持される
+- [ ] 洗練を選ぶとダークも併せて有効になる
+- [ ] **洗練モードでもピット要件を満たす**（`node audit/measure.mjs` が全18シーン合格）
+- [ ] 洗練モードのタイヤ空気圧: 数値の左右を押すと 1 kPa ずつ増減する
+- [ ] 長押しで加速する（1秒=約5 / 2秒=約18 / 3秒=約32 kPa）。指を離すと止まる
+- [ ] リング自体はドラッグできない（表示専用）
+- [ ] テンキーで3桁打っても入る。50〜400kPa の範囲外は受け付けない
+- [ ] 4輪タイルをタップすると任意の輪へ移動でき、確定後も前の輪を直せる
+- [ ] 未入力の輪は「—」のまま。初回操作で目標中央から始まる（0埋めしない）
+- [ ] 進捗バー・地色も洗練の配色になっている（ベーシックの明るい配色が残っていない）
+- [ ] `src/lib/pressureGauge.test.ts` が通る（角度変換と長押しの加速量）
 
 ## B-1b. 通信断での保存（ピット必須）
 

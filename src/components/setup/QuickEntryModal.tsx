@@ -17,6 +17,8 @@ import { useTranslation } from 'react-i18next';
 import { PitKeypad } from './PitKeypad';
 import { PIT, PIT_MIN_TARGET } from '../../lib/pitTheme';
 import { TirePressureScene, type TirePressureSceneHandle } from './TirePressureScene';
+import { TirePressureSceneRefined } from './TirePressureSceneRefined';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   buildQuickEntrySteps,
   type QuickEntryFieldId,
@@ -68,6 +70,7 @@ const FEELING_OPTIONS: { value: number; labelKey: string }[] = [
 
 const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
   const { t } = useTranslation('setup');
+  const { appearance } = useTheme();
   const {
     onClose, airTemp, setAirTemp, tirePressures, setTirePressures,
     targetPressures, bestLap, setBestLap, feeling, setFeeling, carriedOverPressures,
@@ -146,19 +149,37 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
       break;
     }
 
-    case 'tirePressure':
-      body = (
-        <TirePressureScene
-          ref={sceneRef}
-          hot={{ fl: tirePressures.fl.after, fr: tirePressures.fr.after, rl: tirePressures.rl.after, rr: tirePressures.rr.after }}
+    case 'tirePressure': {
+      // 保存経路も入力の意味も同じで、見せ方だけが違う2つの実装を外観設定で選ぶ
+      const hot = {
+        fl: tirePressures.fl.after, fr: tirePressures.fr.after,
+        rl: tirePressures.rl.after, rr: tirePressures.rr.after,
+      };
+      const onChangeHot = (wheel: WheelKey, raw: string) =>
+        setTirePressures((prev) => ({ ...prev, [wheel]: { ...prev[wheel], after: raw } }));
+
+      body = appearance === 'refined' ? (
+        <TirePressureSceneRefined
+          hot={hot}
           targetPressures={targetPressures}
           carriedOver={carriedOverPressures}
-          onChangeHot={(wheel, raw) => setTirePressures((prev) => ({ ...prev, [wheel]: { ...prev[wheel], after: raw } }))}
+          onChangeHot={onChangeHot}
+          onDone={goNext}
+          onCancel={onClose}
+        />
+      ) : (
+        <TirePressureScene
+          ref={sceneRef}
+          hot={hot}
+          targetPressures={targetPressures}
+          carriedOver={carriedOverPressures}
+          onChangeHot={onChangeHot}
           onDone={goNext}
           onCancel={onClose}
         />
       );
       break;
+    }
 
     case 'bestLap': {
       const commit = () => {
@@ -233,15 +254,23 @@ const QuickEntryModalContent: React.FC<QuickEntryModalProps> = (props) => {
 
   const progressPct = ((index + 1) / total) * 100;
 
+  // 洗練モードは near-black の地色。進捗表示も同じ面に合わせる
+  const refined = appearance === 'refined';
+
   return (
-    <div className="fixed inset-0 z-[1100] flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className={`fixed inset-0 z-[1100] flex flex-col ${refined ? 'bg-[#06070a]' : 'bg-gray-50 dark:bg-gray-900'}`}>
       {/* 進捗は読むだけ。触る操作は下側に集約している */}
       <div className="px-4 pt-2">
-        <div className={`text-center text-sm font-bold ${PIT.sub}`}>
+        <div className={`text-center text-sm font-bold ${refined ? 'text-[#a8a79b]' : PIT.sub}`}>
           {t('quickEntry.stepCount', { current: index + 1, total })}
         </div>
-        <div className="mt-1 h-[8px] rounded border border-gray-700 bg-white dark:border-gray-200 dark:bg-gray-900">
-          <div className="h-full rounded-l bg-blue-800 dark:bg-blue-200 transition-[width]" style={{ width: `${progressPct}%` }} />
+        <div className={`mt-1 h-[8px] rounded border ${
+          refined ? 'border-[#232733] bg-[#101218]' : 'border-gray-700 bg-white dark:border-gray-200 dark:bg-gray-900'
+        }`}>
+          <div
+            className={`h-full rounded-l transition-[width] ${refined ? 'bg-[#f6f5e8]' : 'bg-blue-800 dark:bg-blue-200'}`}
+            style={{ width: `${progressPct}%` }}
+          />
         </div>
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto">{body}</div>

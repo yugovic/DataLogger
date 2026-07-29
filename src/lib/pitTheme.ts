@@ -24,6 +24,18 @@ export const PIT_RGB = {
   'green-900': [20, 83, 45],
   'orange-200': [254, 215, 170],
   'orange-900': [124, 45, 18],
+
+  // ── 洗練モード（refined）の配色 ──
+  // near-black の地に骨色オフホワイト。純白を使わないのが署名的な選択。
+  // 暗い地に明るい文字なので、直射日光下の 7:1 は余裕をもって満たす。
+  'pit-bg':    [6, 7, 10],      // 地色（純黒ではなく僅かに青紫寄り）
+  'pit-card':  [16, 18, 24],    // カード地
+  'pit-key':   [20, 23, 31],    // キー地
+  'pit-bone':  [246, 245, 232], // 本文・数値（骨色）
+  'pit-muted': [168, 167, 155], // 補助ラベル
+  'pit-ok':    [143, 224, 164], // 目標レンジ内
+  'pit-warn':  [240, 179, 122], // 目標レンジ外
+  'pit-ink':   [10, 11, 16],    // 明るいCTA上に載せる暗色文字
 } as const satisfies Record<string, readonly [number, number, number]>;
 
 export type PitColorName = keyof typeof PIT_RGB;
@@ -50,6 +62,13 @@ export const PIT_CONTRAST_PAIRS: readonly (readonly [PitColorName, PitColorName]
   ['blue-200', 'gray-700'],
   ['green-300', 'gray-700'],
   ['orange-200', 'gray-700'],
+
+  // ── 洗練モード。地は pit-bg、カード上は pit-card / pit-key ──
+  ['pit-bone', 'pit-bg'], ['pit-bone', 'pit-card'], ['pit-bone', 'pit-key'],
+  ['pit-muted', 'pit-bg'], ['pit-muted', 'pit-card'], ['pit-muted', 'pit-key'],
+  ['pit-ok', 'pit-bg'], ['pit-ok', 'pit-card'],
+  ['pit-warn', 'pit-bg'], ['pit-warn', 'pit-card'],
+  ['pit-ink', 'pit-bone'],   // 骨色のCTAに載せる暗色文字
 ] as const;
 
 /** 合格線。屋内基準の 4.5 ではなく、直射日光を見込んで 7 を採る */

@@ -10,6 +10,7 @@ import { createRoot } from 'react-dom/client';
 import '../src/index.css';
 import '../src/i18n';
 import { QuickEntryModal } from '../src/components/setup/QuickEntryModal';
+import { ThemeProvider } from '../src/contexts/ThemeContext';
 import { DrivingTab } from '../src/components/setup/tabs/DrivingTab';
 import type { DrivingFeedback, KnowledgeNote } from '../src/types/setup';
 
@@ -31,6 +32,14 @@ const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'tire';
 const dark = params.get('theme') === 'dark';
 if (dark) document.documentElement.classList.add('dark');
+// 洗練モードは ThemeProvider を通さずに直接指定する（計測用）
+const refined = params.get('appearance') === 'refined';
+if (refined) {
+  document.documentElement.classList.add('dark', 'refined');
+  localStorage.setItem('appearance', 'refined');
+} else {
+  localStorage.setItem('appearance', 'basic');
+}
 
 function Harness() {
   const [tirePressures, setTirePressures] = useState(emptyPressures);
@@ -100,4 +109,4 @@ function Harness() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(<Harness />);
+createRoot(document.getElementById('root')!).render(<ThemeProvider><Harness /></ThemeProvider>);

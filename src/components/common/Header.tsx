@@ -19,7 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { darkMode, toggleDarkMode, appearance, setAppearance } = useTheme();
   const { units, setPressureUnit, setTemperatureUnit } = useUnits();
   const { t } = useTranslation(['common', 'header']);
 
@@ -182,6 +182,33 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 {darkMode ? <SunOutlined style={{ fontSize: '18px' }} /> : <MoonOutlined style={{ fontSize: '18px' }} />}
               </button>
+            </div>
+
+            <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700">
+              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                {t('common.appearanceSetting')}
+              </div>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {t('common.appearanceSettingDescription')}
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {(['basic', 'refined'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setAppearance(mode)}
+                    aria-pressed={appearance === mode}
+                    className={`rounded-md border-2 px-3 text-sm font-bold ${
+                      appearance === mode
+                        ? 'border-blue-800 bg-blue-800 text-white'
+                        : 'border-slate-400 text-slate-900 dark:border-slate-500 dark:text-slate-100'
+                    }`}
+                    style={{ minHeight: 60 }}
+                  >
+                    {t(`common.appearance.${mode}`)}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700">
