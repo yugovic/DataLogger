@@ -137,9 +137,19 @@ export interface AlignmentSettings {
  * 原則: デモ初期値（1〜3等）を保存しない。ユーザーが操作した項目だけ number になる。
  */
 export interface DrivingFeedback {
+  /**
+   * 総合バランス（0=強アンダー 〜 2=ニュートラル 〜 4=強オーバー）。
+   * ピットで1タップだけ残すための代表値。コーナー別の詳細評価は任意入力のまま。
+   * 詳細6項目への複製はしない（実際に評価していない値を作らない）。
+   */
+  overallBalance: Maybe<number>;
   lowSpeedEntry: Maybe<number>;
   lowSpeedMiddle: Maybe<number>;
   lowSpeedExit: Maybe<number>;
+  /** 中速コーナー。低速/高速だけでは「どこで出るか」を言い分けられないため設けた */
+  midSpeedEntry: Maybe<number>;
+  midSpeedMiddle: Maybe<number>;
+  midSpeedExit: Maybe<number>;
   highSpeedEntry: Maybe<number>;
   highSpeedMiddle: Maybe<number>;
   highSpeedExit: Maybe<number>;

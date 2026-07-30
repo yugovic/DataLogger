@@ -112,9 +112,13 @@ const setupAdjustmentValueSchema = z.object({
 // ドライバー評価（各値 0〜4 の主観評価、未入力は null）。デモ初期値は保存しない。
 const drivingRating = nullableNum(0, 4);
 const drivingFeedbackSchema = z.object({
+  overallBalance: drivingRating,
   lowSpeedEntry: drivingRating,
   lowSpeedMiddle: drivingRating,
   lowSpeedExit: drivingRating,
+  midSpeedEntry: drivingRating,
+  midSpeedMiddle: drivingRating,
+  midSpeedExit: drivingRating,
   highSpeedEntry: drivingRating,
   highSpeedMiddle: drivingRating,
   highSpeedExit: drivingRating,

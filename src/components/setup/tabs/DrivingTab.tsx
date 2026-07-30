@@ -1,6 +1,7 @@
 // ドライビングタブコンポーネント
 import React from 'react';
-import { Input, Slider, Collapse } from 'antd';
+import { Input, Collapse } from 'antd';
+import { PIT, PIT_MIN_TARGET } from '../../../lib/pitTheme';
 import { CaretRightOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { KnowledgeNote, DrivingFeedback } from '../../../types/setup';
@@ -41,36 +42,54 @@ const FeedbackSlider: React.FC<{
   disabled?: boolean;
 }> = ({ label, value, onChange, marks, disabled }) => {
   const { t } = useTranslation();
+  // スライダーを使わない理由: ハンドルが 10x10px しかなく、グローブでは掴めない。
+  // 5段階なので、そもそも連続値のUIである必要がない。段ごとの実ボタンにして
+  // 1タップで確定させ、各ボタンを 60px 以上にする。
+  const steps = [0, 1, 2, 3, 4];
   return (
-  <div>
-    <div className="flex items-center justify-between mb-1">
-      <span className="text-xs text-gray-600 dark:text-gray-400">{label}</span>
-      {value === null ? (
-        <span className="text-xs text-gray-400 dark:text-gray-500">{t('setupTabs.driving.notEvaluated')}</span>
-      ) : (
-        !disabled && (
-          <button
-            type="button"
-            className="text-xs text-blue-500 dark:text-blue-400 hover:underline"
-            onClick={() => onChange(null)}
-          >
-            {t('setupTabs.driving.clear')}
-          </button>
-        )
-      )}
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <span className={`text-sm font-semibold ${PIT.text}`}>{label}</span>
+        {value === null ? (
+          <span className={`text-sm ${PIT.sub}`}>
+            {t('setupTabs.driving.notEvaluated')}
+          </span>
+        ) : (
+          !disabled && (
+            <button
+              type="button"
+              className={`px-2 text-sm font-bold underline ${PIT.accent}`}
+              style={{ minHeight: PIT_MIN_TARGET }}
+              onClick={() => onChange(null)}
+            >
+              {t('setupTabs.driving.clear')}
+            </button>
+          )
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1" role="group" aria-label={label}>
+        {steps.map((s) => {
+          const selected = value === s;
+          return (
+            <button
+              key={s}
+              type="button"
+              disabled={disabled}
+              aria-pressed={selected}
+              onClick={() => onChange(selected ? null : s)}
+              className={`flex flex-1 items-center justify-center rounded-lg border-2 px-1 text-xs font-bold leading-tight ${
+                selected
+                  ? `border-blue-800 ${PIT.primaryBg} text-white`
+                  : `${PIT.border} ${PIT.surface} ${PIT.text}`
+              } ${disabled ? 'opacity-60' : ''}`}
+              style={{ minHeight: PIT_MIN_TARGET, minWidth: PIT_MIN_TARGET }}
+            >
+              {marks[s]}
+            </button>
+          );
+        })}
+      </div>
     </div>
-    <Slider
-      value={value ?? 2}
-      onChange={(v) => onChange(v as number)}
-      min={0}
-      max={4}
-      marks={marks}
-      step={1}
-      dots={true}
-      disabled={disabled}
-      className={value === null ? 'opacity-40' : ''}
-    />
-  </div>
   );
 };
 
@@ -97,7 +116,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* 低速コーナー */}
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('setupTabs.driving.lowSpeedCorner')}</h4>
+          <h4 className={`text-sm font-semibold mb-3 ${PIT.text}`}>{t('setupTabs.driving.lowSpeedCorner')}</h4>
           <div className="space-y-3">
             <FeedbackSlider label={t('setupTabs.driving.entry')} value={feedback.lowSpeedEntry} onChange={(v) => onFeedbackChange('lowSpeedEntry', v)} marks={balanceMarks} disabled={disabled} />
             <FeedbackSlider label={t('setupTabs.driving.middle')} value={feedback.lowSpeedMiddle} onChange={(v) => onFeedbackChange('lowSpeedMiddle', v)} marks={balanceMarks} disabled={disabled} />
@@ -107,7 +126,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
 
         {/* 高速コーナー */}
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('setupTabs.driving.highSpeedCorner')}</h4>
+          <h4 className={`text-sm font-semibold mb-3 ${PIT.text}`}>{t('setupTabs.driving.highSpeedCorner')}</h4>
           <div className="space-y-3">
             <FeedbackSlider label={t('setupTabs.driving.entry')} value={feedback.highSpeedEntry} onChange={(v) => onFeedbackChange('highSpeedEntry', v)} marks={balanceMarks} disabled={disabled} />
             <FeedbackSlider label={t('setupTabs.driving.middle')} value={feedback.highSpeedMiddle} onChange={(v) => onFeedbackChange('highSpeedMiddle', v)} marks={balanceMarks} disabled={disabled} />
@@ -117,7 +136,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
       </div>
 
       {/* 凡例 */}
-      <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+      <div className={`text-sm text-center ${PIT.sub}`}>
         {t('setupTabs.driving.balanceLegend')}
       </div>
 
@@ -125,7 +144,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
       <Collapse
         bordered={false}
         expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} />}
-        className="bg-gray-50 dark:bg-gray-800"
+        className="bg-gray-50 dark:bg-gray-800 vl-pit-collapse"
       >
         <Panel header={t('setupTabs.driving.braking')} key="1" className="text-sm">
           <div className="space-y-3 px-4">
@@ -152,7 +171,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
 
       {/* コメント・メモ */}
       <div className="border-t dark:border-gray-700 pt-4">
-        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('setupTabs.driving.commentsMemo')}</h4>
+        <h4 className={`text-sm font-semibold mb-2 ${PIT.text}`}>{t('setupTabs.driving.commentsMemo')}</h4>
         <TextArea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -165,12 +184,12 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
 
       <div className="border-t dark:border-gray-700 pt-4">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('setupTabs.driving.knowledgeMemo')}</h4>
-          <span className="text-xs text-gray-500 dark:text-gray-400">{t('setupTabs.driving.intentionResultLearning')}</span>
+          <h4 className={`text-sm font-semibold ${PIT.text}`}>{t('setupTabs.driving.knowledgeMemo')}</h4>
+          <span className={`text-sm ${PIT.sub}`}>{t('setupTabs.driving.intentionResultLearning')}</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t('setupTabs.driving.intention')}</div>
+            <div className={`text-sm font-semibold mb-1 ${PIT.sub}`}>{t('setupTabs.driving.intention')}</div>
             <TextArea
               value={knowledge.intention ?? ''}
               onChange={(e) => handleKnowledgeChange('intention', e.target.value)}
@@ -181,7 +200,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
             />
           </div>
           <div>
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t('setupTabs.driving.result')}</div>
+            <div className={`text-sm font-semibold mb-1 ${PIT.sub}`}>{t('setupTabs.driving.result')}</div>
             <TextArea
               value={knowledge.result ?? ''}
               onChange={(e) => handleKnowledgeChange('result', e.target.value)}
@@ -192,7 +211,7 @@ export const DrivingTab: React.FC<DrivingTabProps> = ({
             />
           </div>
           <div>
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t('setupTabs.driving.learning')}</div>
+            <div className={`text-sm font-semibold mb-1 ${PIT.sub}`}>{t('setupTabs.driving.learning')}</div>
             <TextArea
               value={knowledge.learning ?? ''}
               onChange={(e) => handleKnowledgeChange('learning', e.target.value)}

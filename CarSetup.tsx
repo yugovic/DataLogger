@@ -44,6 +44,12 @@ import {
   setAdjustmentValue,
 } from './src/lib/setupAdjustments';
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
+import { QuickEntryModal } from './src/components/setup/QuickEntryModal';
+import { carryOverPressures } from './src/lib/quickEntryFlow';
+import { hasFeedback } from './src/lib/cornerFeedback';
+import { saveDraft, loadDraft, clearDraft, isDraftWorthRestoring } from './src/lib/draftStorage';
+import { isPersistenceEnabled, isEmulatorMode } from './src/lib/firebase';
+import { fetchWeatherAt, getCurrentPosition, nearestTrack, findTrackByName, trackCenter } from './src/lib/autoWeather';
 import { SessionHighlightModal } from './src/components/setup/SessionHighlightModal';
 import { computeSessionHighlight } from './src/lib/sessionHighlights';
 import type { SessionHighlight } from './src/lib/sessionHighlights';
@@ -64,6 +70,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocale } from './src/contexts/LocaleContext';
 import { formatDate, formatDateTime } from './src/i18n/formatters';
 import { WEATHER_CODES } from './src/lib/weather';
+import { calcPressureAdvice, getWheelTarget } from './src/lib/pressureAdvice';
 import { trackEvent } from './src/lib/analytics';
 interface DropdownState {
 isOpen: boolean;
@@ -138,6 +145,8 @@ useEffect(() => {
     .catch(e => logger.error('Failed to fetch vehicles:', e));
 }, [currentUser]);
 const [isSaving, setIsSaving] = useState(false);
+// 端末には保存できたがサーバーへ未送出（圏外）。バッジで正直に出す
+const [pendingSync, setPendingSync] = useState(false);
 // 連打・保存中の再送信を同期的にブロックするガード（isSaving の setState 反映前でも効く）
 const savingRef = useRef(false);
 const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
@@ -157,7 +166,31 @@ const [vehicleRegistrationPrompt, setVehicleRegistrationPrompt] = useState<{
 const [registrationYear, setRegistrationYear] = useState(new Date().getFullYear());
 const vehicleRegistrationResolverRef = useRef<((choice: VehicleRegistrationChoice) => void) | null>(null);
 const [settingsModal, setSettingsModal] = useState(false);
-const [currentSettingView, setCurrentSettingView] = useState('account');
+// 連続入力フロー（QuickEntryModal）: 環境・タイヤ・ラップの3カードは休止状態ではサマリー表示にし、
+// タップで既存フォームを展開する。展開状態は保存対象外のUI状態。
+const [envExpanded, setEnvExpanded] = useState(false);
+const [tireExpanded, setTireExpanded] = useState(false);
+const [lapExpanded, setLapExpanded] = useState(false);
+const [showQuickEntry, setShowQuickEntry] = useState(false);
+// 3カード内のみ Enter で次のフィールドへフォーカス移動する（PCキーボード動線）
+const quickEntryCardsRef = useRef<HTMLDivElement>(null);
+const handleQuickCardsKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  if (e.key !== 'Enter') return;
+  const target = e.target as HTMLElement;
+  const tag = target.tagName;
+  if (tag !== 'INPUT') return;
+  if (target.closest('.ant-select') || target.closest('.ant-input-number')) return;
+  const container = quickEntryCardsRef.current;
+  if (!container) return;
+  const focusables = Array.from(
+    container.querySelectorAll<HTMLElement>('input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+  ).filter((el) => el.offsetParent !== null);
+  const idx = focusables.indexOf(target);
+  if (idx >= 0 && idx < focusables.length - 1) {
+    e.preventDefault();
+    focusables[idx + 1].focus();
+  }
+};
 const [dropdownState, setDropdownState] = useState<DropdownState>({
 isOpen: false,
 position: { top: 0, left: 0 },
@@ -290,6 +323,124 @@ const tireCompoundOptions = useMemo(() => Array.from(new Set([
     .filter((setup) => !tireProductName || setup.tireInfo.productName === tireProductName)
     .map((setup) => setup.tireInfo.compound),
 ].filter(Boolean))).map((value) => ({ value })), [tireProductName, tireSets, tireUsageSetups]);
+
+// ── 連続入力フロー（QuickEntryModal）用の集計 ──────────────────────────
+// カード見出しの「n/N 入力済み」バッジ、休止状態のサマリーチップ、
+// および起動ボタンの活性判定に使う。0埋めは行わず、空文字は未入力として数える。
+const wheelKeys = ['fl', 'fr', 'rl', 'rr'] as const;
+const tireDisplayMode: 'before' | 'after' = wheelKeys.some((w) => tirePressures[w].after !== '') ? 'after' : 'before';
+const tirePressureAllMeasured = wheelKeys.every((w) => tirePressures[w][tireDisplayMode] !== '');
+const envFields = [weatherCondition, airTemp, trackTemp, humidity, pressure];
+const envFilledCount = envFields.filter((v) => v !== '').length;
+const envTotal = envFields.length;
+const tireFields = [tireBrand, tireProductName, tireCompound, distance, fuel];
+const tireFilledCount = tireFields.filter((v) => v !== '').length + (tirePressureAllMeasured ? 1 : 0);
+const tireTotal = tireFields.length + 1;
+const lapFields = [bestLap, totalLaps];
+const lapFilledCount = lapFields.filter((v) => v !== '').length;
+const lapTotal = lapFields.length;
+
+// ── 下書きの端末保存と復元 ────────────────────────────────────────
+// ピットは電波が悪く、保存が通らないまま画面を閉じることがある。
+// Firestore のオフラインキューは「保存ボタンを押した後」しか守らないので、
+// 押す前の入力を localStorage に逃がす。復元は必ずユーザーに聞いてから行う
+// （黙って古い値を書き戻さない＝偽データを作らない）。
+const [restorable, setRestorable] = useState<ReturnType<typeof loadDraft>>(null);
+const draftRestoreCheckedRef = useRef(false);
+
+useEffect(() => {
+  if (!currentUser || isViewMode || draftRestoreCheckedRef.current) return;
+  draftRestoreCheckedRef.current = true;
+  const stored = loadDraft(currentUser.uid);
+  if (isDraftWorthRestoring(stored)) setRestorable(stored);
+}, [currentUser, isViewMode]);
+
+// 入力のたびに書き戻す。頻度が高いので少し待ってからまとめて書く
+useEffect(() => {
+  if (!currentUser || isViewMode) return;
+  const timer = window.setTimeout(() => {
+    saveDraft(currentUser.uid, draft, setupId ?? null, new Date());
+  }, 800);
+  return () => window.clearTimeout(timer);
+}, [draft, currentUser, isViewMode, setupId]);
+
+// ── 前回同一条件の温間空気圧（引き継ぎ候補）──────────────────────────
+// 同じサーキット・同じタイヤセットの直近セッションの温間圧を、初期値の候補として渡す。
+// そのまま保存させず、QuickEntry 側で「前回と同じ値を使う」と明示させてから入れる。
+const carriedOverPressures = useMemo(() => {
+  const sameCondition = tireUsageSetups.find(
+    (s) => s.id !== setupId && s.circuit === circuit,
+  );
+  if (!sameCondition) return null;
+  const hot = sameCondition.tireSettings;
+  return carryOverPressures(
+    {
+      circuit: sameCondition.circuit,
+      tireSetId: sameCondition.tireInfo?.tireSetId ?? null,
+      hot: {
+        fl: hot?.fl?.after ?? null,
+        fr: hot?.fr?.after ?? null,
+        rl: hot?.rl?.after ?? null,
+        rr: hot?.rr?.after ?? null,
+      },
+    },
+    { circuit, tireSetId: tireSetId || null },
+  );
+}, [tireUsageSetups, setupId, circuit, tireSetId]);
+
+// ── 環境データの自動取得 ────────────────────────────────────────────
+// 気温・湿度・気圧・天候はドライバーが体感で入れる値ではなく観測値なので、聞かずに取る。
+// 現在地（サーキットに居る前提）が取れればそれを、駄目ならサーキット名から座標を引く。
+// 新規記録で、かつ未入力のときだけ入れる。既にある値は上書きしない（手入力を尊重する）。
+const autoWeatherTriedRef = useRef(false);
+// 自動取得で埋めた項目。ドライバーが実測値と取り違えないよう画面に出す。
+// 保存データへの出所記録は未設計（docs/pit-layer3-variable-fields-options.md の論点3）
+const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
+useEffect(() => {
+  if (isViewMode || setupId) return;
+  if (autoWeatherTriedRef.current) return;
+  // 何も未入力でなければ取りに行かない
+  if (airTemp !== '' && humidity !== '' && pressure !== '' && weatherCondition !== '') return;
+  autoWeatherTriedRef.current = true;
+
+  let cancelled = false;
+  (async () => {
+    const here = await getCurrentPosition();
+    // 現在地がサーキット圏内ならそこ、駄目なら選択中のサーキット名から引く
+    const track = (here && nearestTrack(here)) ?? findTrackByName(circuit);
+    const coords = here ?? (track ? trackCenter(track) : null);
+    if (!coords) return;
+
+    const w = await fetchWeatherAt(coords);
+    if (cancelled) return;
+
+    // 取れた項目だけを、未入力の欄にだけ入れる。取れなかったものは null のまま
+    const filled = new Set<string>();
+    if (w.airTemp != null && airTemp === '') {
+      setAirTemp(String(Math.round(w.airTemp * 10) / 10)); filled.add('airTemp');
+    }
+    if (w.humidity != null && humidity === '') {
+      setHumidity(String(Math.round(w.humidity))); filled.add('humidity');
+    }
+    if (w.pressure != null && pressure === '') {
+      setPressure(String(Math.round(w.pressure))); filled.add('pressure');
+    }
+    if (w.weather != null && weatherCondition === '') {
+      setWeatherCondition(w.weather); filled.add('weather');
+    }
+    if (filled.size > 0) setAutoFilledFields(filled);
+    // サーキット未入力なら現在地から埋める（打鍵を1つ減らす）
+    if (track && circuit === '') setCircuit(track.name);
+  })();
+
+  return () => { cancelled = true; };
+  // 起動時に一度だけ試す。以後は autoWeatherTriedRef で抑止する
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isViewMode, setupId]);
+// 起動ボタンの活性判定は「基本記録タスク」の未入力だけを見る。
+// 路面温度・湿度・気圧・天候・総周回数が空でも、記録としては成立するので急かさない。
+const quickEntryHasWork =
+  airTemp === '' || !tirePressureAllMeasured || bestLap === '' || !hasFeedback(drivingFeedback);
 
 // draft フィールド用のセッター（value に関数を渡すと functional update）。
 // これらを通すことで、全項目が単一の canonical state に集約される。
@@ -564,17 +715,39 @@ const handleSave = async () => {
     // 新規保存か更新かを判定（新規保存成功後は saved ID の URL へ遷移し、以後は更新経路になる）
     let savedSetupId = setupId;
     const isNew = computeIsNewSave({ setupId, isViewMode });
+    // 保存の帰結。'queued' は端末には入ったがサーバー未達（圏外）で、
+    // ドライバーには「保存できた/まだ送れていない」を区別して伝える。
+    // 後から同期が通ったら onLateWrite で伝え、未同期バッジを解除する。
+    const notifyLate = (_id: string, late: { outcome: string }) => {
+      if (late.outcome === 'synced') {
+        setPendingSync(false);
+        if (currentUser) clearDraft(currentUser.uid);
+        message.success(t('setup.messages.syncedLater'));
+      } else {
+        message.warning(t('setup.messages.syncFailedRetry'), 8);
+      }
+    };
+
+    // 帰結ごとに、事実と違うことを言わない:
+    //  synced = 送れた / queued = 端末に貯めた（復帰後に自動送信）
+    //  unsafe = どこにも貯まっていない（永続化が使えない環境）。成功と言ってはいけない
+    let saveOutcome: 'synced' | 'queued' | 'unsafe';
     if (!isNew) {
-      // 編集モードから保存する場合は更新
-      await updateSetup(setupId!, setupData);
-      message.success(t('setup.messages.setupUpdated'));
-      logger.log('Updated setup with ID:', setupId);
+      saveOutcome = await updateSetup(setupId!, setupData, notifyLate) as typeof saveOutcome;
+      logger.log('Updated setup with ID:', setupId, 'outcome:', saveOutcome);
     } else {
-      // 新規作成（セットアップ本体はここで1回だけ作成する）
-      const newSetupId = await saveSetup(setupData);
-      savedSetupId = newSetupId;
-      message.success(t('setup.messages.setupSaved'));
-      logger.log('Saved setup with ID:', newSetupId);
+      const saved = await saveSetup(setupData, notifyLate);
+      savedSetupId = saved.id;
+      saveOutcome = saved.outcome as typeof saveOutcome;
+      logger.log('Saved setup with ID:', saved.id, 'outcome:', saveOutcome);
+    }
+    setPendingSync(saveOutcome !== 'synced');
+    if (saveOutcome === 'unsafe') {
+      message.warning(t('setup.messages.savedUnsafe'), 10);
+    } else if (saveOutcome === 'queued') {
+      message.success(t('setup.messages.savedOffline'), 6);
+    } else {
+      message.success(isNew ? t('setup.messages.setupSaved') : t('setup.messages.setupUpdated'), 3);
     }
 
     // ベストラップ更新チェック＋ハイライト計算（同一サーキットの過去データと比較）
@@ -685,6 +858,9 @@ const handleSave = async () => {
     // これを navigate より前に同期実行することで、保存後の replace 遷移も
     // 離脱ガードにブロックされない（hasUnsavedChanges() が false を返す）。
     resetBaseline(savedDraft);
+    // 下書きを消してよいのは、サーバーか端末の永続キャッシュに確実に入ったときだけ。
+    // unsafe（どこにも貯まっていない）で消すと、アプリを閉じた瞬間に入力が消える。
+    if (currentUser && saveOutcome !== 'unsafe') clearDraft(currentUser.uid);
 
     // 新規保存が成功した後だけ、保存済みレコードの URL へ replace 遷移する。
     // 順序: (1)本体保存 → (2)ベストラップ比較・ハイライト → (3)テレメトリ保存 →
@@ -973,18 +1149,69 @@ return (
 <Header 
   settingsModal={settingsModal}
   setSettingsModal={setSettingsModal}
-  currentSettingView={currentSettingView}
-  setCurrentSettingView={setCurrentSettingView}
 />
 {/* メインコンテンツ */}
 <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+{/* 未同期バッジ: 端末には保存できたがサーバー未達。状態を隠さず出す */}
+{pendingSync && (
+  <div className="mb-4 flex items-center gap-2 rounded-lg border-2 border-orange-800 bg-orange-50 px-4 py-3 dark:border-orange-200 dark:bg-gray-700">
+    <i className="fas fa-cloud-arrow-up text-orange-900 dark:text-orange-200"></i>
+    <span className="text-base font-bold text-orange-900 dark:text-orange-200">
+      {t('setup.messages.pendingSyncBadge')}
+    </span>
+  </div>
+)}
+{/* 端末キャッシュが使えない環境: 圏外保存が消える可能性を隠さない。
+    ただし Emulator は永続化を意図的に挟まない開発経路なので出さない（誤報になる） */}
+{!isPersistenceEnabled && !isEmulatorMode && (
+  <div className="mb-4 flex items-center gap-2 rounded-lg border-2 border-orange-800 bg-orange-50 px-4 py-3 dark:border-orange-200 dark:bg-gray-700">
+    <i className="fas fa-triangle-exclamation text-orange-900 dark:text-orange-200"></i>
+    <span className="text-base font-bold text-orange-900 dark:text-orange-200">
+      {t('setup.messages.noOfflineCache')}
+    </span>
+  </div>
+)}
+{/* 下書きの復元確認: 黙って書き戻さず、必ず選ばせる */}
+{restorable && (
+  <div className="mb-4 rounded-lg border-2 border-blue-800 bg-blue-50 p-4 dark:border-blue-200 dark:bg-gray-700">
+    <p className="text-base font-bold text-gray-900 dark:text-gray-50">
+      {t('setup.messages.restoreDraftTitle', {
+        at: formatDateTime(new Date(restorable.savedAt), locale),
+      })}
+    </p>
+    <div className="mt-3 flex gap-2">
+      <button
+        type="button"
+        onClick={() => {
+          replaceDraft(restorable.draft);
+          setRestorable(null);
+        }}
+        className="flex-1 rounded-lg bg-blue-800 text-base font-bold text-white"
+        style={{ minHeight: 60 }}
+      >
+        {t('setup.messages.restoreDraftAccept')}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          if (currentUser) clearDraft(currentUser.uid);
+          setRestorable(null);
+        }}
+        className="flex-1 rounded-lg border-2 border-gray-700 bg-white text-base font-bold text-gray-900 dark:border-gray-200 dark:bg-gray-700 dark:text-gray-50"
+        style={{ minHeight: 60 }}
+      >
+        {t('setup.messages.restoreDraftDiscard')}
+      </button>
+    </div>
+  </div>
+)}
 {/* セッション情報バー */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 mb-6">
 {/* フィールドグリッド */}
 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
   {/* 日時 */}
   <div className="col-span-2 sm:col-span-1">
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup.dateTime')}</p>
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">{t('setup.dateTime')}</p>
     {isViewMode ? (
       <span className="block text-sm text-gray-800 dark:text-gray-200 font-medium py-1">
         {formatDateTime(sessionDate, locale)}
@@ -1000,7 +1227,7 @@ return (
   </div>
   {/* サーキット */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">
       {t('setup.circuit')} <span className="text-red-500">*</span>
     </p>
     <AutoComplete
@@ -1019,7 +1246,7 @@ return (
   </div>
   {/* 車両: 登録車両を選ぶ。未登録の場合だけ車種名を直接入力する。 */}
   <div className="col-span-2 sm:col-span-1 xl:col-span-2">
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">
       {t('setup.vehicle')} <span className="text-red-500">*</span>
     </p>
     <Select
@@ -1051,7 +1278,7 @@ return (
   </div>
   {/* ドライバー名 */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup.driver')}</p>
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">{t('setup.driver')}</p>
     <AutoComplete
       value={driver}
       onChange={setDriver}
@@ -1063,7 +1290,7 @@ return (
   </div>
   {/* セッション種別 */}
   <div>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('setup.sessionType')}</p>
+    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">{t('setup.sessionType')}</p>
     <Select
       value={sessionType}
       onChange={setSessionType}
@@ -1125,16 +1352,49 @@ return (
 </div>
 </div>
 {/* データ表示セクション */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" ref={quickEntryCardsRef} onKeyDown={handleQuickCardsKeyDown}>
 {/* 環境データ */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-<div className="flex flex-wrap items-center gap-2 mb-4">
-<i className="fas fa-temperature-high text-blue-500 dark:text-blue-400 mr-2"></i>
+<div
+  className="flex flex-wrap items-center gap-2 mb-4 cursor-pointer select-none"
+  style={{ minHeight: 60 }}
+  onClick={() => setEnvExpanded((v) => !v)}
+>
+<i className="fas fa-temperature-high text-blue-900 dark:text-blue-200 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.environment')}</h3>
-<div className="ml-auto text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-{t('setup.airTemperature')}: {airTemp !== '' ? `${airTemp}°C` : '—'} &nbsp; {t('setup.shortTrackTemperature')}: {trackTemp !== '' ? `${trackTemp}°C` : '—'}
+<span className={`ml-auto text-xs font-medium ${envFilledCount === envTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
+  {envFilledCount === envTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: envFilledCount, total: envTotal })}
+</span>
+<i className={`fas fa-chevron-${envExpanded ? 'up' : 'down'} text-gray-700 dark:text-gray-200 text-xs`}></i>
 </div>
-</div>
+{/* 自動取得した値であることを明示する。ピット実測と取り違えさせない */}
+{autoFilledFields.size > 0 && (
+  <p className="mb-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
+    <i className="fas fa-cloud-sun mr-1"></i>
+    {t('setup.messages.autoFilledNote')}
+  </p>
+)}
+{!envExpanded ? (
+  <div className="flex flex-wrap items-center gap-2" style={{ minHeight: 60 }} onClick={() => setEnvExpanded(true)}>
+    {([
+      ['setup.weather', weatherCondition ? t(`common.weather.${weatherCondition}`) : ''],
+      ['setup.airTemperature', airTemp !== '' ? `${airTemp}°C` : ''],
+      ['setup.shortTrackTemperature', trackTemp !== '' ? `${trackTemp}°C` : ''],
+      ['setup.humidity', humidity !== '' ? `${humidity}%` : ''],
+      ['setup.pressureHpa', pressure !== '' ? `${pressure}hPa` : ''],
+    ] as const).map(([labelKey, value]) => (
+      <span
+        key={labelKey}
+        className={value
+          ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50'
+          : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'}
+      >
+        {value ? `${t(labelKey)} ${value}` : t(labelKey)}
+      </span>
+    ))}
+  </div>
+) : (
+<>
 <div className="mb-4">
 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('setup.weather')}</label>
 <Select
@@ -1187,13 +1447,77 @@ inputMode="decimal"
 />
 </div>
 </div>
+</>
+)}
 </div>
 {/* タイヤ情報 */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-<div className="flex items-center mb-4">
-<i className="fas fa-tire text-blue-500 dark:text-blue-400 mr-2"></i>
+<div
+  className="flex items-center mb-4 cursor-pointer select-none"
+  style={{ minHeight: 60 }}
+  onClick={() => setTireExpanded((v) => !v)}
+>
+<i className="fas fa-tire text-blue-900 dark:text-blue-200 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.form.tireInfo')}</h3>
+<span className={`ml-auto text-xs font-medium ${tireFilledCount === tireTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
+  {tireFilledCount === tireTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: tireFilledCount, total: tireTotal })}
+</span>
+<i className={`fas fa-chevron-${tireExpanded ? 'up' : 'down'} text-gray-400 text-xs ml-2`}></i>
 </div>
+{!tireExpanded ? (
+  <div className="flex flex-wrap items-center gap-2" style={{ minHeight: 60 }} onClick={() => setTireExpanded(true)}>
+    {([
+      ['setup.form.manufacturer', tireBrand],
+      ['setup.form.productName', tireProductName],
+      ['setup.form.compound', tireCompound],
+    ] as const).map(([labelKey, value]) => (
+      <span
+        key={labelKey}
+        className={value
+          ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50'
+          : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'}
+      >
+        {value || t(labelKey)}
+      </span>
+    ))}
+    {/* ミニカー: 車体輪郭の四隅に空気圧(kPa)。未入力は点線「—」、目標レンジ外は橙文字 */}
+    <span className="relative inline-block h-[52px] w-[92px] align-middle" title={t('setup.form.tireSet')}>
+      <span className="absolute left-1/2 top-1 bottom-1 w-6 -translate-x-1/2 rounded-[10px_10px_8px_8px] border border-gray-300 dark:border-gray-600" />
+      {wheelKeys.map((w) => {
+        const raw = tirePressures[w][tireDisplayMode];
+        const num = raw === '' ? null : parseInt(raw, 10);
+        const target = getWheelTarget(
+          w,
+          targetPressures.front !== '' ? parseFloat(targetPressures.front) : null,
+          targetPressures.rear !== '' ? parseFloat(targetPressures.rear) : null,
+        );
+        const advice = calcPressureAdvice(Number.isNaN(num as number) ? null : num, target);
+        const posClass = w === 'fl' ? 'left-0 top-0' : w === 'fr' ? 'right-0 top-0' : w === 'rl' ? 'left-0 bottom-0' : 'right-0 bottom-0';
+        return (
+          <span
+            key={w}
+            className={`absolute ${posClass} rounded px-1 text-[11px] font-semibold tabular-nums ${
+              num == null
+                ? 'border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500'
+                : advice.status === 'green'
+                  ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+                  : 'bg-gray-100 text-orange-500 dark:bg-gray-700 dark:text-orange-400'
+            }`}
+          >
+            {num == null ? '—' : num}
+          </span>
+        );
+      })}
+    </span>
+    <span className={distance !== '' || fuel !== ''
+      ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50'
+      : 'rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-200'}
+    >
+      {distance !== '' ? `${distance}km` : t('setup.form.distanceKm')} / {fuel !== '' ? `${fuel}L` : t('setup.form.fuelL')}
+    </span>
+  </div>
+) : (
+<>
 {(selectedVehicleSetupConfig?.tire?.tireSetManagementEnabled || tireSetId) && (
   <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/60 dark:bg-blue-900/20">
     <label htmlFor="tire-set-select" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('setup.form.tireSet')}</label>
@@ -1352,13 +1676,19 @@ placeholder={t('setup.form.rearSizePlaceholder')}
   />
   </div>
 </div>
+</>
+)}
 </div>
 {/* ラップタイム */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
 <div className="flex items-center justify-between mb-4">
-<div className="flex items-center">
-<i className="fas fa-stopwatch text-blue-500 dark:text-blue-400 mr-2"></i>
+<div className="flex items-center cursor-pointer select-none" style={{ minHeight: 60 }} onClick={() => setLapExpanded((v) => !v)}>
+<i className="fas fa-stopwatch text-blue-900 dark:text-blue-200 mr-2"></i>
 <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t('setup.lap.title')}</h3>
+<span className={`ml-3 text-xs font-medium ${lapFilledCount === lapTotal ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'}`}>
+  {lapFilledCount === lapTotal ? t('setup.quickEntry.allFilled') : t('setup.quickEntry.filledCount', { filled: lapFilledCount, total: lapTotal })}
+</span>
+<i className={`fas fa-chevron-${lapExpanded ? 'up' : 'down'} text-gray-400 text-xs ml-2`}></i>
 </div>
 <div className="flex items-center gap-3">
 {!isViewMode && (
@@ -1387,6 +1717,23 @@ placeholder={t('setup.form.rearSizePlaceholder')}
 )}
 </div>
 </div>
+{!lapExpanded ? (
+  <div className="flex flex-wrap items-center gap-2" style={{ minHeight: 60 }} onClick={() => setLapExpanded(true)}>
+    <span className={bestLap !== ''
+      ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50 cursor-pointer'
+      : 'rounded-md border-2 border-dashed border-gray-700 dark:border-gray-200 px-2.5 py-1 text-sm text-gray-700 dark:text-gray-200 cursor-pointer'}
+    >
+      {bestLap !== '' ? `${t('setup.lap.bestLap')} ${bestLap}` : t('setup.lap.bestLap')}
+    </span>
+    <span className={totalLaps !== ''
+      ? 'rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-sm text-gray-900 dark:text-gray-50 cursor-pointer'
+      : 'rounded-md border-2 border-dashed border-gray-700 dark:border-gray-200 px-2.5 py-1 text-sm text-gray-700 dark:text-gray-200 cursor-pointer'}
+    >
+      {totalLaps !== '' ? `${t('setup.lap.totalLaps')} ${totalLaps}` : t('setup.lap.totalLaps')}
+    </span>
+  </div>
+) : (
+<>
 {/* ロガー証憑バッジ（manual 時は表示なし） */}
 {lapSource === 'logger' && lapEvidence && (
   <div className="mb-4 space-y-2">
@@ -1455,8 +1802,36 @@ placeholder={t('setup.form.rearSizePlaceholder')}
 )}
 </div>
 </div>
+</>
+)}
 </div>
 </div>
+{!isViewMode && quickEntryHasWork && (
+  <div className="-mt-4 mb-8 flex justify-center">
+    <button
+      type="button"
+      onClick={() => setShowQuickEntry(true)}
+      className="w-full max-w-md rounded-lg bg-blue-800 text-lg font-bold text-white hover:bg-blue-900"
+      style={{ minHeight: 64 }}
+    >
+      ▶ {t('setup.quickEntry.startButton')}
+    </button>
+  </div>
+)}
+<QuickEntryModal
+  open={showQuickEntry}
+  onClose={() => setShowQuickEntry(false)}
+  airTemp={airTemp}
+  setAirTemp={setAirTemp}
+  tirePressures={tirePressures}
+  setTirePressures={setTirePressures}
+  targetPressures={targetPressures}
+  bestLap={bestLap}
+  setBestLap={setBestLap}
+  drivingFeedback={drivingFeedback}
+  onFeedbackChange={onFeedbackChange}
+  carriedOverPressures={carriedOverPressures}
+/>
 {/* 設定タブセクション */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6">
 {(() => {
@@ -1571,7 +1946,8 @@ placeholder={t('setup.form.rearSizePlaceholder')}
     <button
       onClick={openDuplicatePreview}
       disabled={isLoadingPrevious}
-      className={`bg-blue-500 text-white px-4 py-3 rounded-full hover:bg-blue-600 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 ${isLoadingPrevious ? 'opacity-50 cursor-not-allowed' : ''}`}
+      style={{ minHeight: 60 }}
+      className={`bg-blue-800 text-white px-5 rounded-full hover:bg-blue-900 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 text-base font-bold ${isLoadingPrevious ? 'opacity-50 cursor-not-allowed' : ''}`}
       title={t('setup.actions.duplicateTooltip')}
     >
       {isLoadingPrevious ? (
@@ -1584,7 +1960,8 @@ placeholder={t('setup.form.rearSizePlaceholder')}
     <button
       onClick={handleSave}
       disabled={isSaving}
-      className={`bg-gray-800 text-white px-4 py-3 rounded-full hover:bg-gray-700 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+      style={{ minHeight: 60 }}
+      className={`bg-gray-900 text-white px-5 rounded-full hover:bg-gray-800 cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl !rounded-button whitespace-nowrap flex items-center gap-2 text-base font-bold ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
       title={t('setup.actions.save')}
     >
       {isSaving ? (
@@ -1800,7 +2177,7 @@ placeholder={t('setup.form.rearSizePlaceholder')}
                 ) : (
                   <i className="fas fa-minus-circle text-gray-300 dark:text-gray-600 text-xs"></i>
                 )}
-                <span className={item.filled ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'}>
+                <span className={item.filled ? 'text-gray-800 dark:text-gray-200' : 'text-gray-700 dark:text-gray-200'}>
                   {t(item.labelKey)}
                   {!item.filled && <span className="ml-1 text-xs">{t('setup.preview.sourceNotEntered')}</span>}
                 </span>

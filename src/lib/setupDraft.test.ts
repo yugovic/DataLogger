@@ -324,3 +324,51 @@ describe('欠損フィールドを持つ旧データの読込', () => {
     expect(carSetupSchema.safeParse(out).success).toBe(true);
   });
 });
+
+describe('draftToSetupInput: 評価項目を後から増やしたときの互換性', () => {
+  it('古い draft に無い評価項目があっても、null で埋めて保存できる', () => {
+    // midSpeed* を足したあと、それが無い draft を保存すると
+    // undefined が zod の number|null に当たって落ちた（実際に発生）
+    const draft = createEmptyDraft();
+    const feedback = { ...draft.drivingFeedback, lowSpeedEntry: 3 } as Record<string, unknown>;
+    delete feedback.midSpeedEntry;
+    delete feedback.midSpeedMiddle;
+    delete feedback.midSpeedExit;
+
+    const input = draftToSetupInput(
+      { ...draft, circuit: '鈴鹿', carModel: 'NSX', drivingFeedback: feedback as never },
+      'user-1',
+    );
+
+    expect(input.drivingFeedback).toBeDefined();
+    expect(input.drivingFeedback!.midSpeedEntry).toBeNull();
+    expect(input.drivingFeedback!.midSpeedMiddle).toBeNull();
+    expect(input.drivingFeedback!.midSpeedExit).toBeNull();
+    // 入っていた評価は保たれる
+    expect(input.drivingFeedback!.lowSpeedEntry).toBe(3);
+  });
+
+  it('保存前バリデーション（zod）を実際に通る', () => {
+    // 落ちたのは zod なので、そこまで通ることを確認する
+    const draft = createEmptyDraft();
+    const feedback = { ...draft.drivingFeedback, lowSpeedEntry: 3 } as Record<string, unknown>;
+    delete feedback.midSpeedEntry;
+    delete feedback.midSpeedMiddle;
+    delete feedback.midSpeedExit;
+
+    const input = draftToSetupInput(
+      { ...draft, circuit: '鈴鹿', carModel: 'NSX', drivingFeedback: feedback as never },
+      'user-1',
+    );
+    const parsed = carSetupSchema.safeParse(input);
+    expect(
+      parsed.success ? [] : parsed.error.issues.map((i) => i.path.join('.')),
+    ).toEqual([]);
+  });
+
+  it('全項目未評価なら drivingFeedback ごと省く（デモ初期値を保存しない）', () => {
+    const draft = createEmptyDraft();
+    const input = draftToSetupInput({ ...draft, circuit: '鈴鹿', carModel: 'NSX' }, 'user-1');
+    expect(input.drivingFeedback).toBeUndefined();
+  });
+});

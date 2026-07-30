@@ -6,13 +6,72 @@
    （pointer:coarse のみ適用し、マウス環境の高密度レイアウトは維持する。
    横幅が足りない場合は StepNumber の flex-wrap で折り返すため重ならない） */
 @media (pointer: coarse) {
+  /* ピット（グローブ着用）で確実に押せる寸法。WCAG の 44px ではまだ小さく、
+     実機計測でも押し損ねが出たため 60px を最低線とする。 */
   .vl-step-btn.ant-btn {
-    min-width: 44px !important;
-    min-height: 44px !important;
+    min-width: 60px !important;
+    min-height: 60px !important;
   }
-  .vl-step-input .ant-input-number-input {
-    min-height: 40px;
+  .vl-step-input .ant-input-number-input,
+  .vl-step-input .ant-input-number {
+    min-height: 60px;
   }
+  /* 数値・テキスト入力とセレクトも同じ最低線に揃える。
+     注意: 内側（.ant-select-selector）だけを 60px にすると、外側の .ant-select は
+     32px のままなので下へ 28px はみ出し、次の項目のラベルに重なる（実機で発生）。
+     外側の箱にも同じ高さを与えること。検出は node audit/check-layout.mjs。 */
+  .ant-select,
+  .ant-select-selector,
+  .ant-input-number,
+  .ant-input-number-input,
+  .ant-input,
+  .ant-picker {
+    min-height: 60px !important;
+  }
+  /* 高さを増やしたぶん、中身は縦中央に置く。
+     line-height で合わせる方式は、選択肢が2行になると破綻するので使わない */
+  .ant-select-single .ant-select-selector {
+    display: flex !important;
+    align-items: center !important;
+  }
+  .ant-select-single .ant-select-selector .ant-select-selection-item,
+  .ant-select-single .ant-select-selector .ant-select-selection-placeholder {
+    line-height: 1.4 !important;
+  }
+  .ant-select-single .ant-select-selector .ant-select-selection-search {
+    display: flex !important;
+    align-items: center !important;
+  }
+  /* タブは指で切り替える主要動線 */
+  .ant-tabs-tab {
+    min-height: 60px !important;
+  }
+  /* タブの「>>」overflow ボタンも同じ最低線にする */
+  .ant-tabs-nav-more {
+    min-width: 60px !important;
+    min-height: 60px !important;
+  }
+  /* 折りたたみパネルの見出しも指で開く主要動線 */
+  .vl-pit-collapse .ant-collapse-header {
+    min-height: 60px !important;
+    align-items: center !important;
+  }
+}
+
+/* 入力欄の境界: 既定の gray-300 相当(1.4:1)では枠が見えず、
+   どこを押せるのか分からない。対白 7:1 以上の枠にする。 */
+.ant-input,
+.ant-input-number,
+.ant-select-selector,
+.ant-picker {
+  border-color: rgb(55 65 81) !important;   /* gray-700 / 白 = 10.3:1 */
+  border-width: 2px !important;
+}
+.dark .ant-input,
+.dark .ant-input-number,
+.dark .ant-select-selector,
+.dark .ant-picker {
+  border-color: rgb(229 231 235) !important; /* gray-200 / gray-700 = 8.3:1 */
 }
 
 /* Ant Design ダークモード対応 */
@@ -23,8 +82,8 @@
 .dark .ant-checkbox-inner,
 .dark .ant-radio-inner {
   background-color: rgb(55 65 81) !important;
-  border-color: rgb(75 85 99) !important;
-  color: rgb(229 231 235) !important;
+  border-color: rgb(229 231 235) !important; /* gray-200 / gray-700 = 8.3:1 */
+  color: rgb(249 250 251) !important;
 }
 
 .dark .ant-input:hover,
@@ -45,7 +104,7 @@
 }
 
 .dark .ant-input::placeholder {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-select-dropdown,
@@ -81,35 +140,47 @@
   background: rgb(59 130 246) !important;
 }
 
-/* Tabsのダークモード対応 */
+/* Tabs: 直射日光下で読めるよう、対背景 7:1 以上の色に固定する。
+   gray-400(2.4:1) や blue-500(3.7:1) は使わない。 */
+.ant-tabs-tab {
+  color: rgb(55 65 81) !important;        /* gray-700 / 白 = 10.3:1 */
+}
+.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: rgb(30 64 175) !important;       /* blue-800 / 白 = 8.7:1 */
+}
+.ant-tabs-ink-bar {
+  background: rgb(30 64 175) !important;
+  height: 4px !important;
+}
+
 .dark .ant-tabs-tab {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;     /* gray-200 / gray-700 = 8.3:1 */
 }
 
 .dark .ant-tabs-tab:hover {
-  color: rgb(229 231 235) !important;
+  color: rgb(249 250 251) !important;
 }
 
 .dark .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
-  color: rgb(59 130 246) !important;
+  color: rgb(191 219 254) !important;     /* blue-200 / gray-700 = 7.3:1 */
 }
 
 .dark .ant-tabs-ink-bar {
-  background: rgb(59 130 246) !important;
+  background: rgb(191 219 254) !important;
 }
 
 /* AutoCompleteのダークモード対応 */
 .dark .ant-select-selection-placeholder {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 /* Select内のアイコンとテキストのダークモード対応 */
 .dark .ant-select-arrow {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-select-clear {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
   background-color: transparent !important;
 }
 
@@ -142,11 +213,11 @@
 
 /* DatePicker内のアイコンの色修正 */
 .dark .ant-picker-suffix {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-picker-clear {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
   background-color: transparent !important;
 }
 
@@ -155,7 +226,7 @@
 }
 
 .dark .ant-picker-separator {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-input-group-addon {
@@ -180,7 +251,7 @@
 }
 
 .dark .ant-modal-close {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .ant-modal-close:hover {
@@ -557,16 +628,19 @@
   color: rgb(229 231 235) !important;
 }
 
+/* ダークでの補助文字。gray-400(156,163,175) は地に対して 4.06:1 しか出ず、
+   このプロジェクトの合格線 7:1 を割っていた（audit/measure.mjs の skin シーンで検出）。
+   gray-200 なら gray-700 上で 8.3:1、gray-800 上で 11.9:1 になる。 */
 .dark .text-gray-500 {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .text-gray-400 {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .text-gray-600 {
-  color: rgb(156 163 175) !important;
+  color: rgb(229 231 235) !important;
 }
 
 .dark .text-gray-700 {
@@ -693,3 +767,120 @@
   border-color: rgb(59 130 246) !important;
   box-shadow: 0 0 0 2px rgb(59 130 246 / 20%) !important;
 }
+/* ===== 既存画面（履歴・比較・ダッシュボード）のコントラスト補正 =====
+   ピット要件は 7:1。QuickEntry 系は個別に直したが、これらの画面は
+   Tailwind 既定の中間色（gray-500/600、*-700 系）のままで 4.6〜6.7:1 しか
+   出ていなかった（node audit/measure.mjs の skin シーンで検出）。
+   コンポーネントを1つずつ書き換える代わりに、使われている色だけを
+   一段濃い側へ寄せる。実測値はコメントの通り。 */
+
+/* ライト面（地は白〜gray-50） */
+.text-gray-500 { color: rgb(55 65 81); }    /* 4.63 -> 10.3:1 (gray-700) */
+.text-gray-600 { color: rgb(55 65 81); }    /* 4.83 -> 10.3:1 */
+.text-slate-500 { color: rgb(51 65 85); }   /* 4.76 -> 10.0:1 (slate-700) */
+.text-green-700 { color: rgb(20 83 45); }   /* 5.02 -> 8.7:1  (green-900) */
+.text-emerald-700 { color: rgb(6 78 59); }  /* 5.48 -> 9.6:1  (emerald-900) */
+.text-amber-700 { color: rgb(120 53 15); }  /* 5.02 -> 9.0:1  (amber-900) */
+.text-red-700 { color: rgb(127 29 29); }    /* 6.47 -> 9.3:1  (red-900) */
+.text-blue-700 { color: rgb(30 58 138); }   /* 6.70 -> 9.8:1  (blue-900) */
+.text-violet-700 { color: rgb(76 29 149); } /* violet-900 */
+
+/* ダーク面（地は gray-800/900）。薄すぎる補助色を一段明るい側へ。
+   Tailwind は `.dark\:text-x:is(.dark *)` を生成し詳細度が同じ (0,2,0) になるので、
+   :root を足して確実に上書きする（順序に依存させない） */
+:root.dark .dark\:text-gray-400 { color: rgb(209 213 219); } /* 4.06 -> 9.0:1 (gray-300) */
+:root.dark .dark\:text-gray-500 { color: rgb(209 213 219); }
+:root.dark .dark\:text-slate-400 { color: rgb(203 213 225); } /* slate-300 */
+:root.dark .dark\:text-green-400 { color: rgb(134 239 172); } /* green-300 */
+:root.dark .dark\:text-emerald-400 { color: rgb(110 231 183); } /* emerald-300 */
+:root.dark .dark\:text-amber-300 { color: rgb(253 230 138); } /* amber-200 */
+:root.dark .dark\:text-red-400 { color: rgb(252 165 165); }  /* red-300 */
+:root.dark .dark\:text-blue-400 { color: rgb(147 197 253); } /* blue-300 */
+:root.dark .dark\:text-violet-400 { color: rgb(196 181 253); } /* violet-300 */
+
+/* ===== 洗練モード（appearance = refined）のスキン層 =====
+   ThemeContext が :root へ .refined と .dark を付ける。既存画面は dark: の
+   ユーティリティで組まれているので、その色だけを洗練モードの配色へ差し替える。
+   各画面のコンポーネントを複製せずに全画面へ効かせるための層。
+
+   配色の根拠と検証は src/lib/pitTheme.ts / pitTheme.test.ts、
+   実測は node audit/measure.mjs（refined シーン）にある。
+
+   注意: Tailwind のクラス名に依存しているので、画面側で使う色を増やしたら
+   ここにも足すこと。抜けは audit/measure.mjs のコントラスト計測で落ちる。 */
+
+:root.refined body {
+  background-color: #06070a;
+  color: #f6f5e8;
+}
+
+/* 面: 地 → カード → キーの3階層 */
+:root.refined .dark\:bg-gray-900,
+:root.refined .dark\:bg-slate-900,
+:root.refined .dark\:bg-slate-950 { background-color: #06070a !important; }
+
+:root.refined .dark\:bg-gray-800 { background-color: #101218 !important; }
+:root.refined .dark\:bg-gray-700 { background-color: #14171f !important; }
+
+/* 罫線は見えないと押す場所が分からないので、地との差を確保する */
+:root.refined .dark\:border-gray-700,
+:root.refined .dark\:border-gray-600,
+:root.refined .dark\:border-slate-800,
+:root.refined .dark\:border-slate-700 { border-color: #232733 !important; }
+
+/* 本文（骨色。純白は使わない） */
+:root.refined .dark\:text-gray-50,
+:root.refined .dark\:text-gray-100,
+:root.refined .dark\:text-gray-200,
+:root.refined .dark\:text-gray-300,
+:root.refined .dark\:text-slate-100,
+:root.refined .dark\:text-slate-300,
+:root.refined .dark\:text-white { color: #f6f5e8 !important; }
+
+/* 補助文字。対 #06070a で 8.3:1 */
+:root.refined .dark\:text-gray-400,
+:root.refined .dark\:text-gray-500,
+:root.refined .dark\:text-slate-400 { color: #a8a79b !important; }
+
+/* 意味を持つ色。良い/注意/警告の3つだけに絞る */
+:root.refined .dark\:text-green-300,
+:root.refined .dark\:text-green-400,
+:root.refined .dark\:text-emerald-400 { color: #8fe0a4 !important; }
+
+:root.refined .dark\:text-amber-300,
+:root.refined .dark\:text-orange-200,
+:root.refined .dark\:text-orange-300,
+:root.refined .dark\:text-yellow-300 { color: #f0b37a !important; }
+
+:root.refined .dark\:text-red-400,
+:root.refined .dark\:text-red-300 { color: #f4a09a !important; }
+
+/* 強調（リンク・見出しのアクセント）は骨色へ寄せ、色数を増やさない */
+:root.refined .dark\:text-blue-300,
+:root.refined .dark\:text-blue-400,
+:root.refined .dark\:text-violet-400 { color: #cfd8e8 !important; }
+
+/* 目立たせる帯・バッジの地 */
+:root.refined .dark\:bg-yellow-900,
+:root.refined .dark\:bg-blue-900\/30,
+:root.refined .dark\:bg-blue-900\/20 { background-color: #1a1712 !important; }
+
+/* Ant Design 側も同じ面に揃える */
+:root.refined .ant-input,
+:root.refined .ant-input-number,
+:root.refined .ant-input-number-input,
+:root.refined .ant-select-selector,
+:root.refined .ant-picker {
+  background-color: #14171f !important;
+  border-color: #232733 !important;
+  color: #f6f5e8 !important;
+}
+:root.refined .ant-modal-content,
+:root.refined .ant-select-dropdown,
+:root.refined .ant-picker-panel-container {
+  background-color: #101218 !important;
+  color: #f6f5e8 !important;
+}
+:root.refined .ant-tabs-tab { color: #a8a79b !important; }
+:root.refined .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn { color: #f6f5e8 !important; }
+:root.refined .ant-tabs-ink-bar { background: #f6f5e8 !important; }
