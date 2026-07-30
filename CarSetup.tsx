@@ -46,8 +46,9 @@ import {
 import { LapTimeModal } from './src/components/setup/modals/LapTimeModal';
 import { QuickEntryModal } from './src/components/setup/QuickEntryModal';
 import { carryOverPressures } from './src/lib/quickEntryFlow';
+import { hasFeedback } from './src/lib/cornerFeedback';
 import { saveDraft, loadDraft, clearDraft, isDraftWorthRestoring } from './src/lib/draftStorage';
-import { isPersistenceEnabled } from './src/lib/firebase';
+import { isPersistenceEnabled, isEmulatorMode } from './src/lib/firebase';
 import { fetchWeatherAt, getCurrentPosition, nearestTrack, findTrackByName, trackCenter } from './src/lib/autoWeather';
 import { SessionHighlightModal } from './src/components/setup/SessionHighlightModal';
 import { computeSessionHighlight } from './src/lib/sessionHighlights';
@@ -439,7 +440,7 @@ useEffect(() => {
 // 起動ボタンの活性判定は「基本記録タスク」の未入力だけを見る。
 // 路面温度・湿度・気圧・天候・総周回数が空でも、記録としては成立するので急かさない。
 const quickEntryHasWork =
-  airTemp === '' || !tirePressureAllMeasured || bestLap === '' || drivingFeedback.overallBalance == null;
+  airTemp === '' || !tirePressureAllMeasured || bestLap === '' || !hasFeedback(drivingFeedback);
 
 // draft フィールド用のセッター（value に関数を渡すと functional update）。
 // これらを通すことで、全項目が単一の canonical state に集約される。
@@ -1160,8 +1161,9 @@ return (
     </span>
   </div>
 )}
-{/* 端末キャッシュが使えない環境: 圏外保存が消える可能性を隠さない */}
-{!isPersistenceEnabled && (
+{/* 端末キャッシュが使えない環境: 圏外保存が消える可能性を隠さない。
+    ただし Emulator は永続化を意図的に挟まない開発経路なので出さない（誤報になる） */}
+{!isPersistenceEnabled && !isEmulatorMode && (
   <div className="mb-4 flex items-center gap-2 rounded-lg border-2 border-orange-800 bg-orange-50 px-4 py-3 dark:border-orange-200 dark:bg-gray-700">
     <i className="fas fa-triangle-exclamation text-orange-900 dark:text-orange-200"></i>
     <span className="text-base font-bold text-orange-900 dark:text-orange-200">
@@ -1826,8 +1828,8 @@ placeholder={t('setup.form.rearSizePlaceholder')}
   targetPressures={targetPressures}
   bestLap={bestLap}
   setBestLap={setBestLap}
-  feeling={drivingFeedback.overallBalance ?? null}
-  setFeeling={(v) => onFeedbackChange('overallBalance', v)}
+  drivingFeedback={drivingFeedback}
+  onFeedbackChange={onFeedbackChange}
   carriedOverPressures={carriedOverPressures}
 />
 {/* 設定タブセクション */}

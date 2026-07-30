@@ -57,6 +57,13 @@ const useEmulator = import.meta.env.VITE_USE_EMULATOR === '1'
  */
 export let isPersistenceEnabled = false;
 
+/**
+ * Emulator に繋いでいるか。開発用の経路では永続化を意図的に挟まないので、
+ * 「圏外保存を貯められません」の警告を出すと毎回の誤報になる。
+ * 本番の判定（isPersistenceEnabled）とは別に持つ。
+ */
+export const isEmulatorMode = useEmulator;
+
 function createDb() {
   // Emulator 接続時はブラウザ側の永続化を挟まない（検証時の状態を持ち越さないため）
   if (useEmulator) return getFirestore(app);
